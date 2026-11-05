@@ -1,0 +1,188 @@
+/* Standalone UTLT.ai UI. No framework, build step, animation, or network calls.
+   Icon paths: Tabler Icons v3.44.0, MIT. */
+(function () {
+  "use strict";
+
+  const state = {
+    screen: "home",
+    utility: "Water",
+    breakdown: "use",
+    dark: false,
+    name: "Hrishi Varun",
+    email: "hrishi@example.com",
+    homeName: "My home",
+    goal: 350,
+    saved: false,
+    device: { connected: false, lastConnectedAt: null },
+    readings: window.UTLTData.demoReadings,
+    usingDemo: true
+  };
+  const root = document.getElementById("app");
+  const circumference = 2 * Math.PI * 84;
+
+  function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    })[char]);
+  }
+  function number(value) { return Number(value.toFixed(1)); }
+
+  const paths = {
+    home: '<path d="M5 12l-2 0l9 -9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M10 12h4v4h-4l0 -4"/>',
+    plus: '<path d="M9 12h6"/><path d="M12 9v6"/><path d="M3 5a2 2 0 0 1 2 -2h14a2 2 0 0 1 2 2v14a2 2 0 0 1 -2 2h-14a2 2 0 0 1 -2 -2v-14"/>',
+    user: '<path d="M3 12a9 9 0 1 0 18 0a9 9 0 1 0 -18 0"/><path d="M9 10a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M6.168 18.849a4 4 0 0 1 3.832 -2.849h4a4 4 0 0 1 3.834 2.855"/>',
+    settings: '<path d="M10.325 4.317c.426 -1.756 2.924 -1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543 -.94 3.31 .826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756 .426 1.756 2.924 0 3.35a1.724 1.724 0 0 0 -1.066 2.573c.94 1.543 -.826 3.31 -2.37 2.37a1.724 1.724 0 0 0 -2.572 1.065c-.426 1.756 -2.924 1.756 -3.35 0a1.724 1.724 0 0 0 -2.573 -1.066c-1.543 .94 -3.31 -.826 -2.37 -2.37a1.724 1.724 0 0 0 -1.065 -2.572c-1.756 -.426 -1.756 -2.924 0 -3.35a1.724 1.724 0 0 0 1.066 -2.573c-.94 -1.543 .826 -3.31 2.37 -2.37c1 .608 2.296 .07 2.572 -1.065"/><path d="M9 12a3 3 0 1 0 6 0a3 3 0 0 0 -6 0"/>',
+    moon: '<path d="M12 3c.132 0 .263 0 .393 0a7.5 7.5 0 0 0 7.92 12.446a9 9 0 1 1 -8.313 -12.454l0 .008"/>',
+    sun: '<path d="M8 12a4 4 0 1 0 8 0a4 4 0 1 0 -8 0"/><path d="M3 12h1m8 -9v1m8 8h1m-9 8v1m-6.4 -15.4l.7 .7m12.1 -.7l-.7 .7m0 11.4l.7 .7m-12.1 -.7l-.7 .7"/>',
+    bluetooth: '<path d="M7 8l10 8l-5 4l0 -16l5 4l-10 8"/>',
+    bluetoothOff: '<path d="M3 3l18 18"/><path d="M16.438 16.45l-4.438 3.55v-8m0 -4v-4l5 4l-2.776 2.22m-2.222 1.779l-5 4"/>',
+    check: '<path d="M5 12l5 5l10 -10"/>',
+    chevron: '<path d="M9 6l6 6l-6 6"/>'
+  };
+  function icon(name, size = 24) {
+    return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
+  }
+
+  function header() {
+    const title = state.screen === "account" ? "Account" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : `${state.name.split(" ")[0] || "Your"}’s UTLT`;
+    const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
+    let actions = "";
+    if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
+    if (state.screen === "account" || state.screen === "device") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
+    return `<header class="utlt-header ${state.screen === "pair" ? "utlt-header-pair" : ""}"><div class="utlt-title ${state.screen === "pair" ? "utlt-pair-title" : ""}"><span>${escapeHtml(title)}</span>${connection}</div>${actions}</header>`;
+  }
+
+  function utilityTabs() {
+    const utilities = [["Water", "#1688f8"], ["Gas", "#528c00"], ["Electricity", "#baa500"]];
+    return `<div class="utlt-pills" role="tablist" aria-label="Utility type">${utilities.map(([name, color]) => `<button class="utlt-pill ${state.utility === name ? "is-active" : ""}" role="tab" aria-selected="${state.utility === name}" data-action="utility" data-value="${name}" style="--utility-color:${color}">${name}</button>`).join("")}</div>`;
+  }
+
+  function usage(summary) {
+    const goal = Math.max(1, Number(state.goal) || 350);
+    const percent = Math.round(summary.used / goal * 100);
+    const dash = Math.min(summary.used / goal, 1) * circumference;
+    return `<section class="utlt-usage"><div class="utlt-donut"><svg viewBox="0 0 193 193" role="img" aria-label="${percent} percent of daily water goal used"><defs><linearGradient id="utlt-water-gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="var(--utlt-ring-start)"/><stop offset="100%" stop-color="var(--utlt-ring-end)"/></linearGradient></defs><circle class="utlt-donut-track" cx="96.5" cy="96.5" r="84"/><circle class="utlt-donut-value" cx="96.5" cy="96.5" r="84" style="stroke-dasharray:${dash} ${circumference}"/></svg><div class="utlt-donut-label"><strong>${percent}%</strong><span>Used</span></div></div><div class="utlt-usage-summary"><strong>${number(summary.used)}</strong><span>/ ${goal} Litres</span></div></section>`;
+  }
+
+  function status(summary) {
+    const over = summary.used > Math.max(1, Number(state.goal) || 350);
+    return `<section class="utlt-status-card is-${over ? "over-goal" : "on-track"}" aria-live="polite"><div><strong>${over ? "Above today’s goal" : "You’re on track for today!"}</strong><p>${over ? "You’ve used more than your chosen daily goal." : "Keep your usual routine. No action needed right now."}</p></div></section>`;
+  }
+
+  function polar(angle) {
+    const radians = angle * Math.PI / 180;
+    return [88 + 82 * Math.sin(radians), 88 - 82 * Math.cos(radians)];
+  }
+  function sector(from, to) {
+    const [x1, y1] = polar(from);
+    const [x2, y2] = polar(to);
+    return `M 88 88 L ${x1} ${y1} A 82 82 0 ${to - from > 180 ? 1 : 0} 1 ${x2} ${y2} Z`;
+  }
+  function breakdown(summary) {
+    const slices = state.breakdown === "use" ? summary.byUse : summary.byTime;
+    const total = slices.reduce((sum, slice) => sum + slice.litres, 0);
+    let angle = 0;
+    const sectors = slices.map((slice) => {
+      const sweep = total ? slice.litres / total * 360 : 0;
+      const from = angle;
+      angle += sweep;
+      return sweep > 0 ? `<path d="${sector(from, angle)}" fill="${slice.color}" stroke="${slice.color}" stroke-width="0.6"/>` : "";
+    }).join("");
+    return `<section class="utlt-glance"><h2>A Glance at Your Day</h2><div class="utlt-breakdown-switch" role="tablist" aria-label="Water breakdown"><button type="button" role="tab" aria-selected="${state.breakdown === "use"}" class="${state.breakdown === "use" ? "is-selected" : ""}" data-action="breakdown" data-value="use">By use</button><button type="button" role="tab" aria-selected="${state.breakdown === "time"}" class="${state.breakdown === "time" ? "is-selected" : ""}" data-action="breakdown" data-value="time">By time</button></div><div class="utlt-kokonut-card"><div class="utlt-kokonut-card-head"><span>WATER BY ${state.breakdown.toUpperCase()}</span><strong>${number(total)} <small>L total</small></strong></div><svg class="utlt-kokonut-pie" viewBox="0 0 176 176" role="img" aria-label="Water usage by ${state.breakdown === "use" ? "activity" : "time of day"}, ${number(total)} litres total"><circle cx="88" cy="88" r="82" fill="var(--utlt-panel)"/>${sectors}</svg><ul class="utlt-kokonut-legend">${slices.map((slice) => `<li><span class="utlt-kokonut-swatch" style="background-color:${slice.color}"></span><span class="utlt-kokonut-legend-copy"><span>${escapeHtml(slice.label)}</span><strong>${number(slice.litres)} L</strong></span></li>`).join("")}</ul></div><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
+  }
+
+  function weekly(summary) {
+    const goal = Math.max(1, Number(state.goal) || 350);
+    const scale = Math.max(goal, ...summary.daily.map((day) => day.litres), 1) * 1.08;
+    const baseline = 144;
+    const goalY = baseline - goal / scale * 112;
+    const average = summary.daily.length ? summary.daily.reduce((sum, day) => sum + day.litres, 0) / summary.daily.length : 0;
+    const bars = summary.daily.map((item, index) => {
+      const [year, month, day] = item.date.split("-").map(Number);
+      const label = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(year, month - 1, day));
+      const x = 14 + index * 46;
+      const height = Math.max(2, item.litres / scale * 112);
+      const y = baseline - height;
+      const latest = index === summary.daily.length - 1 ? " is-latest" : "";
+      return `<g><rect class="utlt-trend-bar${latest}" x="${x}" y="${y}" width="31" height="${height}" rx="5"/><text class="utlt-trend-value${latest}" x="${x + 15.5}" y="${Math.max(14, y - 7)}" text-anchor="middle">${Math.round(item.litres)}</text><text class="utlt-trend-date" x="${x + 15.5}" y="164" text-anchor="middle">${label}</text></g>`;
+    }).join("");
+    return `<section class="utlt-week"><h2>See Across Days</h2><div class="utlt-trend-card"><div class="utlt-trend-head"><span>LAST ${summary.daily.length} DAYS</span><strong>Goal ${goal} L</strong></div><svg class="utlt-trend-plot" viewBox="0 0 300 175" role="img" aria-label="Water usage over the last ${summary.daily.length} days, daily goal ${goal} litres"><line class="utlt-trend-goal" x1="8" x2="292" y1="${goalY}" y2="${goalY}"/><line class="utlt-trend-baseline" x1="8" x2="292" y1="${baseline}" y2="${baseline}"/>${bars}</svg><div class="utlt-trend-footer"><span>Daily average</span><strong>${Math.round(average)} L</strong></div></div></section>`;
+  }
+
+  function dashboard() {
+    const summary = window.UTLTData.summarize(state.readings);
+    return `<div class="utlt-dashboard">${usage(summary)}${status(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+  }
+
+  function devicePage() {
+    const connected = state.device.connected;
+    const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
+      ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "—";
+    return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "No device paired"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your water monitor is ready to send readings." : "The dashboard is showing demo readings. Pair a water monitor to show measurements from your home."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "Manage your device" : "Pair your device"}</button><p class="utlt-device-help">Your monitor sends flow readings to UTLT over Wi-Fi. The ring and six-day chart use those readings. The daily breakdown uses readings labeled by activity; unlabeled water appears under Misc.</p></section>`;
+  }
+
+  function accountPage() {
+    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>UTLT account</span></div><span class="utlt-connected"><i></i> Active</span></div><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
+  }
+
+  function nav() {
+    return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-label="Home">${icon("home", 28)}</button><button class="${state.screen === "pair" ? "is-current" : ""}" data-action="pair" aria-label="Add device">${icon("plus", 28)}</button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-label="Account"><span class="utlt-tab-avatar">${icon("user", 20)}</span></button></nav>`;
+  }
+
+  function render(preserveScroll = false) {
+    const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
+    const compact = state.screen === "home" && state.utility !== "Water";
+    const content = state.screen === "home"
+      ? utilityTabs() + (state.utility === "Water" ? dashboard() : `<section class="utlt-unavailable">${state.utility} Visual not available for Demo</section>`)
+      : state.screen === "device" ? devicePage()
+      : state.screen === "account" ? accountPage()
+      : '<div class="utlt-pair-empty"></div>';
+    root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>`;
+    const scroller = root.querySelector(".utlt-content");
+    if (scroller) scroller.scrollTop = previousScroll;
+  }
+
+  root.addEventListener("click", (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button) return;
+    const action = button.dataset.action;
+    if (action === "theme") state.dark = !state.dark;
+    else if (action === "utility") state.utility = button.dataset.value;
+    else if (action === "breakdown") state.breakdown = button.dataset.value;
+    else if (["home", "pair", "account", "device"].includes(action)) { state.screen = action; state.saved = false; }
+    render(action === "theme" || action === "utility" || action === "breakdown");
+  });
+  root.addEventListener("submit", (event) => {
+    if (event.target.id !== "utlt-account-form") return;
+    event.preventDefault();
+    const form = new FormData(event.target);
+    state.name = String(form.get("name") || "").trim();
+    state.email = String(form.get("email") || "").trim();
+    state.homeName = String(form.get("homeName") || "").trim();
+    state.goal = Math.max(1, Number(form.get("goal")) || 350);
+    state.saved = true;
+    render(true);
+  });
+
+  // Integration surface for the future device bridge. Call these from your
+  // Bluetooth/Wi-Fi adapter after receiving readings or connection updates.
+  window.UTLT = Object.freeze({
+    setReadings(readings) {
+      if (!Array.isArray(readings)) throw new TypeError("Readings must be an array");
+      state.readings = readings;
+      state.usingDemo = false;
+      render(true);
+    },
+    setDevice(device) {
+      state.device = {
+        connected: Boolean(device?.connected),
+        lastConnectedAt: device?.lastConnectedAt || state.device.lastConnectedAt
+      };
+      render(true);
+    },
+    getState() {
+      return { ...state, device: { ...state.device }, readings: [...state.readings] };
+    }
+  });
+  render();
+})();
