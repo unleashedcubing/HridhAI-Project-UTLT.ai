@@ -4,16 +4,16 @@
   "use strict";
 
   const categories = [
-    { label: "Food/Drink", color: "#006f9e" },
-    { label: "Bath", color: "#02b6ed" },
-    { label: "Housework", color: "#0986f5" },
-    { label: "Misc", color: "#08bfc9" }
+    { label: "Food/Drink", color: "#0a6fb3" },
+    { label: "Bath", color: "#19b5e8" },
+    { label: "Housework", color: "#7c5cfc" },
+    { label: "Misc", color: "#12c2a5" }
   ];
   const times = [
-    { label: "Morning", color: "#006f9e" },
-    { label: "Afternoon", color: "#02b6ed" },
-    { label: "Evening", color: "#0986f5" },
-    { label: "Night", color: "#08bfc9" }
+    { label: "Morning", color: "#f6b73c" },
+    { label: "Afternoon", color: "#19b5e8" },
+    { label: "Evening", color: "#7c5cfc" },
+    { label: "Night", color: "#0a4f8f" }
   ];
 
   const amounts = [
