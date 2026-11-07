@@ -1,4 +1,4 @@
-/* Standalone UTLT.ai UI. No framework, build step, animation, or network calls.
+/* Standalone UTLT.ai UI with Firebase Authentication and Cloud Firestore profile sync.
    Icon paths: Tabler Icons v3.44.0, MIT. */
 (function () {
   "use strict";
@@ -156,14 +156,14 @@
   }
 
   function usage(summary) {
-    const goal = Math.max(1, Number(state.goal) || 35);
+    const goal = Math.max(1, Number(state.goal) || 350);
     const percent = Math.round(summary.used / goal * 100);
     const dash = Math.min(summary.used / goal, 1) * circumference;
     return `<section class="utlt-usage"><div class="utlt-donut"><svg viewBox="0 0 193 193" role="img" aria-label="${percent} percent of daily water goal used"><defs><linearGradient id="utlt-water-gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="var(--utlt-ring-start)"/><stop offset="100%" stop-color="var(--utlt-ring-end)"/></linearGradient></defs><circle class="utlt-donut-track" cx="96.5" cy="96.5" r="84"/><circle class="utlt-donut-value" cx="96.5" cy="96.5" r="84" style="stroke-dasharray:${dash} ${circumference}"/></svg><div class="utlt-donut-label"><strong>${percent}%</strong><span>Used</span></div></div><div class="utlt-usage-summary"><strong>${number(summary.used)}</strong><span>/ ${goal} Litres</span></div></section>`;
   }
 
   function status(summary) {
-    const over = summary.used > Math.max(1, Number(state.goal) || 35);
+    const over = summary.used > Math.max(1, Number(state.goal) || 350);
     return `<section class="utlt-status-card is-${over ? "over-goal" : "on-track"}" aria-live="polite"><div><strong>${over ? "Above today’s goal" : "You’re on track for today!"}</strong><p>${over ? "You’ve used more than your chosen daily goal." : "Keep your usual routine. No action needed right now."}</p></div></section>`;
   }
 
@@ -190,7 +190,7 @@
   }
 
   function weekly(summary) {
-    const goal = Math.max(1, Number(state.goal) || 35);
+    const goal = Math.max(1, Number(state.goal) || 350);
     const scale = Math.max(goal, ...summary.daily.map((day) => day.litres), 1) * 1.08;
     const baseline = 144;
     const goalY = baseline - goal / scale * 112;
@@ -344,7 +344,7 @@
     state.name = String(form.get("name") || "").trim();
     state.email = String(form.get("email") || "").trim();
     state.homeName = String(form.get("homeName") || "").trim();
-    state.goal = Math.max(1, Number(form.get("goal")) || 35);
+    state.goal = Math.max(1, Number(form.get("goal")) || 350);
     persistProfile();
     state.saved = true;
     render(true);
