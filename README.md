@@ -45,3 +45,10 @@ UTLT.setDevice({ connected: true, lastConnectedAt: new Date().toISOString() });
 `UTLT.setDevice({ connected: false })` updates the disconnected icon while retaining the last known connection time. `UTLT.getState()` returns the current in-memory state for debugging. Real device pairing and cloud storage of sensor readings are not implemented yet.
 
 The pie's static SVG sector design was adapted from [Kokonut UI's Spending Ring](https://kokonutui.com/docs/cards/spending-ring) by Dorian Baffier (MIT). Inline icons use [Tabler Icons](https://tabler.io/icons) (MIT).
+
+
+## Anonymous community comparison (free Firestore only)
+
+The dashboard can estimate a user's water-use percentile against other UTLT participants who explicitly opt in under **Friends & Competition**. Sharing is off by default. The community collection stores only one date-level histogram of broad usage bands (0–50 L, 50–100 L, and so on); it does not store names, emails, user IDs, or exact individual readings. The dashboard waits for at least five other participants and labels the percentile as approximate because values inside each band cannot be compared exactly.
+
+This feature uses Firestore reads/writes and client-side transactions only; it does not use Cloud Functions or require a billing-plan upgrade. Firestore's free quotas and limits still apply. Since contributions are published by the browser, this prototype cannot verify that a reading is genuine or prevent a user from manipulating aggregate counts. It is an indicative community estimate, not a verified ranking. Turning sharing off withdraws the current day's contribution when the app can reach Firestore.
