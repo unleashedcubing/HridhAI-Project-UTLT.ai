@@ -559,3 +559,38 @@ button { -webkit-tap-highlight-color: transparent; }
     stroke-dashoffset: 0;
   }
 }
+
+
+/* Reveal lower dashboard charts only when they enter the scroll viewport. */
+@keyframes utlt-chart-enter {
+  from { opacity: 0; transform: translateY(22px) scale(.985); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .utlt-scroll-reveal:not(.is-visible) {
+    opacity: 0;
+    transform: translateY(22px) scale(.985);
+  }
+  .utlt-scroll-reveal.is-visible {
+    animation: utlt-chart-enter .72s cubic-bezier(.2,.75,.25,1) both;
+  }
+  .utlt-kokonut-card.is-visible .utlt-kokonut-pie {
+    transform-origin: 50% 50%;
+    animation: utlt-pie-reveal .9s cubic-bezier(.2,.75,.25,1) .12s both;
+  }
+  .utlt-trend-plot.is-visible g {
+    transform-box: fill-box;
+    transform-origin: center bottom;
+    animation: utlt-bars-rise .72s cubic-bezier(.2,.75,.25,1) both;
+  }
+  .utlt-trend-plot.is-visible g:nth-of-type(1) { animation-delay: .08s; }
+  .utlt-trend-plot.is-visible g:nth-of-type(2) { animation-delay: .16s; }
+  .utlt-trend-plot.is-visible g:nth-of-type(3) { animation-delay: .24s; }
+  .utlt-trend-plot.is-visible g:nth-of-type(4) { animation-delay: .32s; }
+  .utlt-trend-plot.is-visible g:nth-of-type(5) { animation-delay: .4s; }
+  .utlt-trend-plot.is-visible g:nth-of-type(6) { animation-delay: .48s; }
+  .utlt-trend-plot.is-visible g:nth-of-type(7) { animation-delay: .56s; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .utlt-scroll-reveal { opacity: 1 !important; transform: none !important; }
+}
