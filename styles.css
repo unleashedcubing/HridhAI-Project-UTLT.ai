@@ -395,3 +395,57 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 360px) {
   .utlt-dashboard { padding-inline: 25px; }
 }
+
+
+/* Usability improvements: clear navigation, readable setup guidance and visible focus. */
+.utlt-tabbar { justify-content: space-around; align-items: center; }
+.utlt-tabbar > button {
+  display: flex; width: auto; min-width: 76px; height: 52px; flex: 1 1 0;
+  flex-direction: column; justify-content: center; gap: 2px;
+  color: var(--utlt-muted); font-size: 11px; font-weight: 600;
+}
+.utlt-tabbar > button.is-current { color: #0878c7; }
+.utlt-nav-icon { display: grid; place-items: center; height: 25px; }
+.utlt-tabbar > button > span:last-child { line-height: 1.2; }
+.utlt-pair-page { padding: 28px 22px 34px; }
+.utlt-pair-illustration, .utlt-unavailable-icon {
+  display: grid; width: 62px; height: 62px; place-items: center;
+  margin-bottom: 18px; border-radius: 20px; background: #e6f3ff; color: #0878c7;
+}
+.utlt-eyebrow { margin-bottom: 8px; color: #0878c7; font-size: 10px; font-weight: 800; letter-spacing: .12em; }
+.utlt-pair-page h1 { max-width: 300px; font-size: 29px; line-height: 1.12; letter-spacing: -1px; }
+.utlt-pair-intro { margin-top: 11px; color: var(--utlt-muted); font-size: 14px; line-height: 1.55; }
+.utlt-pair-notice {
+  display: flex; flex-direction: column; gap: 5px; margin: 20px 0 25px;
+  padding: 15px; border: 1px solid var(--utlt-border); border-left: 4px solid #d69a27;
+  border-radius: 14px; background: var(--utlt-panel); font-size: 13px; line-height: 1.45;
+}
+.utlt-pair-notice span { color: var(--utlt-muted); font-size: 12px; }
+.utlt-pair-page h2 { margin-bottom: 13px; font-size: 17px; }
+.utlt-pair-steps { display: flex; flex-direction: column; gap: 15px; margin: 0 0 24px; padding: 0; list-style: none; }
+.utlt-pair-steps li { display: flex; align-items: flex-start; gap: 12px; }
+.utlt-pair-steps li > span { display: grid; width: 28px; height: 28px; flex: 0 0 28px; place-items: center; border-radius: 50%; background: var(--utlt-panel); color: #0878c7; font-size: 12px; font-weight: 800; }
+.utlt-pair-steps li div { display: flex; flex-direction: column; gap: 3px; }
+.utlt-pair-steps strong { font-size: 13px; }
+.utlt-pair-steps small { color: var(--utlt-muted); font-size: 12px; line-height: 1.4; }
+.utlt-pair-page .utlt-primary-button { width: 100%; }
+.utlt-unavailable-card { margin: 26px 20px; padding: 22px; border: 1px solid var(--utlt-border); border-radius: 20px; background: var(--utlt-panel); }
+.utlt-unavailable-card h2 { font-size: 20px; line-height: 1.2; }
+.utlt-unavailable-card p { margin: 8px 0 18px; color: var(--utlt-muted); font-size: 13px; line-height: 1.5; }
+.utlt-unavailable-card .utlt-primary-button { width: 100%; }
+.utlt-app button:focus-visible, .utlt-app a:focus-visible, .utlt-app input:focus-visible {
+  outline: 3px solid #1688f8; outline-offset: 3px;
+}
+.utlt-app button:disabled { opacity: .55; cursor: not-allowed; }
+.utlt-pair-page, .utlt-unavailable-card { overflow-wrap: anywhere; }
+@media (prefers-reduced-motion: no-preference) {
+  .utlt-app button { transition: background-color .15s ease, color .15s ease, border-color .15s ease; }
+}
+@media (min-width: 600px) {
+  .utlt-phone { width: min(100%, 520px); }
+  .utlt-dashboard { padding-inline: clamp(28px, 7vw, 58px); }
+}
+@media (max-width: 360px) {
+  .utlt-pair-page { padding-inline: 18px; }
+  .utlt-pair-page h1 { font-size: 26px; }
+}
