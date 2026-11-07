@@ -3,41 +3,118 @@
 (function () {
   "use strict";
 
-  function readSavedName() {
+  const PROFILE_STORAGE_KEY = "utlt-profile-v1";
+  function readSavedProfile() {
     try {
-      return localStorage.getItem("utlt-user-name") || "";
-    } catch (error) {
-      return "";
-    }
+      const saved = JSON.parse(localStorage.getItem(PROFILE_STORAGE_KEY) || "{}");
+      if (!saved.name) saved.name = localStorage.getItem("utlt-user-name") || "";
+      return saved;
+    } catch (error) { return { name: "" }; }
   }
-
-  function saveName(name) {
+  function saveLocalProfile(profile) {
     try {
-      if (name) localStorage.setItem("utlt-user-name", name);
-      else localStorage.removeItem("utlt-user-name");
-    } catch (error) {
-      // The app still works if browser storage is unavailable.
-    }
+      localStorage.setItem(PROFILE_STORAGE_KEY, JSON.stringify(profile));
+      if (profile.name) localStorage.setItem("utlt-user-name", profile.name);
+    } catch (error) { /* Local storage may be unavailable. */ }
   }
-
-  const savedName = readSavedName();
-
+  const savedProfile = readSavedProfile();
   const state = {
     screen: "home",
-    utility: "Water",
-    breakdown: "use",
-    dark: false,
-    name: savedName,
-    email: "",
-    homeName: "My home",
-    goal: 350,
+    utility: savedProfile.utility || "Water",
+    breakdown: savedProfile.breakdown || "use",
+    dark: savedProfile.dark === true,
+    name: savedProfile.name || "",
+    email: savedProfile.email || "",
+    homeName: savedProfile.homeName || "My home",
+    goal: Number(savedProfile.goal) > 0 ? Number(savedProfile.goal) : 35,
     saved: false,
     device: { connected: false, lastConnectedAt: null },
     readings: window.UTLTData.demoReadings,
     usingDemo: true,
-    onboarding: savedName ? "" : "profile",
-    tutorialStep: 0
+    onboarding: savedProfile.name ? "" : "profile",
+    tutorialStep: 0,
+    syncStatus: "starting"
   };
+
+  // Each browser receives a private anonymous Firebase identity.
+  const firebaseReady = (async () => {
+    const version = "13.2.0";
+    const [appSdk, authSdk, firestoreSdk] = await Promise.all([
+      import("https://www.gstatic.com/firebasejs/" + version + "/firebase-app.js"),
+      import("https://www.gstatic.com/firebasejs/" + version + "/firebase-auth.js"),
+      import("https://www.gstatic.com/firebasejs/" + version + "/firebase-firestore.js")
+    ]);
+    const firebaseConfig = {
+      apiKey: "AIzaSyAXqm-gHRYSKBmqqgVW4wvhBdXgFLWC9g",
+      authDomain: "utlt-ai.firebaseapp.com",
+      projectId: "utlt-ai",
+      storageBucket: "utlt-ai.firebasestorage.app",
+      messagingSenderId: "190773473724",
+      appId: "1:190773473724:web:6cbccf7c9d62a681be3bb9",
+      measurementId: "G-X0EEKYQCTG"
+    };
+    const firebaseApp = appSdk.initializeApp(firebaseConfig);
+    const auth = authSdk.getAuth(firebaseApp);
+    await authSdk.setPersistence(auth, authSdk.browserLocalPersistence);
+    const credential = await authSdk.signInAnonymously(auth);
+    const db = firestoreSdk.getFirestore(firebaseApp);
+    const profileRef = firestoreSdk.doc(db, "profiles", credential.user.uid);
+    return {
+      async loadProfile() {
+        const snapshot = await firestoreSdk.getDoc(profileRef);
+        return snapshot.exists() ? snapshot.data() : null;
+      },
+      async saveProfile(profile) {
+        await firestoreSdk.setDoc(profileRef, {
+          ...profile, updatedAt: new Date().toISOString()
+        }, { merge: true });
+      }
+    };
+  })();
+
+  let firebaseStore = null;
+  let saveQueue = Promise.resolve();
+  function profileSnapshot() {
+    return {
+      name: state.name, email: state.email, utility: state.utility,
+      dark: state.dark, homeName: state.homeName, goal: state.goal,
+      breakdown: state.breakdown
+    };
+  }
+  function persistProfile() {
+    const profile = profileSnapshot();
+    saveLocalProfile(profile);
+    if (firebaseStore) {
+      saveQueue = saveQueue.then(() => firebaseStore.saveProfile(profile))
+        .catch((error) => console.warn("UTLT cloud save failed; local copy is retained.", error));
+    }
+  }
+  function applySavedProfile(profile) {
+    if (!profile || typeof profile !== "object") return;
+    if (typeof profile.name === "string") state.name = profile.name;
+    if (typeof profile.email === "string") state.email = profile.email;
+    if (["Water", "Gas", "Electricity"].includes(profile.utility)) state.utility = profile.utility;
+    if (typeof profile.dark === "boolean") state.dark = profile.dark;
+    if (typeof profile.homeName === "string") state.homeName = profile.homeName;
+    if (Number(profile.goal) > 0) state.goal = Number(profile.goal);
+    if (["use", "time"].includes(profile.breakdown)) state.breakdown = profile.breakdown;
+  }
+  async function initializePersistence() {
+    try {
+      firebaseStore = await firebaseReady;
+      const remoteProfile = await firebaseStore.loadProfile();
+      if (remoteProfile) applySavedProfile(remoteProfile);
+      else if (state.name) await firebaseStore.saveProfile(profileSnapshot());
+      state.syncStatus = "cloud";
+      saveLocalProfile(profileSnapshot());
+    } catch (error) {
+      state.syncStatus = "local";
+      console.warn("UTLT cloud storage unavailable; using browser storage.", error);
+    }
+    state.onboarding = state.name ? "" : "profile";
+    render();
+  }
+
   const root = document.getElementById("app");
   const circumference = 2 * Math.PI * 84;
 
@@ -79,14 +156,14 @@
   }
 
   function usage(summary) {
-    const goal = Math.max(1, Number(state.goal) || 350);
+    const goal = Math.max(1, Number(state.goal) || 35);
     const percent = Math.round(summary.used / goal * 100);
     const dash = Math.min(summary.used / goal, 1) * circumference;
     return `<section class="utlt-usage"><div class="utlt-donut"><svg viewBox="0 0 193 193" role="img" aria-label="${percent} percent of daily water goal used"><defs><linearGradient id="utlt-water-gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="var(--utlt-ring-start)"/><stop offset="100%" stop-color="var(--utlt-ring-end)"/></linearGradient></defs><circle class="utlt-donut-track" cx="96.5" cy="96.5" r="84"/><circle class="utlt-donut-value" cx="96.5" cy="96.5" r="84" style="stroke-dasharray:${dash} ${circumference}"/></svg><div class="utlt-donut-label"><strong>${percent}%</strong><span>Used</span></div></div><div class="utlt-usage-summary"><strong>${number(summary.used)}</strong><span>/ ${goal} Litres</span></div></section>`;
   }
 
   function status(summary) {
-    const over = summary.used > Math.max(1, Number(state.goal) || 350);
+    const over = summary.used > Math.max(1, Number(state.goal) || 35);
     return `<section class="utlt-status-card is-${over ? "over-goal" : "on-track"}" aria-live="polite"><div><strong>${over ? "Above today’s goal" : "You’re on track for today!"}</strong><p>${over ? "You’ve used more than your chosen daily goal." : "Keep your usual routine. No action needed right now."}</p></div></section>`;
   }
 
@@ -113,7 +190,7 @@
   }
 
   function weekly(summary) {
-    const goal = Math.max(1, Number(state.goal) || 350);
+    const goal = Math.max(1, Number(state.goal) || 35);
     const scale = Math.max(goal, ...summary.daily.map((day) => day.litres), 1) * 1.08;
     const baseline = 144;
     const goalY = baseline - goal / scale * 112;
@@ -243,9 +320,9 @@
     const action = button.dataset.action;
     if (action === "tutorial-next") { state.tutorialStep = Math.min(state.tutorialStep + 1, tutorialSlides.length - 1); }
     else if (action === "tutorial-skip" || action === "onboarding-done") { state.onboarding = ""; }
-    else if (action === "theme") state.dark = !state.dark;
-    else if (action === "utility") state.utility = button.dataset.value;
-    else if (action === "breakdown") state.breakdown = button.dataset.value;
+    else if (action === "theme") { state.dark = !state.dark; persistProfile(); }
+    else if (action === "utility") { state.utility = button.dataset.value; persistProfile(); }
+    else if (action === "breakdown") { state.breakdown = button.dataset.value; persistProfile(); }
     else if (["home", "pair", "account", "device"].includes(action)) { state.screen = action; state.saved = false; }
     render(action === "theme" || action === "utility" || action === "breakdown");
   });
@@ -254,8 +331,8 @@
       event.preventDefault();
       const form = new FormData(event.target);
       state.name = String(form.get("name") || "").trim();
-      saveName(state.name);
       state.utility = String(form.get("utility") || "Water");
+      persistProfile();
       state.tutorialStep = 0;
       state.onboarding = "tutorial";
       render();
@@ -265,10 +342,10 @@
     event.preventDefault();
     const form = new FormData(event.target);
     state.name = String(form.get("name") || "").trim();
-    saveName(state.name);
     state.email = String(form.get("email") || "").trim();
     state.homeName = String(form.get("homeName") || "").trim();
-    state.goal = Math.max(1, Number(form.get("goal")) || 350);
+    state.goal = Math.max(1, Number(form.get("goal")) || 35);
+    persistProfile();
     state.saved = true;
     render(true);
   });
@@ -293,5 +370,5 @@
       return { ...state, device: { ...state.device }, readings: [...state.readings] };
     }
   });
-  render();
+  initializePersistence();
 })();
