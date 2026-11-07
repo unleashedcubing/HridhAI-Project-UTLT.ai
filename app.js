@@ -121,22 +121,37 @@
     return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "No device paired"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your water monitor is ready to send readings." : "The dashboard is showing demo readings. Pair a water monitor to show measurements from your home."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "Manage your device" : "Pair your device"}</button><p class="utlt-device-help">Your monitor sends flow readings to UTLT over Wi-Fi. The ring and six-day chart use those readings. The daily breakdown uses readings labeled by activity; unlabeled water appears under Misc.</p></section>`;
   }
 
+  function pairPage() {
+    return "<section class=\"utlt-pair-page\">" +
+      "<div class=\"utlt-pair-illustration\">" + icon("bluetooth", 34) + "</div>" +
+      "<p class=\"utlt-eyebrow\">DEVICE SETUP</p>" +
+      "<h1>Connect your water monitor</h1>" +
+      "<p class=\"utlt-pair-intro\">When device connection is enabled, your monitor will send water readings to this dashboard.</p>" +
+      "<div class=\"utlt-pair-notice\" role=\"status\"><strong>Device pairing is not available in this preview yet.</strong><span>You can still explore the dashboard using sample readings.</span></div>" +
+      "<h2>What you’ll need</h2>" +
+      "<ol class=\"utlt-pair-steps\">" +
+      "<li><span>1</span><div><strong>A compatible water monitor</strong><small>Use a monitor designed to measure your home’s water flow.</small></div></li>" +
+      "<li><span>2</span><div><strong>Your home Wi-Fi details</strong><small>The setup flow will guide you when device pairing is supported.</small></div></li>" +
+      "<li><span>3</span><div><strong>A few minutes</strong><small>We’ll show the connection status here once pairing is available.</small></div></li></ol>" +
+      "<button class=\"utlt-primary-button\" data-action=\"home\">Back to dashboard</button></section>";
+  }
+
   function accountPage() {
     return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>UTLT account</span></div><span class="utlt-connected"><i></i> Active</span></div><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
   }
 
   function nav() {
-    return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-label="Home">${icon("home", 28)}</button><button class="${state.screen === "pair" ? "is-current" : ""}" data-action="pair" aria-label="Add device">${icon("plus", 28)}</button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-label="Account"><span class="utlt-tab-avatar">${icon("user", 20)}</span></button></nav>`;
+    return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-current="${state.screen === "home" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("home", 24)}</span><span>Home</span></button><button class="${state.screen === "pair" ? "is-current" : ""}" data-action="pair" aria-current="${state.screen === "pair" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("plus", 24)}</span><span>Devices</span></button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-current="${state.screen === "account" ? "page" : "false"}"><span class="utlt-tab-avatar">${icon("user", 18)}</span><span>Account</span></button></nav>`;
   }
 
   function render(preserveScroll = false) {
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
     const compact = state.screen === "home" && state.utility !== "Water";
     const content = state.screen === "home"
-      ? utilityTabs() + (state.utility === "Water" ? dashboard() : `<section class="utlt-unavailable">${state.utility} Visual not available for Demo</section>`)
+      ? utilityTabs() + (state.utility === "Water" ? dashboard() : `<section class="utlt-unavailable-card"><div class="utlt-unavailable-icon">${icon("settings", 28)}</div><h2>${state.utility} tracking is coming later</h2><p>This preview currently includes water usage only. Your water dashboard is ready to explore.</p><button class="utlt-primary-button" data-action="utility" data-value="Water">View water dashboard</button></section>`)
       : state.screen === "device" ? devicePage()
       : state.screen === "account" ? accountPage()
-      : '<div class="utlt-pair-empty"></div>';
+      : pairPage();
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>`;
     const scroller = root.querySelector(".utlt-content");
     if (scroller) scroller.scrollTop = previousScroll;
