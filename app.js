@@ -43,7 +43,7 @@
       import("https://www.gstatic.com/firebasejs/" + version + "/firebase-firestore.js")
     ]);
     const firebaseConfig = {
-      apiKey: "AIzaSyAXqm-gHRYSKBmqqgVW4wvhBdXgFLWC9g",
+      apiKey: "AIzaSyAXqm-gHRYSKBmqqgVWU4wvhBdXgFLWC9g",
       authDomain: "utlt-ai.firebaseapp.com",
       projectId: "utlt-ai",
       storageBucket: "utlt-ai.firebasestorage.app",
