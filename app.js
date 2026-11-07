@@ -8,14 +8,16 @@
     utility: "Water",
     breakdown: "use",
     dark: false,
-    name: "Hrishi Varun",
-    email: "hrishi@example.com",
+    name: "",
+    email: "",
     homeName: "My home",
     goal: 350,
     saved: false,
     device: { connected: false, lastConnectedAt: null },
     readings: window.UTLTData.demoReadings,
-    usingDemo: true
+    usingDemo: true,
+    onboarding: "profile",
+    tutorialStep: 0
   };
   const root = document.getElementById("app");
   const circumference = 2 * Math.PI * 84;
@@ -144,6 +146,65 @@
     return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-current="${state.screen === "home" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("home", 24)}</span><span>Home</span></button><button class="${state.screen === "pair" ? "is-current" : ""}" data-action="pair" aria-current="${state.screen === "pair" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("plus", 24)}</span><span>Devices</span></button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-current="${state.screen === "account" ? "page" : "false"}"><span class="utlt-tab-avatar">${icon("user", 18)}</span><span>Account</span></button></nav>`;
   }
 
+
+  const tutorialSlides = [
+    {
+      title: "Your daily snapshot",
+      body: "The big circle shows how much water you have used compared with your daily goal. The number below shows your total in litres.",
+      tip: "You can change your daily water goal in Account."
+    },
+    {
+      title: "Understand your usage",
+      body: "Use “By use” to see where water went, or “By time” to see when it was used. Scroll down to compare your recent days.",
+      tip: "These charts currently use sample readings until a real monitor is connected."
+    },
+    {
+      title: "Your controls are here",
+      body: "Use Home for your dashboard, Devices to learn about connecting a monitor, and Account to edit your details or change appearance.",
+      tip: "Gas and electricity tracking are not available in this preview yet."
+    }
+  ];
+
+  function onboardingMarkup() {
+    const overlayStyle = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,18,30,.62);";
+    const panelStyle = "width:min(100%,420px);max-height:90dvh;overflow:auto;padding:26px;border-radius:22px;background:#fff;color:#17202b;box-shadow:0 20px 70px rgba(0,0,0,.28);font-family:Arial,sans-serif;";
+    const labelStyle = "display:block;margin:18px 0 7px;font-size:13px;font-weight:700;";
+    const inputStyle = "width:100%;height:46px;padding:0 13px;border:1px solid #cbd5e1;border-radius:11px;font:inherit;font-size:15px;box-sizing:border-box;";
+    const primaryStyle = "width:100%;min-height:48px;margin-top:18px;border:0;border-radius:12px;background:#1688f8;color:#fff;font:inherit;font-weight:700;cursor:pointer;";
+    const secondaryStyle = "width:100%;min-height:42px;margin-top:9px;border:0;background:transparent;color:#64748b;font:inherit;font-weight:600;cursor:pointer;";
+    if (state.onboarding === "profile") {
+      return `<div style="${overlayStyle}" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="utlt-welcome-title" style="${panelStyle}">
+        <p style="margin:0 0 8px;color:#1688f8;font-size:11px;font-weight:800;letter-spacing:.13em;">WELCOME TO UTLT.AI</p>
+        <h2 id="utlt-welcome-title" style="margin:0;font-size:27px;line-height:1.15;">Let’s set things up</h2>
+        <p style="margin:9px 0 0;color:#64748b;font-size:14px;line-height:1.5;">A couple of quick details will help us personalise your dashboard.</p>
+        <form id="utlt-welcome-form">
+          <label for="utlt-welcome-name" style="${labelStyle}">What is your name?</label>
+          <input id="utlt-welcome-name" name="name" type="text" maxlength="60" autocomplete="given-name" placeholder="Enter your name" required style="${inputStyle}">
+          <fieldset style="margin:20px 0 0;padding:0;border:0;">
+            <legend style="font-size:14px;font-weight:700;">What do you plan to save?</legend>
+            <p style="margin:5px 0 10px;color:#64748b;font-size:12px;">Choose the utility you want to focus on first.</p>
+            ${["Water","Gas","Electricity"].map((item,index) => `<label style="display:flex;align-items:center;gap:10px;margin:9px 0;padding:12px;border:1px solid #dbe3ec;border-radius:12px;font-size:14px;cursor:pointer;"><input type="radio" name="utility" value="${item}" ${index === 0 ? "checked" : ""} style="accent-color:#1688f8;width:17px;height:17px;">${item}</label>`).join("")}
+          </fieldset>
+          <button type="submit" style="${primaryStyle}">Continue</button>
+        </form>
+      </section></div>`;
+    }
+    if (state.onboarding === "tutorial") {
+      const slide = tutorialSlides[state.tutorialStep];
+      const final = state.tutorialStep === tutorialSlides.length - 1;
+      return `<div style="${overlayStyle}" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="utlt-tutorial-title" style="${panelStyle}">
+        <p style="margin:0 0 8px;color:#1688f8;font-size:11px;font-weight:800;letter-spacing:.13em;">QUICK TOUR · ${state.tutorialStep + 1} OF ${tutorialSlides.length}</p>
+        <div aria-hidden="true" style="display:flex;gap:6px;margin:0 0 20px;">${tutorialSlides.map((_,i)=>`<span style="height:5px;flex:1;border-radius:99px;background:${i <= state.tutorialStep ? "#1688f8" : "#e2e8f0"}"></span>`).join("")}</div>
+        <h2 id="utlt-tutorial-title" style="margin:0;font-size:25px;line-height:1.2;">${slide.title}</h2>
+        <p style="margin:12px 0;color:#475569;font-size:15px;line-height:1.6;">${slide.body}</p>
+        <p style="margin:16px 0 0;padding:12px;border-radius:11px;background:#eff6ff;color:#24527a;font-size:13px;line-height:1.5;">💡 ${slide.tip}</p>
+        <button type="button" data-action="${final ? "onboarding-done" : "tutorial-next"}" style="${primaryStyle}">${final ? "Go to my dashboard" : "Next"}</button>
+        <button type="button" data-action="tutorial-skip" style="${secondaryStyle}">Skip tutorial</button>
+      </section></div>`;
+    }
+    return "";
+  }
+
   function render(preserveScroll = false) {
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
     const compact = state.screen === "home" && state.utility !== "Water";
@@ -152,7 +213,7 @@
       : state.screen === "device" ? devicePage()
       : state.screen === "account" ? accountPage()
       : pairPage();
-    root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>`;
+    root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>${onboardingMarkup()}`;
     const scroller = root.querySelector(".utlt-content");
     if (scroller) scroller.scrollTop = previousScroll;
   }
@@ -161,13 +222,25 @@
     const button = event.target.closest("button[data-action]");
     if (!button) return;
     const action = button.dataset.action;
-    if (action === "theme") state.dark = !state.dark;
+    if (action === "tutorial-next") { state.tutorialStep = Math.min(state.tutorialStep + 1, tutorialSlides.length - 1); }
+    else if (action === "tutorial-skip" || action === "onboarding-done") { state.onboarding = ""; }
+    else if (action === "theme") state.dark = !state.dark;
     else if (action === "utility") state.utility = button.dataset.value;
     else if (action === "breakdown") state.breakdown = button.dataset.value;
     else if (["home", "pair", "account", "device"].includes(action)) { state.screen = action; state.saved = false; }
     render(action === "theme" || action === "utility" || action === "breakdown");
   });
   root.addEventListener("submit", (event) => {
+    if (event.target.id === "utlt-welcome-form") {
+      event.preventDefault();
+      const form = new FormData(event.target);
+      state.name = String(form.get("name") || "").trim();
+      state.utility = String(form.get("utility") || "Water");
+      state.tutorialStep = 0;
+      state.onboarding = "tutorial";
+      render();
+      return;
+    }
     if (event.target.id !== "utlt-account-form") return;
     event.preventDefault();
     const form = new FormData(event.target);
