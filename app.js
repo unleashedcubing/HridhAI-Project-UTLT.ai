@@ -36,7 +36,8 @@
     syncStatus: "starting",
     syncError: "",
     uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
-    leaderboardVisible: savedProfile.leaderboardVisible === true, friendMessage: "", friendBusy: false
+    leaderboardVisible: savedProfile.leaderboardVisible === true, communitySharing: savedProfile.communitySharing === true,
+    communityPercentile: null, communityParticipants: 0, communityStatus: "off", friendMessage: "", friendBusy: false
   };
 
   // Each browser receives a private anonymous Firebase identity.
@@ -172,6 +173,55 @@
       async hideStats() {
         await firestoreSdk.deleteDoc(firestoreSdk.doc(db, "friendStats", uid));
       },
+      async publishCommunityUsage(date, bucketIndex) {
+        const aggregateRef = firestoreSdk.doc(db, "communityDaily", date);
+        return firestoreSdk.runTransaction(db, async transaction => {
+          const [profileSnap, aggregateSnap] = await Promise.all([
+            transaction.get(profileRef), transaction.get(aggregateRef)
+          ]);
+          const profile = profileSnap.exists() ? profileSnap.data() : {};
+          const previousDate = profile.communityShareDate || "";
+          const previousBucket = Number.isInteger(profile.communityShareBucket) ? profile.communityShareBucket : -1;
+          const bucketCounts = aggregateSnap.exists() && aggregateSnap.data().bucketCounts
+            ? { ...aggregateSnap.data().bucketCounts } : {};
+          for (let i = 0; i < 11; i++) bucketCounts["b" + i] = Math.max(0, Number(bucketCounts["b" + i]) || 0);
+          if (previousDate === date && previousBucket === bucketIndex) return bucketCounts;
+          if (previousDate === date && previousBucket >= 0 && previousBucket < 11) {
+            bucketCounts["b" + previousBucket] = Math.max(0, bucketCounts["b" + previousBucket] - 1);
+          }
+          bucketCounts["b" + bucketIndex] += 1;
+          transaction.set(aggregateRef, { date, bucketCounts, updatedAt: new Date().toISOString() });
+          transaction.set(profileRef, {
+            communitySharing: true, communityShareDate: date, communityShareBucket: bucketIndex
+          }, { merge: true });
+          return bucketCounts;
+        });
+      },
+      async withdrawCommunityUsage(date) {
+        const aggregateRef = firestoreSdk.doc(db, "communityDaily", date);
+        return firestoreSdk.runTransaction(db, async transaction => {
+          const [profileSnap, aggregateSnap] = await Promise.all([
+            transaction.get(profileRef), transaction.get(aggregateRef)
+          ]);
+          const profile = profileSnap.exists() ? profileSnap.data() : {};
+          const bucketCounts = aggregateSnap.exists() && aggregateSnap.data().bucketCounts
+            ? { ...aggregateSnap.data().bucketCounts } : {};
+          for (let i = 0; i < 11; i++) bucketCounts["b" + i] = Math.max(0, Number(bucketCounts["b" + i]) || 0);
+          const previousBucket = Number.isInteger(profile.communityShareBucket) ? profile.communityShareBucket : -1;
+          if (profile.communityShareDate === date && previousBucket >= 0 && previousBucket < 11) {
+            bucketCounts["b" + previousBucket] = Math.max(0, bucketCounts["b" + previousBucket] - 1);
+            transaction.set(aggregateRef, { date, bucketCounts, updatedAt: new Date().toISOString() });
+          }
+          transaction.set(profileRef, {
+            communitySharing: false, communityShareDate: "", communityShareBucket: -1
+          }, { merge: true });
+          return bucketCounts;
+        });
+      },
+      async loadCommunityUsage(date) {
+        const snap = await firestoreSdk.getDoc(firestoreSdk.doc(db, "communityDaily", date));
+        return snap.exists() ? snap.data() : null;
+      },
 
       async loadProfile() {
         const snapshot = await firestoreSdk.getDoc(profileRef);
@@ -192,7 +242,7 @@
     return {
       name: state.name, email: state.email, utility: state.utility,
       dark: state.dark, homeName: state.homeName, goal: state.goal,
-      breakdown: state.breakdown, leaderboardVisible: state.leaderboardVisible
+      breakdown: state.breakdown, leaderboardVisible: state.leaderboardVisible, communitySharing: state.communitySharing
     };
   }
   function persistProfile() {
@@ -221,6 +271,7 @@
     if (Number(profile.goal) > 0) state.goal = Number(profile.goal);
     if (["use", "time"].includes(profile.breakdown)) state.breakdown = profile.breakdown;
     state.leaderboardVisible = profile.leaderboardVisible === true;
+    state.communitySharing = profile.communitySharing === true;
   }
   async function initializePersistence() {
     try {
@@ -236,6 +287,7 @@
       }
       state.friendCode = await firebaseStore.ensureFriendCode(state.name || "UTLT user");
       await refreshFriendData();
+      await syncCommunityInsight();
       state.syncStatus = "cloud";
       state.syncError = "";
       saveLocalProfile(profileSnapshot());
@@ -345,10 +397,62 @@
     return `<section class="utlt-week utlt-scroll-reveal"><h2>See Across Days</h2><div class="utlt-trend-card"><div class="utlt-trend-head"><span>LAST ${summary.daily.length} DAYS</span><strong>Goal ${goal} L</strong></div><svg class="utlt-trend-plot" viewBox="0 0 300 175" role="img" aria-label="Water usage over the last ${summary.daily.length} days, daily goal ${goal} litres"><line class="utlt-trend-goal" x1="8" x2="292" y1="${goalY}" y2="${goalY}"/><line class="utlt-trend-baseline" x1="8" x2="292" y1="${baseline}" y2="${baseline}"/>${bars}</svg><div class="utlt-trend-footer"><span>Daily average</span><strong>${Math.round(average)} L</strong></div></div></section>`;
   }
 
+  function communityBucket(litres) {
+    const limits = [50, 100, 150, 200, 250, 300, 400, 500, 750, 1000];
+    const index = limits.findIndex(limit => litres < limit);
+    return index < 0 ? 10 : index;
+  }
+  function communityInsightMarkup() {
+    if (!state.communitySharing) return '<section class="utlt-community-insight"><span class="utlt-community-icon">🌍</span><div><strong>Community water insight</strong><p>Opt in from Friends to compare your daily usage anonymously with other participating UTLT users.</p></div></section>';
+    if (state.usingDemo) return '<section class="utlt-community-insight"><span class="utlt-community-icon">💧</span><div><strong>Community comparison is enabled</strong><p>Demo readings are never shared. Connect a real meter to contribute today’s usage.</p></div></section>';
+    if (state.communityStatus === "loading") return '<section class="utlt-community-insight"><span class="utlt-community-icon">🌍</span><div><strong>Checking community data…</strong><p>Comparing anonymous usage ranges for today.</p></div></section>';
+    if (state.communityPercentile !== null) return '<section class="utlt-community-insight is-ready"><span class="utlt-community-icon">🌱</span><div><strong>You used less water than approximately ' + state.communityPercentile + '% of participating users today!</strong><p>Compared with ' + state.communityParticipants + ' other opt-in users. This is an estimate based on broad usage ranges.</p></div></section>';
+    if (state.communityStatus === "error") return '<section class="utlt-community-insight"><span class="utlt-community-icon">⚠️</span><div><strong>Community insight unavailable</strong><p>Could not load the comparison. Your dashboard readings are unaffected.</p></div></section>';
+    return '<section class="utlt-community-insight"><span class="utlt-community-icon">🌍</span><div><strong>Collecting community data</strong><p>The comparison appears after at least five other users share real readings for today.</p></div></section>';
+  }
+  async function syncCommunityInsight() {
+    if (!firebaseStore || !state.uid) return;
+    if (!state.communitySharing) {
+      try { await firebaseStore.withdrawCommunityUsage(todayKey()); } catch (error) { console.warn("Could not withdraw community stats.", error); }
+      state.communityPercentile = null;
+      state.communityParticipants = 0;
+      state.communityStatus = "off";
+      return;
+    }
+    const own = currentCompetitionStats();
+    if (!own) {
+      state.communityPercentile = null;
+      state.communityParticipants = 0;
+      state.communityStatus = "waiting";
+      return;
+    }
+    state.communityStatus = "loading";
+    try {
+      const bucket = communityBucket(own.dailyUsed);
+      const bucketCounts = await firebaseStore.publishCommunityUsage(own.date, bucket);
+      const total = Array.from({ length: 11 }, (_, i) => Number(bucketCounts["b" + i]) || 0).reduce((a,b) => a+b, 0);
+      const others = Math.max(0, total - 1);
+      state.communityParticipants = others;
+      if (others < 5) {
+        state.communityPercentile = null;
+        state.communityStatus = "gathering";
+        return;
+      }
+      const sameBucketOthers = Math.max(0, (Number(bucketCounts["b" + bucket]) || 0) - 1);
+      const higher = Array.from({ length: 11 }, (_, i) => i > bucket ? Number(bucketCounts["b" + i]) || 0 : 0).reduce((a,b) => a+b, 0);
+      const approximate = Math.round((higher + sameBucketOthers * 0.5) / others * 100);
+      state.communityPercentile = Math.max(0, Math.min(100, approximate));
+      state.communityStatus = "ready";
+    } catch (error) {
+      state.communityPercentile = null;
+      state.communityStatus = "error";
+      console.warn("UTLT community insight unavailable.", error);
+    }
+  }
   function dashboard() {
     const summary = window.UTLTData.summarize(state.readings);
     const syncLabel = state.syncStatus === "cloud" ? "☁️ Profile synced to Firebase" : state.syncStatus === "starting" ? "Connecting to Firebase…" : state.syncStatus === "error" ? "⚠️ Firebase save failed — saved on this device only" : "⚠️ Firebase unavailable — saved on this device only";
-    return `<div class="utlt-dashboard">${usage(summary)}${status(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p><p class="utlt-data-source" role="status">${syncLabel}</p></div>`;
+    return `<div class="utlt-dashboard">${usage(summary)}${status(summary)}${communityInsightMarkup()}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p><p class="utlt-data-source" role="status">${syncLabel}</p></div>`;
   }
 
   function devicePage() {
@@ -469,6 +573,7 @@
       html += '<div class="utlt-friend-row"><div><strong>' + escapeHtml(friend.name) + '</strong><small>UTLT friend</small></div><button class="utlt-remove-friend" data-action="remove-friend" data-friend-uid="' + escapeHtml(friend.uid) + '">Remove</button></div>';
     });
     html += '</section><section class="utlt-privacy-card"><div class="utlt-privacy-icon">' + icon("shield",20) + '</div><div><strong>Leaderboard privacy</strong><p>When enabled, accepted friends can see your daily water use and how far below your daily goal you are. Your email is never shared.</p></div><label class="utlt-switch"><input type="checkbox" data-action="leaderboard-privacy" ' + (state.leaderboardVisible ? 'checked' : '') + '><span></span></label></section>';
+    html += '<section class="utlt-community-optin"><div><strong>Anonymous community comparison</strong><p>Share only a broad daily-usage range in a shared counter. Other users cannot see your name, email, exact litres, or individual record. Off by default.</p><small>Prototype notice: browser-based contributions are not verified and may be manipulated.</small></div><label class="utlt-switch"><input type="checkbox" data-action="community-sharing" ' + (state.communitySharing ? 'checked' : '') + '><span></span></label></section>';
     if (!state.leaderboardVisible) html += '<p class="utlt-friend-muted">Your stats are private until you turn on leaderboard sharing.</p>';
     else if (!currentCompetitionStats()) html += '<p class="utlt-friend-muted">Connect a real monitor and send readings to join the leaderboards. Demo data never counts.</p>';
     html += '<h2 class="utlt-leaderboard-heading">Today’s leaderboards</h2>' +
@@ -606,6 +711,17 @@
   });
 
   root.addEventListener("change", (event) => {
+    if (event.target.matches('input[data-action="community-sharing"]')) {
+      state.communitySharing = event.target.checked === true;
+      state.communityPercentile = null;
+      state.communityStatus = state.communitySharing ? "loading" : "off";
+      persistProfile();
+      syncCommunityInsight().then(() => {
+        state.friendMessage = state.communitySharing ? "Anonymous community sharing updated." : "Community sharing turned off.";
+        render(true);
+      });
+      return;
+    }
     if (event.target.matches('input[data-action="leaderboard-privacy"]')) {
       state.leaderboardVisible = event.target.checked;
       persistProfile();
@@ -664,7 +780,8 @@
       if (!Array.isArray(readings)) throw new TypeError("Readings must be an array");
       state.readings = readings;
       state.usingDemo = false;
-      syncCompetitionStats().then(() => { if (state.screen === "friends") refreshFriendData().then(() => render(true)); });
+      syncCompetitionStats();
+      syncCommunityInsight().then(() => { if (state.screen === "home") render(true); else if (state.screen === "friends") refreshFriendData().then(() => render(true)); });
       render(true);
     },
     setDevice(device) {
