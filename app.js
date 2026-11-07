@@ -97,7 +97,7 @@
         const snap = await firestoreSdk.getDoc(firestoreSdk.doc(db, "friendCodes", code));
         return snap.exists() ? snap.data() : null;
       },
-      async sendFriendRequest(recipientUid, recipientName, senderName) {
+      async sendFriendRequest(recipientUid, recipientName, senderName, recipientCode) {
         const requestId = uid + "_" + recipientUid;
         const requestRef = firestoreSdk.doc(db, "friendRequests", requestId);
         const existing = await firestoreSdk.getDoc(requestRef);
@@ -112,7 +112,7 @@
         const reverse = await firestoreSdk.getDoc(firestoreSdk.doc(db, "friendRequests", reverseId));
         if (reverse.exists() && reverse.data().status === "pending") throw new Error("This person has already sent you a request. Check incoming requests.");
         await firestoreSdk.setDoc(requestRef, {
-          senderUid: uid, recipientUid, senderName: senderName || "UTLT user",
+          senderUid: uid, recipientUid, recipientCode, senderName: senderName || "UTLT user",
           recipientName: recipientName || "UTLT user", status: "pending", createdAt: new Date().toISOString()
         });
       },
@@ -619,7 +619,7 @@
         const target = await firebaseStore.lookupFriendCode(code);
         if (!target) throw new Error("That friend code was not found.");
         if (target.uid === state.uid) throw new Error("That is your own friend code.");
-        await firebaseStore.sendFriendRequest(target.uid, target.displayName, state.name);
+        await firebaseStore.sendFriendRequest(target.uid, target.displayName, state.name, code);
         state.friendMessage = "Friend request sent!";
         await refreshFriendData();
       } catch (error) { state.friendMessage = error.message || "Could not send friend request."; }
