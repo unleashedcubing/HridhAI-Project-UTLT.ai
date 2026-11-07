@@ -594,3 +594,27 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (prefers-reduced-motion: reduce) {
   .utlt-scroll-reveal { opacity: 1 !important; transform: none !important; }
 }
+
+
+/* Opt-in anonymous community water comparison */
+.utlt-community-insight, .utlt-community-optin {
+  display:flex; align-items:flex-start; gap:12px; margin:16px 0;
+  padding:15px; border:1px solid var(--utlt-border); border-radius:16px;
+  background:var(--utlt-panel);
+}
+.utlt-community-insight { align-items:center; }
+.utlt-community-icon {
+  display:grid; width:38px; height:38px; flex:0 0 38px; place-items:center;
+  border-radius:12px; background:#e5f3ff; font-size:20px;
+}
+.utlt-dark .utlt-community-icon { background:#183958; }
+.utlt-community-insight strong, .utlt-community-optin strong {
+  display:block; font-size:13px; line-height:1.4;
+}
+.utlt-community-insight p, .utlt-community-optin p {
+  margin:4px 0 0; color:var(--utlt-muted); font-size:11px; line-height:1.5;
+}
+.utlt-community-insight.is-ready { border-color:#8ac79b; background:linear-gradient(135deg,var(--utlt-panel),rgba(51,160,91,.08)); }
+.utlt-community-optin { align-items:center; margin:14px 0; }
+.utlt-community-optin > div { flex:1; min-width:0; }
+.utlt-community-optin small { display:block; margin-top:6px; color:var(--utlt-muted); font-size:10px; line-height:1.45; }
