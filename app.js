@@ -26,14 +26,15 @@
     name: savedProfile.name || "",
     email: savedProfile.email || "",
     homeName: savedProfile.homeName || "My home",
-    goal: Number(savedProfile.goal) > 0 ? Number(savedProfile.goal) : 35,
+    goal: Number(savedProfile.goal) > 0 ? Number(savedProfile.goal) : 350,
     saved: false,
     device: { connected: false, lastConnectedAt: null },
     readings: window.UTLTData.demoReadings,
     usingDemo: true,
     onboarding: savedProfile.name ? "" : "profile",
     tutorialStep: 0,
-    syncStatus: "starting"
+    syncStatus: "starting",
+    syncError: ""
   };
 
   // Each browser receives a private anonymous Firebase identity.
@@ -74,6 +75,7 @@
 
   let firebaseStore = null;
   let saveQueue = Promise.resolve();
+  let profileChangedBeforeCloud = false;
   function profileSnapshot() {
     return {
       name: state.name, email: state.email, utility: state.utility,
@@ -86,7 +88,15 @@
     saveLocalProfile(profile);
     if (firebaseStore) {
       saveQueue = saveQueue.then(() => firebaseStore.saveProfile(profile))
-        .catch((error) => console.warn("UTLT cloud save failed; local copy is retained.", error));
+        .then(() => { state.syncStatus = "cloud"; state.syncError = ""; })
+        .catch((error) => {
+          state.syncStatus = "error";
+          state.syncError = error?.message || "Cloud save failed";
+          console.error("UTLT cloud save failed; local copy is retained.", error);
+          render(true);
+        });
+    } else {
+      profileChangedBeforeCloud = true;
     }
   }
   function applySavedProfile(profile) {
@@ -103,13 +113,20 @@
     try {
       firebaseStore = await firebaseReady;
       const remoteProfile = await firebaseStore.loadProfile();
-      if (remoteProfile) applySavedProfile(remoteProfile);
-      else if (state.name) await firebaseStore.saveProfile(profileSnapshot());
+      if (profileChangedBeforeCloud) {
+        await firebaseStore.saveProfile(profileSnapshot());
+      } else if (remoteProfile) {
+        applySavedProfile(remoteProfile);
+      } else if (state.name || state.email) {
+        await firebaseStore.saveProfile(profileSnapshot());
+      }
       state.syncStatus = "cloud";
+      state.syncError = "";
       saveLocalProfile(profileSnapshot());
     } catch (error) {
       state.syncStatus = "local";
-      console.warn("UTLT cloud storage unavailable; using browser storage.", error);
+      state.syncError = error?.message || "Firebase setup is incomplete";
+      console.error("UTLT cloud storage unavailable; using browser storage.", error);
     }
     state.onboarding = state.name ? "" : "profile";
     render();
@@ -209,7 +226,8 @@
 
   function dashboard() {
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${usage(summary)}${status(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+    const syncLabel = state.syncStatus === "cloud" ? "☁️ Profile synced to Firebase" : state.syncStatus === "starting" ? "Connecting to Firebase…" : state.syncStatus === "error" ? "⚠️ Firebase save failed — saved on this device only" : "⚠️ Firebase unavailable — saved on this device only";
+    return `<div class="utlt-dashboard">${usage(summary)}${status(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p><p class="utlt-data-source" role="status">${syncLabel}</p></div>`;
   }
 
   function devicePage() {
@@ -235,7 +253,7 @@
   }
 
   function accountPage() {
-    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>UTLT account</span></div><span class="utlt-connected"><i></i> Active</span></div><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
+    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>UTLT account</span></div><span class="utlt-connected"><i></i> Active</span></div><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><p class="utlt-data-source" role="status">${state.syncStatus === "cloud" ? "☁️ Profile synced to Firebase" : state.syncStatus === "starting" ? "Connecting to Firebase…" : "⚠️ Firebase sync unavailable: " + escapeHtml(state.syncError || "Check Firebase setup")}</p><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
   }
 
   function nav() {
