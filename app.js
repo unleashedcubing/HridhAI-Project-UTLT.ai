@@ -225,10 +225,11 @@
 
       async loadFamily() {
         const accepted = firestoreSdk.query(firestoreSdk.collection(db, "familyJoinRequests"),
-          firestoreSdk.where("requesterUid", "==", uid), firestoreSdk.where("status", "==", "accepted"));
+          firestoreSdk.where("requesterUid", "==", uid));
         const joined = await firestoreSdk.getDocs(accepted);
-        if (!joined.empty) {
-          const familyId = joined.docs[joined.docs.length - 1].data().familyId;
+        const acceptedRequests = joined.docs.filter(d => d.data().status === "accepted");
+        if (acceptedRequests.length) {
+          const familyId = acceptedRequests[acceptedRequests.length - 1].data().familyId;
           const joinedRef = firestoreSdk.doc(db, "families", familyId);
           const joinedSnap = await firestoreSdk.getDoc(joinedRef);
           if (joinedSnap.exists() && joinedSnap.data().memberUids.includes(uid)) return { id: joinedSnap.id, ...joinedSnap.data() };
@@ -250,7 +251,7 @@
       },
       async loadFamilyRequests(id) {
         const q=firestoreSdk.query(firestoreSdk.collection(db,"familyJoinRequests"),firestoreSdk.where("familyId","==",id),firestoreSdk.where("status","==","pending"));
-        const s=await firestoreSdk.getDocs(q); return s.docs.map(d=>({id:d.id,...d.data()}));
+        const s=await firestoreSdk.getDocs(q); return s.docs.filter(d=>d.data().status==="pending").map(d=>({id:d.id,...d.data()}));
       },
       async decideFamilyRequest(req, accept) {
         const fr=firestoreSdk.doc(db,"families",req.familyId), rr=firestoreSdk.doc(db,"familyJoinRequests",req.id);
@@ -261,8 +262,8 @@
         await firestoreSdk.setDoc(firestoreSdk.doc(db,"familyUsage",familyId+"_"+uid+"_"+date),{familyId,uid,displayName:state.name||"Family member",date,litres:Number(litres.toFixed(1)),updatedAt:new Date().toISOString()});
       },
       async loadFamilyUsage(familyId,date) {
-        const q=firestoreSdk.query(firestoreSdk.collection(db,"familyUsage"),firestoreSdk.where("familyId","==",familyId),firestoreSdk.where("date","==",date));
-        const s=await firestoreSdk.getDocs(q); return s.docs.map(d=>({id:d.id,...d.data()}));
+        const q=firestoreSdk.query(firestoreSdk.collection(db,"familyUsage"),firestoreSdk.where("familyId","==",familyId));
+        const s=await firestoreSdk.getDocs(q); return s.docs.filter(d=>d.data().date===date).map(d=>({id:d.id,...d.data()}));
       },
       async loadProfile() {
         const snapshot = await firestoreSdk.getDoc(profileRef);
@@ -438,7 +439,7 @@
   }
 
   function header() {
-    const title = state.screen === "account" ? "Account" : state.screen === "friends" ? "Friends" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : `${state.name.split(" ")[0] || "Your"}’s UTLT`;
+    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : `${state.name.split(" ")[0] || "Your"}’s UTLT`;
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
