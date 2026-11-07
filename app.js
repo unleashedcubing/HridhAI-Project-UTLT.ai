@@ -49,7 +49,7 @@
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
     if (state.screen === "account" || state.screen === "device") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
-    return `<header class="utlt-header ${state.screen === "pair" ? "utlt-header-pair" : ""}"><div class="utlt-title ${state.screen === "pair" ? "utlt-pair-title" : ""}"><span>${escapeHtml(title)}</span>${connection}</div>${actions}</header>`;
+    return `<header class="utlt-header"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${actions}</header>`;
   }
 
   function utilityTabs() {
