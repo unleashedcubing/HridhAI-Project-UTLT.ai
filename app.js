@@ -35,7 +35,7 @@
     authProvider: "signed-out", authBusy: false, authMessage: "", pendingAuthScreen: ""
   };
 
-  // Firebase initializes before the app. A Google account is required to continue.
+  // Firebase initializes in the background; the dashboard is available without signing in.
   const firebaseReady = (async () => {
     const version = "13.2.0";
     const [appSdk, authSdk, firestoreSdk] = await Promise.all([
