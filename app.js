@@ -34,7 +34,9 @@
     onboarding: savedProfile.name ? "" : "profile",
     tutorialStep: 0,
     syncStatus: "starting",
-    syncError: ""
+    syncError: "",
+    uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
+    leaderboardVisible: savedProfile.leaderboardVisible === true, friendMessage: "", friendBusy: false
   };
 
   // Each browser receives a private anonymous Firebase identity.
@@ -59,8 +61,111 @@
     await authSdk.setPersistence(auth, authSdk.browserLocalPersistence);
     const credential = await authSdk.signInAnonymously(auth);
     const db = firestoreSdk.getFirestore(firebaseApp);
-    const profileRef = firestoreSdk.doc(db, "profiles", credential.user.uid);
+    const uid = credential.user.uid;
+    const profileRef = firestoreSdk.doc(db, "profiles", uid);
     return {
+
+      uid,
+      async ensureFriendCode(displayName) {
+        const snap = await firestoreSdk.getDoc(profileRef);
+        const existing = snap.exists() ? snap.data().friendCode : "";
+        if (existing) {
+          await firestoreSdk.setDoc(firestoreSdk.doc(db, "friendCodes", existing), { uid, displayName: displayName || "UTLT user" }, { merge: true });
+          return existing;
+        }
+        const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+        for (let attempt = 0; attempt < 8; attempt++) {
+          const bytes = new Uint8Array(7);
+          crypto.getRandomValues(bytes);
+          const code = "UTLT-" + Array.from(bytes, byte => alphabet[byte % alphabet.length]).join("");
+          const codeRef = firestoreSdk.doc(db, "friendCodes", code);
+          const claimed = await firestoreSdk.runTransaction(db, async transaction => {
+            const codeSnap = await transaction.get(codeRef);
+            if (codeSnap.exists()) return false;
+            transaction.set(codeRef, { uid, displayName: displayName || "UTLT user" });
+            transaction.set(profileRef, { friendCode: code }, { merge: true });
+            return true;
+          });
+          if (claimed) return code;
+        }
+        throw new Error("Could not create a friend code. Please try again.");
+      },
+      async updateFriendName(code, displayName) {
+        await firestoreSdk.setDoc(firestoreSdk.doc(db, "friendCodes", code), { uid, displayName: displayName || "UTLT user" }, { merge: true });
+      },
+      async lookupFriendCode(code) {
+        const snap = await firestoreSdk.getDoc(firestoreSdk.doc(db, "friendCodes", code));
+        return snap.exists() ? snap.data() : null;
+      },
+      async sendFriendRequest(recipientUid, recipientName, senderName) {
+        const requestId = uid + "_" + recipientUid;
+        const requestRef = firestoreSdk.doc(db, "friendRequests", requestId);
+        const existing = await firestoreSdk.getDoc(requestRef);
+        if (existing.exists()) {
+          const data = existing.data();
+          if (data.status === "pending") throw new Error("A friend request is already pending.");
+          if (data.status === "accepted") throw new Error("You are already friends.");
+          await firestoreSdk.deleteDoc(requestRef);
+        }
+        const reverseId = recipientUid + "_" + uid;
+        const reverse = await firestoreSdk.getDoc(firestoreSdk.doc(db, "friendRequests", reverseId));
+        if (reverse.exists() && reverse.data().status === "pending") throw new Error("This person has already sent you a request. Check incoming requests.");
+        await firestoreSdk.setDoc(requestRef, {
+          senderUid: uid, recipientUid, senderName: senderName || "UTLT user",
+          recipientName: recipientName || "UTLT user", status: "pending", createdAt: new Date().toISOString()
+        });
+      },
+      async loadFriendRequests() {
+        const ref = firestoreSdk.collection(db, "friendRequests");
+        const [incoming, outgoing] = await Promise.all([
+          firestoreSdk.getDocs(firestoreSdk.query(ref, firestoreSdk.where("recipientUid", "==", uid), firestoreSdk.where("status", "==", "pending"))),
+          firestoreSdk.getDocs(firestoreSdk.query(ref, firestoreSdk.where("senderUid", "==", uid), firestoreSdk.where("status", "==", "pending")))
+        ]);
+        return {
+          incoming: incoming.docs.map(s => ({ id: s.id, ...s.data() })),
+          outgoing: outgoing.docs.map(s => ({ id: s.id, ...s.data() }))
+        };
+      },
+      async loadFriends() {
+        const snap = await firestoreSdk.getDocs(firestoreSdk.query(
+          firestoreSdk.collection(db, "friendships"), firestoreSdk.where("memberUids", "array-contains", uid)
+        ));
+        return snap.docs.map(s => ({ id: s.id, ...s.data() }));
+      },
+      async answerFriendRequest(requestId, accept) {
+        const requestRef = firestoreSdk.doc(db, "friendRequests", requestId);
+        const snap = await firestoreSdk.getDoc(requestRef);
+        if (!snap.exists()) throw new Error("That request no longer exists.");
+        const data = snap.data();
+        if (data.recipientUid !== uid || data.status !== "pending") throw new Error("This request can no longer be changed.");
+        await firestoreSdk.updateDoc(requestRef, { status: accept ? "accepted" : "declined", updatedAt: new Date().toISOString() });
+        if (accept) {
+          const friendUid = data.senderUid;
+          const memberUids = [uid, friendUid];
+          const displayNames = { [uid]: state.name || "UTLT user", [friendUid]: data.senderName || "UTLT user" };
+          const batch = firestoreSdk.writeBatch(db);
+          for (const [owner, other] of [[uid, friendUid], [friendUid, uid]]) {
+            batch.set(firestoreSdk.doc(db, "friendships", owner + "_" + other), {
+              memberUids, displayNames, requestId, createdAt: new Date().toISOString()
+            });
+          }
+          await batch.commit();
+        }
+      },
+      async removeFriend(friendUid) {
+        const batch = firestoreSdk.writeBatch(db);
+        batch.delete(firestoreSdk.doc(db, "friendships", uid + "_" + friendUid));
+        batch.delete(firestoreSdk.doc(db, "friendships", friendUid + "_" + uid));
+        await batch.commit();
+      },
+      async loadFriendStats(friendUid) {
+        const snap = await firestoreSdk.getDoc(firestoreSdk.doc(db, "friendStats", friendUid));
+        return snap.exists() ? snap.data() : null;
+      },
+      async publishStats(stats) {
+        await firestoreSdk.setDoc(firestoreSdk.doc(db, "friendStats", uid), stats, { merge: true });
+      },
+
       async loadProfile() {
         const snapshot = await firestoreSdk.getDoc(profileRef);
         return snapshot.exists() ? snapshot.data() : null;
@@ -80,7 +185,7 @@
     return {
       name: state.name, email: state.email, utility: state.utility,
       dark: state.dark, homeName: state.homeName, goal: state.goal,
-      breakdown: state.breakdown
+      breakdown: state.breakdown, leaderboardVisible: state.leaderboardVisible
     };
   }
   function persistProfile() {
@@ -108,10 +213,12 @@
     if (typeof profile.homeName === "string") state.homeName = profile.homeName;
     if (Number(profile.goal) > 0) state.goal = Number(profile.goal);
     if (["use", "time"].includes(profile.breakdown)) state.breakdown = profile.breakdown;
+    state.leaderboardVisible = profile.leaderboardVisible === true;
   }
   async function initializePersistence() {
     try {
       firebaseStore = await firebaseReady;
+      state.uid = firebaseStore.uid;
       const remoteProfile = await firebaseStore.loadProfile();
       if (profileChangedBeforeCloud) {
         await firebaseStore.saveProfile(profileSnapshot());
@@ -120,6 +227,8 @@
       } else if (state.name || state.email) {
         await firebaseStore.saveProfile(profileSnapshot());
       }
+      state.friendCode = await firebaseStore.ensureFriendCode(state.name || "UTLT user");
+      await refreshFriendData();
       state.syncStatus = "cloud";
       state.syncError = "";
       saveLocalProfile(profileSnapshot());
