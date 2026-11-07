@@ -631,3 +631,227 @@ button { -webkit-tap-highlight-color: transparent; }
 .utlt-family-member{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 0;border-top:1px solid var(--utlt-border);font-size:12px}.utlt-family-member strong{white-space:nowrap}
 .utlt-family-member button{padding:7px 9px;border:1px solid var(--utlt-border);border-radius:8px;background:var(--utlt-bg);color:var(--utlt-text);font-size:10px}
 .utlt-family-message{margin:10px 0;padding:10px;border-radius:10px;background:var(--utlt-panel);font-size:12px}.utlt-family-muted{margin-top:12px}
+
+
+/* ==========================================================================
+   UI POLISH (visual-only). Everything below only changes how things LOOK.
+   No class names were renamed, so app.js keeps working exactly as before.
+   ========================================================================== */
+
+/* 1. Better font that works on Android + iPhone + Windows (SF Pro only exists on Apple) */
+.utlt-app {
+  --utlt-radius-card: 22px;
+  --utlt-shadow-soft: 0 1px 2px rgb(16 40 70 / 0.04), 0 8px 24px -8px rgb(16 40 70 / 0.12);
+  --utlt-accent: #0878c7;
+  font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Display", "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  background: linear-gradient(160deg, #eef4fb 0%, #e2eaf5 100%);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+}
+.utlt-app.utlt-dark {
+  --utlt-shadow-soft: 0 1px 2px rgb(0 0 0 / 0.3), 0 10px 28px -10px rgb(0 0 0 / 0.55);
+  --utlt-accent: #79adff;
+  background: #14181d;
+}
+html { scroll-behavior: smooth; }
+.utlt-donut-label strong, .utlt-usage-summary strong, .utlt-trend-footer strong,
+.utlt-kokonut-card-head strong, .utlt-kokonut-legend-copy strong { font-variant-numeric: tabular-nums; }
+
+/* 2. Phone frame on big screens */
+@media (min-width: 600px) {
+  .utlt-phone {
+    border-radius: 32px;
+    box-shadow: 0 0 0 1px rgb(16 40 70 / 0.06), 0 30px 70px -20px rgb(16 40 70 / 0.35);
+  }
+  .utlt-app.utlt-dark .utlt-phone { box-shadow: 0 0 0 1px rgb(255 255 255 / 0.06), 0 30px 70px -20px rgb(0 0 0 / 0.8); }
+}
+
+/* 3. Scrolling area: slim, quiet scrollbar */
+.utlt-content { scrollbar-width: thin; scrollbar-color: rgb(120 130 145 / 0.35) transparent; -webkit-overflow-scrolling: touch; }
+.utlt-content::-webkit-scrollbar { width: 6px; }
+.utlt-content::-webkit-scrollbar-thumb { border-radius: 99px; background: rgb(120 130 145 / 0.35); }
+
+/* 4. Header + icon buttons: bigger tap area, round hover/press feedback */
+.utlt-title { font-size: 22px; letter-spacing: -0.6px; }
+.utlt-icon-button { width: 40px; height: 40px; border-radius: 50%; }
+.utlt-header-actions { gap: 6px; }
+.utlt-icon-button:active { background: rgb(22 136 248 / 0.14); }
+.utlt-connection-icon { padding: 5px; border-radius: 50%; background: rgb(120 130 145 / 0.12); }
+.utlt-connection-icon.is-connected { background: rgb(0 169 219 / 0.14); }
+@media (hover: hover) {
+  .utlt-icon-button:hover { background: rgb(22 136 248 / 0.1); }
+}
+
+/* 5. Utility pills (Water / Gas / Electricity) */
+.utlt-pills { gap: 10px; }
+.utlt-pill { border-width: 1.5px; font-weight: 600; letter-spacing: -0.1px; }
+.utlt-pill.is-active { box-shadow: 0 8px 18px -8px var(--utility-color); }
+.utlt-pill:active { transform: scale(0.96); }
+@media (hover: hover) {
+  .utlt-pill:not(.is-active):hover { border-color: var(--utility-color); }
+}
+
+/* 6. Main water ring: soft glow + visible track */
+.utlt-donut { filter: drop-shadow(0 10px 20px rgb(22 136 248 / 0.18)); }
+.utlt-donut-track { stroke: #e3ecf6; }
+.utlt-dark .utlt-donut-track { stroke: #2d3640; }
+.utlt-donut-label strong { font-weight: 800; }
+.utlt-donut-label span { color: var(--utlt-muted); font-size: 14px; letter-spacing: 0.04em; text-transform: uppercase; }
+
+/* 7. Usage summary card */
+.utlt-usage-summary {
+  border: 1px solid rgb(16 40 70 / 0.08);
+  background: linear-gradient(180deg, #ffffff 0%, #f1f6fc 100%);
+  box-shadow: var(--utlt-shadow-soft);
+}
+.utlt-dark .utlt-usage-summary { border-color: #3a444f; background: linear-gradient(180deg, #2c333b 0%, #252b32 100%); }
+.utlt-dark .utlt-usage-summary strong { color: #79c0ff; }
+.utlt-usage-summary span { color: var(--utlt-text); opacity: 0.7; }
+
+/* 8. Status message card (good / over goal / leak) */
+.utlt-status-card { border-width: 1.5px; box-shadow: inset 5px 0 0 #168dff, var(--utlt-shadow-soft); }
+.utlt-status-card.is-over-goal, .utlt-status-card.is-possible-leak { box-shadow: inset 5px 0 0 #dc4248, var(--utlt-shadow-soft); }
+.utlt-status-card.is-flow-stopped { box-shadow: inset 5px 0 0 #199d22, var(--utlt-shadow-soft); }
+.utlt-status-card p { opacity: 0.88; }
+
+/* 9. Section titles + By use / By time switch */
+.utlt-glance h2, .utlt-week h2 { font-size: 20px; letter-spacing: -0.5px; }
+.utlt-breakdown-switch { padding: 4px; border-radius: 14px; }
+.utlt-breakdown-switch button { height: 34px; border-radius: 11px; font-size: 13px; font-weight: 600; transition: background-color .2s ease, color .2s ease, box-shadow .2s ease; }
+.utlt-breakdown-switch button.is-selected { color: var(--utlt-accent); box-shadow: 0 2px 8px rgb(16 40 70 / 0.12); }
+.utlt-dark .utlt-breakdown-switch button.is-selected { background: #4a4a4a; }
+
+/* 10. Chart cards */
+.utlt-kokonut-card, .utlt-trend-card { border-color: rgb(16 40 70 / 0.07); border-radius: 24px; box-shadow: var(--utlt-shadow-soft); }
+.utlt-dark .utlt-kokonut-card, .utlt-dark .utlt-trend-card { border-color: #3a3a3a; box-shadow: var(--utlt-shadow-soft); }
+.utlt-kokonut-card-head > span, .utlt-trend-head > span { font-size: 11px; }
+.utlt-kokonut-legend { gap: 8px; }
+.utlt-kokonut-legend li { padding: 10px 12px; border-radius: 14px; }
+.utlt-kokonut-swatch { width: 11px; height: 11px; flex-basis: 11px; border-radius: 50%; }
+.utlt-kokonut-legend-copy { font-size: 11px; }
+.utlt-trend-bar { rx: 6px; ry: 6px; }
+.utlt-trend-head strong { padding: 6px 10px; font-size: 11px; }
+.utlt-trend-footer { font-size: 12px; }
+.utlt-ai-note, .utlt-data-source { font-size: 11px; }
+
+/* 11. Bottom navigation: frosted bar, clear "you are here" highlight, phone safe-area */
+.utlt-tabbar {
+  height: auto; min-height: 64px; flex-basis: auto;
+  padding: 6px 12px max(8px, env(safe-area-inset-bottom));
+  border-top: 1px solid var(--utlt-border);
+  background: color-mix(in srgb, var(--utlt-nav-bg, var(--utlt-bg)) 92%, transparent);
+  -webkit-backdrop-filter: saturate(180%) blur(14px);
+  backdrop-filter: saturate(180%) blur(14px);
+}
+.utlt-dark .utlt-tabbar { border-top-color: rgb(255 255 255 / 0.08); }
+.utlt-tabbar > button { height: 52px; border-radius: 14px; font-size: 11px; font-weight: 600; }
+.utlt-tabbar > button.is-current { font-weight: 700; }
+.utlt-tabbar > button.is-current .utlt-nav-icon {
+  width: 52px; height: 28px; border-radius: 99px; background: rgb(8 120 199 / 0.13);
+}
+.utlt-dark .utlt-tabbar > button.is-current .utlt-nav-icon { background: rgb(121 173 255 / 0.18); }
+.utlt-tabbar > button.is-current .utlt-nav-icon svg,
+.utlt-tabbar > button.is-current .utlt-tab-avatar svg { color: #0878c7 !important; stroke: #0878c7 !important; }
+.utlt-dark .utlt-tabbar > button.is-current .utlt-nav-icon svg,
+.utlt-dark .utlt-tabbar > button.is-current .utlt-tab-avatar svg { color: #79adff !important; stroke: #79adff !important; }
+.utlt-tabbar > button:active .utlt-nav-icon { transform: scale(0.92); }
+@media (prefers-reduced-motion: no-preference) {
+  .utlt-nav-icon { transition: background-color .2s ease, transform .15s ease, width .2s ease; }
+}
+
+/* 12. Buttons */
+.utlt-primary-button {
+  min-height: 50px; border-radius: 15px; font-weight: 700; letter-spacing: -0.1px;
+  background: linear-gradient(180deg, #2a9bff 0%, #1688f8 100%);
+  box-shadow: 0 8px 18px -8px rgb(22 136 248 / 0.7), inset 0 1px 0 rgb(255 255 255 / 0.25);
+}
+.utlt-primary-button:hover { background: linear-gradient(180deg, #1f90f8 0%, #0875df 100%); }
+.utlt-primary-button:active { transform: scale(0.98); box-shadow: 0 4px 10px -6px rgb(22 136 248 / 0.7); }
+@media (prefers-reduced-motion: no-preference) {
+  .utlt-primary-button, .utlt-pill { transition: transform .12s ease, background-color .15s ease, box-shadow .15s ease, border-color .15s ease, color .15s ease; }
+}
+
+/* 13. Text inputs */
+.utlt-field input, .utlt-add-friend input { transition: border-color .15s ease, box-shadow .15s ease; }
+.utlt-field input { height: 48px; border-radius: 14px; }
+.utlt-field input:focus, .utlt-add-friend input:focus { border-color: #1688f8; box-shadow: 0 0 0 4px rgb(22 136 248 / 0.16); }
+.utlt-add-friend input { height: 48px; border-radius: 13px; }
+.utlt-add-friend .utlt-primary-button { min-height: 48px; }
+.utlt-dark .utlt-field input, .utlt-dark .utlt-add-friend input { background: #2b2b2b; }
+
+/* 14. Account + settings rows */
+.utlt-profile-card, .utlt-device-card, .utlt-friend-code-card, .utlt-privacy-card,
+.utlt-family-total, .utlt-family-card, .utlt-community-insight, .utlt-community-optin, .utlt-unavailable-card {
+  box-shadow: var(--utlt-shadow-soft);
+}
+.utlt-profile-card { border-radius: 22px; padding: 18px 16px; }
+.utlt-avatar { width: 52px; height: 52px; background: linear-gradient(135deg, #cfe7ff, #e9f4ff); }
+.utlt-dark .utlt-avatar { background: linear-gradient(135deg, #1c4568, #183958); }
+.utlt-connected i { box-shadow: 0 0 0 3px rgb(85 168 90 / 0.22); }
+.utlt-settings-row { min-height: 68px; border-radius: 14px; padding-inline: 8px; transition: background-color .15s ease; }
+.utlt-settings-row:active { background: var(--utlt-panel); }
+@media (hover: hover) { .utlt-settings-row:hover { background: var(--utlt-panel); } }
+.utlt-settings-icon { width: 40px; height: 40px; border-radius: 13px; }
+.utlt-section-heading h2 { font-size: 20px; }
+
+/* 15. Device pairing / device settings / "coming later" screens */
+.utlt-device-card { border-radius: 24px; }
+.utlt-device-icon { width: 46px; height: 46px; flex-basis: 46px; border-radius: 15px; }
+.utlt-last-connected { font-size: 11px; }
+.utlt-pair-illustration, .utlt-unavailable-icon { background: linear-gradient(135deg, #d8ecff, #eef7ff); box-shadow: 0 8px 20px -10px rgb(8 120 199 / 0.5); }
+.utlt-dark .utlt-pair-illustration, .utlt-dark .utlt-unavailable-icon { background: linear-gradient(135deg, #1b3f60, #172f46); box-shadow: none; }
+.utlt-dark .utlt-pair-illustration, .utlt-dark .utlt-unavailable-icon { color: #79adff; }
+.utlt-pair-notice { border-radius: 16px; box-shadow: var(--utlt-shadow-soft); }
+.utlt-pair-steps li > span { background: linear-gradient(135deg, #d8ecff, #eef7ff); }
+.utlt-dark .utlt-pair-steps li > span { background: #1b3f60; color: #8abaff; }
+.utlt-pair-steps strong { font-size: 14px; }
+.utlt-pair-steps small { font-size: 12.5px; }
+.utlt-unavailable-card { border-radius: 24px; padding: 24px; }
+.utlt-dark .utlt-eyebrow { color: #79adff; }
+
+/* 16. Friends + leaderboard */
+.utlt-friends-hero > span { border-radius: 18px; background: linear-gradient(135deg, #d8ecff, #eef7ff); }
+.utlt-dark .utlt-friends-hero > span { background: linear-gradient(135deg, #1b3f60, #183958); }
+.utlt-friend-code-card { border-radius: 20px; }
+.utlt-friend-code-card strong { font-variant-numeric: tabular-nums; }
+.utlt-copy-code { min-height: 40px; border-radius: 12px; }
+.utlt-copy-code:active { transform: scale(0.96); }
+.utlt-friend-row strong { font-size: 13px; }
+.utlt-friend-row small, .utlt-friend-muted { font-size: 11px; }
+.utlt-friend-actions button, .utlt-remove-friend { min-height: 34px; font-size: 11px; border-radius: 10px; }
+.utlt-leaderboard-card { border-radius: 18px; box-shadow: var(--utlt-shadow-soft); }
+.utlt-dark .utlt-leaderboard-card { background: #262626; border-color: #3a3a3a; }
+.utlt-rank-row { min-height: 40px; }
+.utlt-rank-name { font-size: 12px; }
+.utlt-rank-row:nth-of-type(1) .utlt-rank-number { background: #ffe9a8; color: #7a5a00; }
+.utlt-rank-number { width: 24px; height: 24px; flex-basis: 24px; font-size: 11px; }
+
+/* 17. Toggle switch (bigger, smoother, easier to tap) */
+.utlt-switch { width: 46px; height: 27px; flex-basis: 46px; }
+.utlt-switch span::after { top: 3px; left: 3px; width: 21px; height: 21px; box-shadow: 0 2px 5px rgb(0 0 0 / 0.25); }
+.utlt-switch input:checked + span::after { transform: translateX(19px); }
+.utlt-switch input:focus-visible + span { outline: 3px solid #1688f8; outline-offset: 3px; }
+
+/* 18. Family page */
+.utlt-family-page h1 { font-size: 28px; }
+.utlt-family-total { border-radius: 20px; background: linear-gradient(160deg, var(--utlt-panel), rgb(22 136 248 / 0.08)); }
+.utlt-family-total span { font-size: 10px; }
+.utlt-family-card { border-radius: 20px; }
+.utlt-family-qr { border-radius: 16px; box-shadow: 0 6px 18px -8px rgb(0 0 0 / 0.25); }
+.utlt-family-secondary, .utlt-family-member button { min-height: 36px; border-radius: 11px; font-weight: 600; cursor: pointer; }
+.utlt-family-member { padding: 13px 0; font-size: 13px; }
+.utlt-family-member button { font-size: 11px; }
+.utlt-family-message, .utlt-friend-message { border-radius: 12px; border-left: 3px solid #1688f8; }
+
+/* 19. Community cards */
+.utlt-community-insight, .utlt-community-optin { border-radius: 18px; }
+.utlt-community-icon { border-radius: 13px; }
+
+/* 20. Small phones: keep things from feeling cramped */
+@media (max-width: 360px) {
+  .utlt-pills { gap: 6px; }
+  .utlt-title { font-size: 20px; }
+  .utlt-tabbar { padding-inline: 6px; }
+  .utlt-tabbar > button { min-width: 0; }
+}
