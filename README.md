@@ -16,9 +16,9 @@ This project uses Firebase project `utlt-ai`. In the Firebase console:
 
 1. Open **Authentication → Sign-in method** and enable **Anonymous** sign-in.
 2. Open **Firestore Database** and create a database.
-3. In Firestore **Rules**, publish the contents of `firestore.rules`.
+3. In Firestore **Rules**, publish the latest contents of `firestore.rules` from this repository. This is essential: the updated rules protect friend codes, requests, friendships, and private leaderboard data.
 
-Each browser signs in anonymously and stores its profile in `profiles/{userId}`. The rules allow that signed-in browser identity to read and write only its own document. Firebase Analytics is not used to store profile data. The email field is saved as profile information; it is not verified and is not used to sign in.
+Each browser signs in anonymously and stores its private profile in `profiles/{userId}`. The Friends feature uses `friendCodes`, `friendRequests`, `friendships`, and `friendStats`. Friend-code lookups reveal only a display name and anonymous UID; email addresses are never copied into social documents or shown to friends. Leaderboard sharing is off by default. When a user turns it on, accepted friends can read that user’s daily usage and goal-based litres-saved totals. Turning it off deletes the shared stats document. Firebase Analytics is not used to store profile data. The email field is saved as profile information; it is not verified and is not used to sign in.
 
 If Firebase setup is unavailable, the app falls back to local browser storage. Cloud sync will begin after the Firebase setup steps are completed.
 
@@ -28,7 +28,7 @@ The app saves the user's name, email address, selected utility, light/dark theme
 
 Browser-local data remains on that browser. Firebase cloud data is tied to the anonymous browser identity; clearing browser site data can remove access to that identity.
 
-## Device readings
+## Friends and competition\n\nThe Friends tab creates a unique UTLT friend code, supports incoming/outgoing friend requests, and lets users remove friends. Two daily leaderboards are shown: **Water Saver** (litres remaining below the user’s own daily goal) and **Lowest Usage** (lowest daily litres used). Daily stats use the Asia/Kolkata date. Leaderboard participation is opt-in and private by default. Demo readings are never submitted to leaderboards.\n\nCompetition stats are currently published by the browser when real readings are supplied through the device integration. This preview does not yet include a working meter connection or server-side verification of meter readings, so the leaderboard is a prototype and should not be treated as tamper-proof. A production competition should validate readings through a trusted device/backend.\n\n## Device readings
 
 The dashboard currently uses demo readings, and the pairing screen is a placeholder. A device adapter can pass new readings into the app:
 
