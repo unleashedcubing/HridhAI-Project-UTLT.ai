@@ -329,14 +329,14 @@
     const destination = state.pendingAuthScreen || "this feature";
     const featureName = destination === "family" ? "Family Connect" : destination === "account" ? "your account" : "device setup";
     const message = errorMessage || state.authMessage || `Sign in with Google to use ${featureName}. Your dashboard remains available without signing in.`;
-    root.innerHTML = `<main style="min-height:100dvh;display:grid;place-items:center;padding:24px;background:#101820;color:#f5f8fc;font-family:Arial,sans-serif;">
-      <section style="width:min(100%,420px);padding:30px;border:1px solid #34465a;border-radius:24px;background:#1b2938;box-shadow:0 20px 60px #0005;text-align:center;">
-        <div style="font-size:34px;margin-bottom:12px;">💧</div><p style="margin:0 0 8px;color:#83bfff;font-size:11px;font-weight:800;letter-spacing:.16em;">UTLT.AI</p>
-        <h1 style="margin:0;font-size:30px;">One quick sign-in</h1><p style="margin:12px 0 22px;color:#b9c7d6;line-height:1.55;">Google sign-in protects your family data, device connections and saved account settings. You can still use the water dashboard as a guest.</p>
-        <button type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""} style="width:100%;min-height:50px;border:0;border-radius:12px;background:#fff;color:#182536;font-size:15px;font-weight:750;cursor:pointer;">${state.authBusy ? "Connecting…" : "Continue with Google"}</button>
-        <button type="button" data-action="auth-cancel" style="width:100%;min-height:44px;margin-top:10px;border:1px solid #526579;border-radius:12px;background:transparent;color:#dce7f2;font-size:14px;font-weight:650;cursor:pointer;">Back to dashboard</button>
-        <p role="status" style="min-height:36px;margin:14px 0 0;color:#c4d3e3;font-size:12px;line-height:1.5;">${escapeHtml(message)}</p>
-        <p style="margin:12px 0 0;color:#8295aa;font-size:10px;line-height:1.5;">You only need Google for protected features and cloud sync.</p>
+    root.innerHTML = `<main style="min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 15% 0%,#1d4f7a 0%,transparent 55%),radial-gradient(circle at 95% 100%,#0b5e7a 0%,transparent 50%),#0d151d;color:#f5f8fc;font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;">
+      <section style="width:min(100%,420px);padding:34px 30px;border:1px solid rgba(255,255,255,.1);border-radius:28px;background:linear-gradient(180deg,rgba(35,52,71,.94),rgba(24,37,52,.94));box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);text-align:center;">
+        <div style="width:64px;height:64px;margin:0 auto 16px;display:grid;place-items:center;border-radius:20px;background:linear-gradient(135deg,#2a9bff,#00c3d0);font-size:30px;box-shadow:0 12px 28px -8px rgba(22,136,248,.7);">💧</div><p style="margin:0 0 8px;color:#83bfff;font-size:11px;font-weight:800;letter-spacing:.16em;">UTLT.AI</p>
+        <h1 style="margin:0;font-size:30px;line-height:1.15;letter-spacing:-.8px;">One quick sign-in</h1><p style="margin:12px 0 24px;color:#b9c7d6;font-size:15px;line-height:1.6;">Google sign-in protects your family data, device connections and saved account settings. You can still use the water dashboard as a guest.</p>
+        <button type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""} style="width:100%;min-height:52px;border:0;border-radius:14px;background:#fff;color:#182536;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 8px 20px -8px rgba(0,0,0,.5);">${state.authBusy ? "Connecting…" : "Continue with Google"}</button>
+        <button type="button" data-action="auth-cancel" style="width:100%;min-height:46px;margin-top:10px;border:1px solid #526579;border-radius:14px;background:transparent;color:#dce7f2;font-size:14px;font-weight:650;cursor:pointer;">Back to dashboard</button>
+        <p role="status" style="min-height:36px;margin:16px 0 0;color:#c4d3e3;font-size:13px;line-height:1.5;">${escapeHtml(message)}</p>
+        <p style="margin:12px 0 0;color:#8aa0b6;font-size:11px;line-height:1.5;">You only need Google for protected features and cloud sync.</p>
       </section></main>`;
   }
 
@@ -749,24 +749,24 @@
   ];
 
   function onboardingMarkup() {
-    const overlayStyle = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,18,30,.62);";
-    const panelStyle = "width:min(100%,420px);max-height:90dvh;overflow:auto;padding:26px;border-radius:22px;background:#fff;color:#17202b;box-shadow:0 20px 70px rgba(0,0,0,.28);font-family:Arial,sans-serif;";
+    const overlayStyle = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,18,30,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);";
+    const panelStyle = "width:min(100%,420px);max-height:90dvh;overflow:auto;padding:28px;border-radius:28px;background:#fff;color:#17202b;box-shadow:0 30px 80px rgba(0,0,0,.35);font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;";
     const labelStyle = "display:block;margin:18px 0 7px;font-size:13px;font-weight:700;";
-    const inputStyle = "width:100%;height:46px;padding:0 13px;border:1px solid #cbd5e1;border-radius:11px;font:inherit;font-size:15px;box-sizing:border-box;";
-    const primaryStyle = "width:100%;min-height:48px;margin-top:18px;border:0;border-radius:12px;background:#1688f8;color:#fff;font:inherit;font-weight:700;cursor:pointer;";
-    const secondaryStyle = "width:100%;min-height:42px;margin-top:9px;border:0;background:transparent;color:#64748b;font:inherit;font-weight:600;cursor:pointer;";
+    const inputStyle = "width:100%;height:50px;padding:0 14px;border:1.5px solid #cbd5e1;border-radius:14px;background:#fff;color:#17202b;font:inherit;font-size:16px;box-sizing:border-box;";
+    const primaryStyle = "width:100%;min-height:52px;margin-top:20px;border:0;border-radius:15px;background:linear-gradient(180deg,#2a9bff,#1688f8);color:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 10px 20px -10px rgba(22,136,248,.8);";
+    const secondaryStyle = "width:100%;min-height:44px;margin-top:8px;border:0;background:transparent;color:#64748b;font:inherit;font-size:14px;font-weight:600;cursor:pointer;";
     if (state.onboarding === "profile") {
       return `<div style="${overlayStyle}" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="utlt-welcome-title" style="${panelStyle}">
         <p style="margin:0 0 8px;color:#1688f8;font-size:11px;font-weight:800;letter-spacing:.13em;">WELCOME TO UTLT.AI</p>
-        <h2 id="utlt-welcome-title" style="margin:0;font-size:27px;line-height:1.15;">Let’s set things up</h2>
-        <p style="margin:9px 0 0;color:#64748b;font-size:14px;line-height:1.5;">A couple of quick details will help us personalise your dashboard.</p>
+        <h2 id="utlt-welcome-title" style="margin:0;font-size:28px;line-height:1.15;letter-spacing:-.7px;">Let’s set things up</h2>
+        <p style="margin:10px 0 0;color:#64748b;font-size:15px;line-height:1.55;">A couple of quick details will help us personalise your dashboard.</p>
         <form id="utlt-welcome-form">
           <label for="utlt-welcome-name" style="${labelStyle}">What is your name?</label>
           <input id="utlt-welcome-name" name="name" type="text" maxlength="60" autocomplete="given-name" placeholder="Enter your name" required style="${inputStyle}">
           <fieldset style="margin:20px 0 0;padding:0;border:0;">
-            <legend style="font-size:14px;font-weight:700;">What do you plan to save?</legend>
-            <p style="margin:5px 0 10px;color:#64748b;font-size:12px;">Choose the utility you want to focus on first.</p>
-            ${["Water","Gas","Electricity"].map((item,index) => `<label style="display:flex;align-items:center;gap:10px;margin:9px 0;padding:12px;border:1px solid #dbe3ec;border-radius:12px;font-size:14px;cursor:pointer;"><input type="radio" name="utility" value="${item}" ${index === 0 ? "checked" : ""} style="accent-color:#1688f8;width:17px;height:17px;">${item}</label>`).join("")}
+            <legend style="font-size:15px;font-weight:700;">What do you plan to save?</legend>
+            <p style="margin:5px 0 10px;color:#64748b;font-size:13px;">Choose the utility you want to focus on first.</p>
+            ${["Water","Gas","Electricity"].map((item,index) => `<label style="display:flex;align-items:center;gap:10px;margin:9px 0;padding:14px;border:1.5px solid #dbe3ec;border-radius:14px;background:#f8fafc;font-size:15px;font-weight:600;cursor:pointer;"><input type="radio" name="utility" value="${item}" ${index === 0 ? "checked" : ""} style="accent-color:#1688f8;width:17px;height:17px;">${item}</label>`).join("")}
           </fieldset>
           <button type="submit" style="${primaryStyle}">Continue</button>
         </form>
@@ -777,10 +777,10 @@
       const final = state.tutorialStep === tutorialSlides.length - 1;
       return `<div style="${overlayStyle}" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="utlt-tutorial-title" style="${panelStyle}">
         <p style="margin:0 0 8px;color:#1688f8;font-size:11px;font-weight:800;letter-spacing:.13em;">QUICK TOUR · ${state.tutorialStep + 1} OF ${tutorialSlides.length}</p>
-        <div aria-hidden="true" style="display:flex;gap:6px;margin:0 0 20px;">${tutorialSlides.map((_,i)=>`<span style="height:5px;flex:1;border-radius:99px;background:${i <= state.tutorialStep ? "#1688f8" : "#e2e8f0"}"></span>`).join("")}</div>
-        <h2 id="utlt-tutorial-title" style="margin:0;font-size:25px;line-height:1.2;">${slide.title}</h2>
+        <div aria-hidden="true" style="display:flex;gap:6px;margin:0 0 20px;">${tutorialSlides.map((_,i)=>`<span style="height:6px;flex:1;border-radius:99px;background:${i <= state.tutorialStep ? "#1688f8" : "#e2e8f0"}"></span>`).join("")}</div>
+        <h2 id="utlt-tutorial-title" style="margin:0;font-size:26px;line-height:1.2;letter-spacing:-.6px;">${slide.title}</h2>
         <p style="margin:12px 0;color:#475569;font-size:15px;line-height:1.6;">${slide.body}</p>
-        <p style="margin:16px 0 0;padding:12px;border-radius:11px;background:#eff6ff;color:#24527a;font-size:13px;line-height:1.5;">💡 ${slide.tip}</p>
+        <p style="margin:16px 0 0;padding:14px;border-radius:14px;background:#eff6ff;border-left:4px solid #1688f8;color:#24527a;font-size:13px;line-height:1.55;">💡 ${slide.tip}</p>
         <button type="button" data-action="${final ? "onboarding-done" : "tutorial-next"}" style="${primaryStyle}">${final ? "Go to my dashboard" : "Next"}</button>
         <button type="button" data-action="tutorial-skip" style="${secondaryStyle}">Skip tutorial</button>
       </section></div>`;
