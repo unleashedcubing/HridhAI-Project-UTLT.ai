@@ -31,6 +31,7 @@
     uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
     leaderboardVisible: false, communitySharing: false,
     communityPercentile: null, communityParticipants: 0, communityStatus: "off", friendMessage: "", friendBusy: false,
+    family: null, familyInviteUrl: "", familyRequests: [], familyMessage: "", familyBusy: false, pendingFamilyInvite: "",
     authProvider: "signed-out", authBusy: false, authMessage: ""
   };
 
@@ -222,6 +223,38 @@
         return snap.exists() ? snap.data() : null;
       },
 
+      async loadFamily() {
+        const ref = firestoreSdk.doc(db, "families", uid), snap = await firestoreSdk.getDoc(ref);
+        if (snap.exists()) return { id: snap.id, ...snap.data() };
+        const data = { ownerUid: uid, familyName: state.homeName || "My family", memberUids: [uid], displayNames: { [uid]: state.name || "Family owner" }, createdAt: new Date().toISOString() };
+        await firestoreSdk.setDoc(ref, data); return { id: uid, ...data };
+      },
+      async createFamilyInvite() {
+        const bytes = new Uint8Array(18); crypto.getRandomValues(bytes);
+        const token = Array.from(bytes, b => b.toString(16).padStart(2,"0")).join("");
+        await firestoreSdk.setDoc(firestoreSdk.doc(db,"familyInvites",token), { familyId: state.family.id, ownerUid: uid, ownerName: state.name || "Family owner", expiresAt: Date.now()+600000, createdAt: new Date().toISOString() });
+        return { token, url: location.origin + location.pathname + "?familyInvite=" + token };
+      },
+      async getFamilyInvite(token) { const s=await firestoreSdk.getDoc(firestoreSdk.doc(db,"familyInvites",token)); return s.exists() && s.data().expiresAt >= Date.now() ? s.data() : null; },
+      async requestFamilyJoin(token, invite) {
+        await firestoreSdk.setDoc(firestoreSdk.doc(db,"familyJoinRequests",token+"_"+uid), { familyId:invite.familyId, inviteToken:token, ownerUid:invite.ownerUid, requesterUid:uid, requesterName:state.name||"UTLT member", status:"pending", createdAt:new Date().toISOString() });
+      },
+      async loadFamilyRequests(id) {
+        const q=firestoreSdk.query(firestoreSdk.collection(db,"familyJoinRequests"),firestoreSdk.where("familyId","==",id),firestoreSdk.where("status","==","pending"));
+        const s=await firestoreSdk.getDocs(q); return s.docs.map(d=>({id:d.id,...d.data()}));
+      },
+      async decideFamilyRequest(req, accept) {
+        const fr=firestoreSdk.doc(db,"families",req.familyId), rr=firestoreSdk.doc(db,"familyJoinRequests",req.id);
+        await firestoreSdk.runTransaction(db,async tx=>{const [fs,rs]=await Promise.all([tx.get(fr),tx.get(rr)]); if(!fs.exists()||!rs.exists()||fs.data().ownerUid!==uid||rs.data().status!=="pending") throw new Error("Request is no longer available."); if(accept&&!fs.data().memberUids.includes(req.requesterUid)) tx.update(fr,{memberUids:[...fs.data().memberUids,req.requesterUid],displayNames:{...(fs.data().displayNames||{}),[req.requesterUid]:req.requesterName||"Family member"},updatedAt:new Date().toISOString()}); tx.update(rr,{status:accept?"accepted":"declined",updatedAt:new Date().toISOString()});});
+      },
+      async publishFamilyUsage(familyId,date,litres) {
+        if(state.usingDemo)return;
+        await firestoreSdk.setDoc(firestoreSdk.doc(db,"familyUsage",familyId+"_"+uid+"_"+date),{familyId,uid,displayName:state.name||"Family member",date,litres:Number(litres.toFixed(1)),updatedAt:new Date().toISOString()});
+      },
+      async loadFamilyUsage(familyId,date) {
+        const q=firestoreSdk.query(firestoreSdk.collection(db,"familyUsage"),firestoreSdk.where("familyId","==",familyId),firestoreSdk.where("date","==",date));
+        const s=await firestoreSdk.getDocs(q); return s.docs.map(d=>({id:d.id,...d.data()}));
+      },
       async loadProfile() {
         const snapshot = await firestoreSdk.getDoc(profileRef);
         return snapshot.exists() ? snapshot.data() : null;
@@ -295,8 +328,10 @@
     if (user.email) state.email = user.email;
     if (!state.name && user.displayName) state.name = user.displayName;
     if (!remoteProfile) await firebaseStore.saveProfile(profileSnapshot());
-    state.friendCode = await firebaseStore.ensureFriendCode(state.name || "UTLT user");
-    await refreshFriendData();
+    state.family = await firebaseStore.loadFamily();
+    state.pendingFamilyInvite = new URLSearchParams(location.search).get("familyInvite") || "";
+    await refreshFamilyData();
+    await syncFamilyUsage();
     await syncCommunityInsight();
     state.syncStatus = "cloud";
     state.syncError = "";
@@ -304,6 +339,15 @@
     render();
   }
 
+  async function refreshFamilyData() {
+    if(!firebaseStore||!state.family||state.family.ownerUid!==state.uid)return;
+    try{state.familyRequests=await firebaseStore.loadFamilyRequests(state.family.id);}catch(e){state.familyMessage=e.message||"Could not load family requests.";}
+  }
+  async function syncFamilyUsage() {
+    if(!firebaseStore||!state.family||state.usingDemo)return;
+    const date=todayKey(), used=state.readings.filter(x=>typeof x.recordedAt==="string"&&x.recordedAt.startsWith(date)&&Number.isFinite(x.litres)&&x.litres>=0).reduce((s,x)=>s+x.litres,0);
+    try{await firebaseStore.publishFamilyUsage(state.family.id,date,used);}catch(e){console.warn("Family usage sync failed.",e);}
+  }
   async function signInWithGoogle() {
     if (state.authBusy) return;
     state.authBusy = true; state.authMessage = "Connecting to Google…"; renderAuthGate();
@@ -505,8 +549,7 @@
   }
   function dashboard() {
     const summary = window.UTLTData.summarize(state.readings);
-    const syncLabel = state.syncStatus === "cloud" ? "☁️ Profile synced to Firebase" : state.syncStatus === "starting" ? "Connecting to Firebase…" : state.syncStatus === "error" ? "⚠️ Firebase save failed — saved on this device only" : "⚠️ Firebase unavailable — saved on this device only";
-    return `<div class="utlt-dashboard">${usage(summary)}${status(summary)}${communityInsightMarkup()}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p><p class="utlt-data-source" role="status">${syncLabel}</p></div>`;
+    return `<div class="utlt-dashboard">${usage(summary)}${status(summary)}${communityInsightMarkup()}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
   }
 
   function devicePage() {
@@ -532,11 +575,11 @@
   }
 
   function accountPage() {
-    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>${state.authProvider === "google" ? "Google account connected" : "Guest account"}</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><p class="utlt-data-source" role="status">✓ Signed in with Google. Your profile is stored in Firebase.</p><button class="utlt-settings-row" type="button" data-action="sign-out"><span>Sign out</span>${icon("chevron",18)}</button></section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><p class="utlt-data-source" role="status">${state.syncStatus === "cloud" ? "☁️ Profile synced to Firebase" : "⚠️ Firebase sync unavailable: " + escapeHtml(state.syncError || "Check Firebase setup")}</p><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
+    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>${state.authProvider === "google" ? "Google account connected" : "Guest account"}</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><p class="utlt-data-source" role="status">✓ Signed in with Google. Your profile is stored in Firebase.</p><button class="utlt-settings-row" type="button" data-action="sign-out"><span>Sign out</span>${icon("chevron",18)}</button></section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
   }
 
   function nav() {
-    return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-current="${state.screen === "home" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("home", 24)}</span><span>Home</span></button><button class="${state.screen === "friends" ? "is-current" : ""}" data-action="friends" aria-current="${state.screen === "friends" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("users", 24)}</span><span>Friends</span></button><button class="${state.screen === "pair" ? "is-current" : ""}" data-action="pair" aria-current="${state.screen === "pair" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("plus", 24)}</span><span>Devices</span></button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-current="${state.screen === "account" ? "page" : "false"}"><span class="utlt-tab-avatar">${icon("user", 18)}</span><span>Account</span></button></nav>`;
+    return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-current="${state.screen === "home" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("home", 24)}</span><span>Home</span></button><button class="${state.screen === "family" ? "is-current" : ""}" data-action="family" aria-current="${state.screen === "family" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("users", 24)}</span><span>Family</span></button><button class="${state.screen === "pair" ? "is-current" : ""}" data-action="pair" aria-current="${state.screen === "pair" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("plus", 24)}</span><span>Devices</span></button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-current="${state.screen === "account" ? "page" : "false"}"><span class="utlt-tab-avatar">${icon("user", 18)}</span><span>Account</span></button></nav>`;
   }
 
 
@@ -606,6 +649,22 @@
     });
     return html + '</section>';
   }
+  async function familyPage() {
+    if(!state.family)return '<section class="utlt-family-page"><h1>Family Connect</h1><p>Loading…</p></section>';
+    let rows=[]; try{rows=await firebaseStore.loadFamilyUsage(state.family.id,todayKey());}catch(e){state.familyMessage=e.message||"Could not load family usage.";}
+    const total=rows.reduce((s,x)=>s+(Number(x.litres)||0),0);
+    const qr=state.familyInviteUrl?'<img class="utlt-family-qr" alt="Family invitation QR code" src="https://api.qrserver.com/v1/create-qr-code/?size=240x240&margin=12&data='+encodeURIComponent(state.familyInviteUrl)+'">':"";
+    let out='<section class="utlt-family-page"><p class="utlt-eyebrow">YOUR HOUSEHOLD</p><h1>Family Connect</h1><p class="utlt-family-muted">Share daily water readings and see one household total.</p><div class="utlt-family-total"><span>FAMILY TOTAL · TODAY</span><strong>'+(state.usingDemo?'—':number(total)+' L')+'</strong><small>'+(state.usingDemo?'Demo readings are not shared. Real meter readings are required.':'Combined readings from '+rows.length+' member(s)')+'</small></div>';
+    if(state.pendingFamilyInvite)out+='<section class="utlt-family-card"><h2>Invitation received</h2><p>Request to join? Approved members can see each other’s daily water usage and the combined total.</p><button class="utlt-primary-button" data-action="family-join">Request to join</button></section>';
+    out+='<section class="utlt-family-card"><h2>Invite a family member</h2><p>Create a temporary QR code. The other person scans it with their phone camera. It expires in 10 minutes; you approve every request.</p><button class="utlt-primary-button" data-action="family-invite">Create QR invitation</button>'+qr+(state.familyInviteUrl?'<button class="utlt-family-secondary" data-action="family-copy">Copy invite link</button>':'')+'</section>';
+    out+='<section class="utlt-family-card"><h2>Family members ('+state.family.memberUids.length+')</h2>';
+    state.family.memberUids.forEach(id=>{const row=rows.find(x=>x.uid===id);out+='<div class="utlt-family-member"><span>'+escapeHtml(state.family.displayNames?.[id]||"Family member")+(id===state.uid?' (You)':'')+'</span><strong>'+(state.usingDemo?'Demo not shared':row?number(row.litres)+' L':'No reading yet')+'</strong></div>';});
+    out+='</section>';
+    if(state.family.ownerUid===state.uid){out+='<section class="utlt-family-card"><h2>Join requests ('+state.familyRequests.length+')</h2>';if(!state.familyRequests.length)out+='<p class="utlt-family-muted">No pending requests.</p>';state.familyRequests.forEach(q=>{out+='<div class="utlt-family-member"><span>'+escapeHtml(q.requesterName||"Family member")+'</span><span><button data-action="family-approve" data-request-id="'+escapeHtml(q.id)+'">Approve</button> <button data-action="family-decline" data-request-id="'+escapeHtml(q.id)+'">Decline</button></span></div>';});out+='</section>';}
+    if(state.familyMessage)out+='<p class="utlt-family-message" role="status">'+escapeHtml(state.familyMessage)+'</p>';
+    return out+'<p class="utlt-family-muted">Demo readings are never shared. QR images are generated by an external QR service using the temporary invite link.</p></section>';
+  }
+
   function friendsPage() {
     let html = '<section class="utlt-friends-page">' +
       '<div class="utlt-friends-hero"><div><p class="utlt-eyebrow">YOUR COMMUNITY</p><h1>Friends &amp; Competition</h1><p>Challenge friends to save water together.</p></div><span>' + icon("trophy",34) + '</span></div>' +
@@ -650,7 +709,7 @@
     },
     {
       title: "Your controls are here",
-      body: "Use Home for your dashboard, Friends to compete with people you know, Devices to learn about connecting a monitor, and Account to edit your details or change appearance.",
+      body: "Use Home for your dashboard, Family to connect household members, Devices to learn about connecting a monitor, and Account to edit your details or change appearance.",
       tip: "Gas and electricity tracking are not available in this preview yet."
     }
   ];
@@ -695,14 +754,14 @@
     return "";
   }
 
-  function render(preserveScroll = false) {
+  async function render(preserveScroll = false) {
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
     const compact = state.screen === "home" && state.utility !== "Water";
     const content = state.screen === "home"
       ? utilityTabs() + (state.utility === "Water" ? dashboard() : `<section class="utlt-unavailable-card"><div class="utlt-unavailable-icon">${icon("settings", 28)}</div><h2>${state.utility} tracking is coming later</h2><p>This preview currently includes water usage only. Your water dashboard is ready to explore.</p><button class="utlt-primary-button" data-action="utility" data-value="Water">View water dashboard</button></section>`)
       : state.screen === "device" ? devicePage()
       : state.screen === "account" ? accountPage()
-      : state.screen === "friends" ? friendsPage()
+      : state.screen === "family" ? await familyPage()
       : pairPage();
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>${onboardingMarkup()}`;
     const scroller = root.querySelector(".utlt-content");
@@ -759,9 +818,15 @@
       firebaseStore.removeFriend(button.dataset.friendUid).then(async () => { await refreshFriendData(); state.friendMessage = "Friend removed."; })
         .catch(error => { state.friendMessage = error.message || "Could not remove friend."; }).finally(() => render(true));
       return;
-    } else if (["home", "pair", "account", "device", "friends"].includes(action)) {
-      state.screen = action; state.saved = false;
-      if (action === "friends") refreshFriendData().then(() => render(true));
+    } else if (action === "family-invite") {
+      state.familyBusy=true; firebaseStore.createFamilyInvite().then(v=>{state.familyInviteUrl=v.url;state.familyMessage="QR invitation created.";}).catch(e=>{state.familyMessage=e.message||"Could not create invite.";}).finally(()=>{state.familyBusy=false;render(true);}); return;
+    } else if (action === "family-copy") { navigator.clipboard?.writeText(state.familyInviteUrl).then(()=>{state.familyMessage="Invite link copied.";render(true);}); return;
+    } else if (action === "family-join") {
+      state.familyBusy=true; firebaseStore.getFamilyInvite(state.pendingFamilyInvite).then(async inv=>{if(!inv)throw new Error("This invite expired. Ask for a new QR code.");if(inv.ownerUid===state.uid)throw new Error("You cannot join your own family.");await firebaseStore.requestFamilyJoin(state.pendingFamilyInvite,inv);state.pendingFamilyInvite="";history.replaceState({},"",location.pathname);state.familyMessage="Request sent. The owner must approve you.";}).catch(e=>{state.familyMessage=e.message||"Could not send request.";}).finally(()=>{state.familyBusy=false;render(true);}); return;
+    } else if (action === "family-approve" || action === "family-decline") {
+      const req=state.familyRequests.find(x=>x.id===button.dataset.requestId);if(!req)return;firebaseStore.decideFamilyRequest(req,action==="family-approve").then(async()=>{state.familyMessage=action==="family-approve"?"Member approved.":"Request declined.";await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not update request.";}).finally(()=>render(true));return;
+    } else if (["home", "pair", "account", "device", "family"].includes(action)) {
+      state.screen=action;state.saved=false;if(action==="family")refreshFamilyData().then(()=>render(true));
     }
     render(action === "theme" || action === "utility" || action === "breakdown");
   });
@@ -794,8 +859,7 @@
       state.name = String(form.get("name") || "").trim();
       state.utility = String(form.get("utility") || "Water");
       persistProfile();
-      if (firebaseStore && state.friendCode) firebaseStore.updateFriendName(state.friendCode, state.name).catch(error => console.warn("Could not update friend code display name.", error));
-      state.tutorialStep = 0;
+        state.tutorialStep = 0;
       state.onboarding = "tutorial";
       render();
       return;
@@ -836,8 +900,8 @@
       if (!Array.isArray(readings)) throw new TypeError("Readings must be an array");
       state.readings = readings;
       state.usingDemo = false;
-      syncCompetitionStats();
-      syncCommunityInsight().then(() => { if (state.screen === "home") render(true); else if (state.screen === "friends") refreshFriendData().then(() => render(true)); });
+      syncFamilyUsage();
+      syncCommunityInsight().then(() => { if (state.screen === "home" || state.screen === "family") render(true); });
       render(true);
     },
     setDevice(device) {
