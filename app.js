@@ -37,7 +37,8 @@
     syncError: "",
     uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
     leaderboardVisible: savedProfile.leaderboardVisible === true, communitySharing: savedProfile.communitySharing === true,
-    communityPercentile: null, communityParticipants: 0, communityStatus: "off", friendMessage: "", friendBusy: false
+    communityPercentile: null, communityParticipants: 0, communityStatus: "off", friendMessage: "", friendBusy: false,
+    authProvider: "anonymous", authBusy: false, authMessage: ""
   };
 
   // Each browser receives a private anonymous Firebase identity.
@@ -60,13 +61,29 @@
     const firebaseApp = appSdk.initializeApp(firebaseConfig);
     const auth = authSdk.getAuth(firebaseApp);
     await authSdk.setPersistence(auth, authSdk.browserLocalPersistence);
-    const credential = await authSdk.signInAnonymously(auth);
+    await auth.authStateReady();
+    let user = auth.currentUser;
+    if (!user) {
+      const credential = await authSdk.signInAnonymously(auth);
+      user = credential.user;
+    }
     const db = firestoreSdk.getFirestore(firebaseApp);
-    const uid = credential.user.uid;
+    const uid = user.uid;
     const profileRef = firestoreSdk.doc(db, "profiles", uid);
     return {
-
       uid,
+      get authProvider() {
+        return auth.currentUser?.providerData?.some(item => item.providerId === "google.com") ? "google" : "anonymous";
+      },
+      async connectGoogle() {
+        const currentUser = auth.currentUser;
+        if (!currentUser) throw new Error("No Firebase user is signed in. Refresh and try again.");
+        if (currentUser.providerData?.some(item => item.providerId === "google.com")) return currentUser;
+        const provider = new authSdk.GoogleAuthProvider();
+        provider.setCustomParameters({ prompt: "select_account" });
+        const result = await authSdk.linkWithPopup(currentUser, provider);
+        return result.user;
+      },
       async ensureFriendCode(displayName) {
         const snap = await firestoreSdk.getDoc(profileRef);
         const existing = snap.exists() ? snap.data().friendCode : "";
@@ -277,6 +294,7 @@
     try {
       firebaseStore = await firebaseReady;
       state.uid = firebaseStore.uid;
+      state.authProvider = firebaseStore.authProvider;
       const remoteProfile = await firebaseStore.loadProfile();
       if (profileChangedBeforeCloud) {
         await firebaseStore.saveProfile(profileSnapshot());
@@ -478,7 +496,7 @@
   }
 
   function accountPage() {
-    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>UTLT account</span></div><span class="utlt-connected"><i></i> Active</span></div><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><p class="utlt-data-source" role="status">${state.syncStatus === "cloud" ? "☁️ Profile synced to Firebase" : state.syncStatus === "starting" ? "Connecting to Firebase…" : "⚠️ Firebase sync unavailable: " + escapeHtml(state.syncError || "Check Firebase setup")}</p><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
+    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>${state.authProvider === "google" ? "Google account connected" : "Guest account"}</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><button class="utlt-primary-button" type="button" data-action="connect-google" ${state.authProvider === "google" || state.authBusy || !firebaseStore ? "disabled" : ""}>${state.authProvider === "google" ? "✓ Google connected" : state.authBusy ? "Connecting…" : "Continue with Google"}</button><p class="utlt-data-source" role="status">${escapeHtml(state.authMessage || (state.authProvider === "google" ? "Your Google account is linked to this UTLT profile." : "Link Google to keep this same UTLT profile when you return."))}</p></section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><p class="utlt-data-source" role="status">${state.syncStatus === "cloud" ? "☁️ Profile synced to Firebase" : state.syncStatus === "starting" ? "Connecting to Firebase…" : "⚠️ Firebase sync unavailable: " + escapeHtml(state.syncError || "Check Firebase setup")}</p><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
   }
 
   function nav() {
@@ -679,6 +697,22 @@
     const action = button.dataset.action;
     if (action === "tutorial-next") { state.tutorialStep = Math.min(state.tutorialStep + 1, tutorialSlides.length - 1); }
     else if (action === "tutorial-skip" || action === "onboarding-done") { state.onboarding = ""; }
+    else if (action === "connect-google") {
+      if (!firebaseStore) { state.authMessage = "Firebase is not connected. Check Firebase setup first."; render(true); return; }
+      state.authBusy = true; state.authMessage = "Opening Google sign-in…"; render(true);
+      firebaseStore.connectGoogle().then(user => {
+        state.authProvider = "google";
+        if (user.email) state.email = user.email;
+        if (!state.name && user.displayName) state.name = user.displayName;
+        persistProfile();
+        state.authMessage = "Google account connected successfully!";
+      }).catch(error => {
+        state.authMessage = error.code === "auth/credential-already-in-use"
+          ? "That Google account is already linked to another UTLT profile. Use that profile to sign in."
+          : error.message || "Google sign-in could not be completed.";
+      }).finally(() => { state.authBusy = false; render(true); });
+      return;
+    }
     else if (action === "theme") { state.dark = !state.dark; persistProfile(); }
     else if (action === "utility") { state.utility = button.dataset.value; persistProfile(); }
     else if (action === "breakdown") { state.breakdown = button.dataset.value; persistProfile(); }
