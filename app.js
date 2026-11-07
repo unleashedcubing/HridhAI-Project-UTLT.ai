@@ -32,7 +32,7 @@
     leaderboardVisible: false, communitySharing: false,
     communityPercentile: null, communityParticipants: 0, communityStatus: "off", friendMessage: "", friendBusy: false,
     family: null, familyInviteUrl: "", familyRequests: [], familyMessage: "", familyBusy: false, pendingFamilyInvite: "",
-    authProvider: "signed-out", authBusy: false, authMessage: ""
+    authProvider: "signed-out", authBusy: false, authMessage: "", pendingAuthScreen: ""
   };
 
   // Firebase initializes before the app. A Google account is required to continue.
@@ -54,7 +54,16 @@
   };
     const firebaseApp = appSdk.initializeApp(firebaseConfig);
     const auth = authSdk.getAuth(firebaseApp);
-    await authSdk.setPersistence(auth, authSdk.browserLocalPersistence);
+    try {
+      await authSdk.setPersistence(auth, authSdk.browserLocalPersistence);
+    } catch (storageError) {
+      console.warn("Local auth persistence is unavailable; trying a shorter-lived session.", storageError);
+      try { await authSdk.setPersistence(auth, authSdk.browserSessionPersistence); }
+      catch (sessionError) {
+        console.warn("Session persistence is unavailable; using in-memory sign-in for this tab.", sessionError);
+        await authSdk.setPersistence(auth, authSdk.inMemoryPersistence);
+      }
+    }
     await auth.authStateReady();
     const db = firestoreSdk.getFirestore(firebaseApp);
     return { auth, authSdk, firestoreSdk, db };
@@ -299,8 +308,9 @@
           render(true);
         });
     } else {
-      state.syncStatus = "error";
-      state.syncError = "Sign in with Google before saving.";
+      // Guest mode keeps settings in memory; Google sign-in is only needed for cloud features.
+      state.syncStatus = "guest";
+      state.syncError = "";
     }
   }
   function applySavedProfile(profile) {
@@ -316,14 +326,17 @@
     state.communitySharing = profile.communitySharing === true;
   }
   function renderAuthGate(errorMessage = "") {
-    const message = errorMessage || state.authMessage || "Sign in with your Google account to access your water dashboard.";
+    const destination = state.pendingAuthScreen || "this feature";
+    const featureName = destination === "family" ? "Family Connect" : destination === "account" ? "your account" : "device setup";
+    const message = errorMessage || state.authMessage || `Sign in with Google to use ${featureName}. Your dashboard remains available without signing in.`;
     root.innerHTML = `<main style="min-height:100dvh;display:grid;place-items:center;padding:24px;background:#101820;color:#f5f8fc;font-family:Arial,sans-serif;">
       <section style="width:min(100%,420px);padding:30px;border:1px solid #34465a;border-radius:24px;background:#1b2938;box-shadow:0 20px 60px #0005;text-align:center;">
         <div style="font-size:34px;margin-bottom:12px;">💧</div><p style="margin:0 0 8px;color:#83bfff;font-size:11px;font-weight:800;letter-spacing:.16em;">UTLT.AI</p>
-        <h1 style="margin:0;font-size:30px;">Welcome back</h1><p style="margin:12px 0 22px;color:#b9c7d6;line-height:1.55;">Your account and app settings are stored in Firebase. Sign in to continue.</p>
+        <h1 style="margin:0;font-size:30px;">One quick sign-in</h1><p style="margin:12px 0 22px;color:#b9c7d6;line-height:1.55;">Google sign-in protects your family data, device connections and saved account settings. You can still use the water dashboard as a guest.</p>
         <button type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""} style="width:100%;min-height:50px;border:0;border-radius:12px;background:#fff;color:#182536;font-size:15px;font-weight:750;cursor:pointer;">${state.authBusy ? "Connecting…" : "Continue with Google"}</button>
+        <button type="button" data-action="auth-cancel" style="width:100%;min-height:44px;margin-top:10px;border:1px solid #526579;border-radius:12px;background:transparent;color:#dce7f2;font-size:14px;font-weight:650;cursor:pointer;">Back to dashboard</button>
         <p role="status" style="min-height:36px;margin:14px 0 0;color:#c4d3e3;font-size:12px;line-height:1.5;">${escapeHtml(message)}</p>
-        <p style="margin:12px 0 0;color:#8295aa;font-size:10px;line-height:1.5;">No guest login. UTLT.ai does not use browser storage for your profile.</p>
+        <p style="margin:12px 0 0;color:#8295aa;font-size:10px;line-height:1.5;">You only need Google for protected features and cloud sync.</p>
       </section></main>`;
   }
 
@@ -338,10 +351,15 @@
     if (user.email) state.email = user.email;
     if (!state.name && user.displayName) state.name = user.displayName;
     if (!remoteProfile) await firebaseStore.saveProfile(profileSnapshot());
-    state.family = await firebaseStore.loadFamily();
-    state.pendingFamilyInvite = new URLSearchParams(location.search).get("familyInvite") || "";
-    await refreshFamilyData();
-    await syncFamilyUsage();
+    state.pendingFamilyInvite = new URLSearchParams(location.search).get("familyInvite") || state.pendingFamilyInvite || "";
+    const destination = state.pendingAuthScreen || (state.screen === "auth" ? "home" : state.screen);
+    state.pendingAuthScreen = "";
+    state.screen = destination;
+    if (destination === "family") {
+      state.family = await firebaseStore.loadFamily();
+      await refreshFamilyData();
+      await syncFamilyUsage();
+    }
     await syncCommunityInsight();
     state.syncStatus = "cloud";
     state.syncError = "";
@@ -387,16 +405,21 @@
   }
 
   async function initializePersistence() {
-    renderAuthGate("Preparing secure sign-in…");
+    // Show the demo dashboard immediately. Firebase is only needed for protected features.
+    render();
     try {
       firebaseContext = await firebaseReady;
       const user = firebaseContext.auth.currentUser;
       if (user && user.providerData?.some(item => item.providerId === "google.com")) await completeGoogleLogin(user);
-      else renderAuthGate(user?.isAnonymous ? "Your old guest session is ready to be linked to Google. Choose Continue with Google." : "");
+      else {
+        state.pendingFamilyInvite = new URLSearchParams(location.search).get("familyInvite") || "";
+        render();
+      }
     } catch (error) {
-      state.syncStatus = "error"; state.syncError = error?.message || "Firebase setup is incomplete";
-      renderAuthGate("Firebase could not start: " + state.syncError);
-      console.error("UTLT Firebase initialization failed.", error);
+      state.syncStatus = "guest";
+      state.syncError = "";
+      console.error("UTLT Firebase is unavailable; guest dashboard remains usable.", error);
+      render();
     }
   }
 
@@ -404,8 +427,9 @@
     if (!firebaseContext) return;
     await firebaseContext.authSdk.signOut(firebaseContext.auth);
     firebaseStore = null; state.uid = ""; state.name = ""; state.email = ""; state.friendCode = "";
+    state.family = null; state.familyRequests = []; state.familyInviteUrl = ""; state.pendingAuthScreen = "";
     state.friends = []; state.friendRequests = []; state.friendStats = []; state.authProvider = "signed-out";
-    state.onboarding = "profile"; renderAuthGate("You have been signed out.");
+    state.screen = "home"; state.onboarding = "profile"; state.syncStatus = "guest"; render();
   }
 
   const root = document.getElementById("app");
@@ -585,7 +609,7 @@
   }
 
   function accountPage() {
-    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>${state.authProvider === "google" ? "Google account connected" : "Guest account"}</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><p class="utlt-data-source" role="status">✓ Signed in with Google. Your profile is stored in Firebase.</p><button class="utlt-settings-row" type="button" data-action="sign-out"><span>Sign out</span>${icon("chevron",18)}</button></section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
+    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>Google account connected</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><p class="utlt-data-source" role="status">✓ Signed in with Google. Your profile is stored in Firebase.</p><button class="utlt-settings-row" type="button" data-action="sign-out"><span>Sign out</span>${icon("chevron",18)}</button></section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
   }
 
   function nav() {
@@ -803,6 +827,7 @@
     if (action === "tutorial-next") { state.tutorialStep = Math.min(state.tutorialStep + 1, tutorialSlides.length - 1); }
     else if (action === "tutorial-skip" || action === "onboarding-done") { state.onboarding = ""; }
     if (action === "login-google") { signInWithGoogle(); return; }
+    else if (action === "auth-cancel") { state.pendingAuthScreen = ""; state.screen = "home"; render(); return; }
     else if (action === "sign-out") { signOutOfApp().catch(error => renderAuthGate(error.message)); return; }
     else if (action === "theme") { state.dark = !state.dark; persistProfile(); }
     else if (action === "utility") { state.utility = button.dataset.value; persistProfile(); }
@@ -837,7 +862,16 @@
     } else if (action === "family-approve" || action === "family-decline") {
       const req=state.familyRequests.find(x=>x.id===button.dataset.requestId);if(!req)return;firebaseStore.decideFamilyRequest(req,action==="family-approve").then(async()=>{state.familyMessage=action==="family-approve"?"Member approved.":"Request declined.";await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not update request.";}).finally(()=>render(true));return;
     } else if (["home", "pair", "account", "device", "family"].includes(action)) {
-      state.screen=action;state.saved=false;if(action==="family")refreshFamilyData().then(()=>render(true));
+      if (["pair", "account", "device", "family"].includes(action) && !firebaseStore) {
+        state.pendingAuthScreen = action;
+        state.authMessage = "";
+        renderAuthGate();
+        return;
+      }
+      state.screen=action;state.saved=false;
+      if(action==="family" && firebaseStore) {
+        firebaseStore.loadFamily().then(async family=>{state.family=family;await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not load family.";}).finally(()=>render(true));
+      }
     }
     render(action === "theme" || action === "utility" || action === "breakdown");
   });
