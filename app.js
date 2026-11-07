@@ -261,7 +261,11 @@
     bluetooth: '<path d="M7 8l10 8l-5 4l0 -16l5 4l-10 8"/>',
     bluetoothOff: '<path d="M3 3l18 18"/><path d="M16.438 16.45l-4.438 3.55v-8m0 -4v-4l5 4l-2.776 2.22m-2.222 1.779l-5 4"/>',
     check: '<path d="M5 12l5 5l10 -10"/>',
-    chevron: '<path d="M9 6l6 6l-6 6"/>'
+    chevron: '<path d="M9 6l6 6l-6 6"/>',
+    users: '<path d="M16 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="10" cy="7" r="4"/><path d="M20 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>',
+    trophy: '<path d="M8 21h8m-4-4v4M7 4h10v5a5 5 0 0 1-10 0V4Z"/><path d="M7 6H4v2a4 4 0 0 0 4 4m9-6h3v2a4 4 0 0 1-4 4"/>',
+    copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+    shield: '<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/>'
   };
   function icon(name, size = 24) {
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
@@ -272,6 +276,7 @@
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
+    if (state.screen === "friends") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     if (state.screen === "account" || state.screen === "device") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     return `<header class="utlt-header"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${actions}</header>`;
   }
@@ -366,7 +371,7 @@
   }
 
   function nav() {
-    return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-current="${state.screen === "home" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("home", 24)}</span><span>Home</span></button><button class="${state.screen === "pair" ? "is-current" : ""}" data-action="pair" aria-current="${state.screen === "pair" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("plus", 24)}</span><span>Devices</span></button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-current="${state.screen === "account" ? "page" : "false"}"><span class="utlt-tab-avatar">${icon("user", 18)}</span><span>Account</span></button></nav>`;
+    return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-current="${state.screen === "home" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("home", 24)}</span><span>Home</span></button><button class="${state.screen === "friends" ? "is-current" : ""}" data-action="friends" aria-current="${state.screen === "friends" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("users", 24)}</span><span>Friends</span></button><button class="${state.screen === "pair" ? "is-current" : ""}" data-action="pair" aria-current="${state.screen === "pair" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("plus", 24)}</span><span>Devices</span></button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-current="${state.screen === "account" ? "page" : "false"}"><span class="utlt-tab-avatar">${icon("user", 18)}</span><span>Account</span></button></nav>`;
   }
 
 
@@ -531,6 +536,7 @@
       ? utilityTabs() + (state.utility === "Water" ? dashboard() : `<section class="utlt-unavailable-card"><div class="utlt-unavailable-icon">${icon("settings", 28)}</div><h2>${state.utility} tracking is coming later</h2><p>This preview currently includes water usage only. Your water dashboard is ready to explore.</p><button class="utlt-primary-button" data-action="utility" data-value="Water">View water dashboard</button></section>`)
       : state.screen === "device" ? devicePage()
       : state.screen === "account" ? accountPage()
+      : state.screen === "friends" ? friendsPage()
       : pairPage();
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>${onboardingMarkup()}`;
     const scroller = root.querySelector(".utlt-content");
@@ -546,7 +552,31 @@
     else if (action === "theme") { state.dark = !state.dark; persistProfile(); }
     else if (action === "utility") { state.utility = button.dataset.value; persistProfile(); }
     else if (action === "breakdown") { state.breakdown = button.dataset.value; persistProfile(); }
-    else if (["home", "pair", "account", "device"].includes(action)) { state.screen = action; state.saved = false; }
+    else if (action === "copy-code") {
+      if (state.friendCode && navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(state.friendCode).then(() => { state.friendMessage = "Friend code copied!"; render(true); }).catch(() => { state.friendMessage = "Copy failed. Select the code and copy it manually."; render(true); });
+      }
+      return;
+    } else if (action === "leaderboard-privacy") {
+      state.leaderboardVisible = button.checked === true;
+      persistProfile();
+      syncCompetitionStats().then(() => { state.friendMessage = "Leaderboard privacy updated."; render(true); });
+    } else if (action === "accept-request" || action === "decline-request") {
+      state.friendBusy = true; state.friendMessage = "Updating request…"; render(true);
+      firebaseStore.answerFriendRequest(button.dataset.requestId, action === "accept-request")
+        .then(async () => { await refreshFriendData(); state.friendMessage = action === "accept-request" ? "Friend added!" : "Request declined."; })
+        .catch(error => { state.friendMessage = error.message || "Could not update request."; })
+        .finally(() => { state.friendBusy = false; render(true); });
+      return;
+    } else if (action === "remove-friend") {
+      if (!confirm("Remove this friend?")) return;
+      firebaseStore.removeFriend(button.dataset.friendUid).then(async () => { await refreshFriendData(); state.friendMessage = "Friend removed."; })
+        .catch(error => { state.friendMessage = error.message || "Could not remove friend."; }).finally(() => render(true));
+      return;
+    } else if (["home", "pair", "account", "device", "friends"].includes(action)) {
+      state.screen = action; state.saved = false;
+      if (action === "friends") refreshFriendData().then(() => render(true));
+    }
     render(action === "theme" || action === "utility" || action === "breakdown");
   });
   root.addEventListener("submit", (event) => {
@@ -561,6 +591,21 @@
       render();
       return;
     }
+    if (event.target.id === "utlt-friend-add-form") {
+      event.preventDefault();
+      if (!firebaseStore) { state.friendMessage = "Firebase is not connected yet. Check Firebase setup first."; render(true); return; }
+      const code = String(new FormData(event.target).get("friendCode") || "").trim().toUpperCase();
+      state.friendBusy = true; state.friendMessage = "Looking up friend code…"; render(true);
+      try {
+        const target = await firebaseStore.lookupFriendCode(code);
+        if (!target) throw new Error("That friend code was not found.");
+        if (target.uid === state.uid) throw new Error("That is your own friend code.");
+        await firebaseStore.sendFriendRequest(target.uid, target.displayName, state.name);
+        state.friendMessage = "Friend request sent!";
+        await refreshFriendData();
+      } catch (error) { state.friendMessage = error.message || "Could not send friend request."; }
+      state.friendBusy = false; render(true); return;
+    }
     if (event.target.id !== "utlt-account-form") return;
     event.preventDefault();
     const form = new FormData(event.target);
@@ -569,6 +614,7 @@
     state.homeName = String(form.get("homeName") || "").trim();
     state.goal = Math.max(1, Number(form.get("goal")) || 350);
     persistProfile();
+    if (firebaseStore && state.friendCode) firebaseStore.updateFriendName(state.friendCode, state.name).catch(error => console.warn("Could not update friend code display name.", error));
     state.saved = true;
     render(true);
   });
@@ -580,6 +626,7 @@
       if (!Array.isArray(readings)) throw new TypeError("Readings must be an array");
       state.readings = readings;
       state.usingDemo = false;
+      syncCompetitionStats().then(() => { if (state.screen === "friends") refreshFriendData().then(() => render(true)); });
       render(true);
     },
     setDevice(device) {
