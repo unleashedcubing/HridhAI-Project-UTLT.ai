@@ -105,7 +105,8 @@
           const data = existing.data();
           if (data.status === "pending") throw new Error("A friend request is already pending.");
           if (data.status === "accepted") throw new Error("You are already friends.");
-          await firestoreSdk.deleteDoc(requestRef);
+          await firestoreSdk.updateDoc(requestRef, { status: "pending", createdAt: new Date().toISOString() });
+          return;
         }
         const reverseId = recipientUid + "_" + uid;
         const reverse = await firestoreSdk.getDoc(firestoreSdk.doc(db, "friendRequests", reverseId));
@@ -118,12 +119,12 @@
       async loadFriendRequests() {
         const ref = firestoreSdk.collection(db, "friendRequests");
         const [incoming, outgoing] = await Promise.all([
-          firestoreSdk.getDocs(firestoreSdk.query(ref, firestoreSdk.where("recipientUid", "==", uid), firestoreSdk.where("status", "==", "pending"))),
-          firestoreSdk.getDocs(firestoreSdk.query(ref, firestoreSdk.where("senderUid", "==", uid), firestoreSdk.where("status", "==", "pending")))
+          firestoreSdk.getDocs(firestoreSdk.query(ref, firestoreSdk.where("recipientUid", "==", uid))),
+          firestoreSdk.getDocs(firestoreSdk.query(ref, firestoreSdk.where("senderUid", "==", uid)))
         ]);
         return {
-          incoming: incoming.docs.map(s => ({ id: s.id, ...s.data() })),
-          outgoing: outgoing.docs.map(s => ({ id: s.id, ...s.data() }))
+          incoming: incoming.docs.filter(s => s.data().status === "pending").map(s => ({ id: s.id, ...s.data() })),
+          outgoing: outgoing.docs.filter(s => s.data().status === "pending").map(s => ({ id: s.id, ...s.data() }))
         };
       },
       async loadFriends() {
@@ -579,6 +580,17 @@
     }
     render(action === "theme" || action === "utility" || action === "breakdown");
   });
+
+  root.addEventListener("change", (event) => {
+    if (event.target.matches('input[data-action="leaderboard-privacy"]')) {
+      state.leaderboardVisible = event.target.checked;
+      persistProfile();
+      syncCompetitionStats().then(() => {
+        state.friendMessage = "Leaderboard privacy updated.";
+        render(true);
+      });
+    }
+  });
   root.addEventListener("submit", (event) => {
     if (event.target.id === "utlt-welcome-form") {
       event.preventDefault();
@@ -586,6 +598,7 @@
       state.name = String(form.get("name") || "").trim();
       state.utility = String(form.get("utility") || "Water");
       persistProfile();
+      if (firebaseStore && state.friendCode) firebaseStore.updateFriendName(state.friendCode, state.name).catch(error => console.warn("Could not update friend code display name.", error));
       state.tutorialStep = 0;
       state.onboarding = "tutorial";
       render();
