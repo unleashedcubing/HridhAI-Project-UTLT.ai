@@ -3,12 +3,31 @@
 (function () {
   "use strict";
 
+  function readSavedName() {
+    try {
+      return localStorage.getItem("utlt-user-name") || "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function saveName(name) {
+    try {
+      if (name) localStorage.setItem("utlt-user-name", name);
+      else localStorage.removeItem("utlt-user-name");
+    } catch (error) {
+      // The app still works if browser storage is unavailable.
+    }
+  }
+
+  const savedName = readSavedName();
+
   const state = {
     screen: "home",
     utility: "Water",
     breakdown: "use",
     dark: false,
-    name: "",
+    name: savedName,
     email: "",
     homeName: "My home",
     goal: 350,
@@ -16,7 +35,7 @@
     device: { connected: false, lastConnectedAt: null },
     readings: window.UTLTData.demoReadings,
     usingDemo: true,
-    onboarding: "profile",
+    onboarding: savedName ? "" : "profile",
     tutorialStep: 0
   };
   const root = document.getElementById("app");
@@ -235,6 +254,7 @@
       event.preventDefault();
       const form = new FormData(event.target);
       state.name = String(form.get("name") || "").trim();
+      saveName(state.name);
       state.utility = String(form.get("utility") || "Water");
       state.tutorialStep = 0;
       state.onboarding = "tutorial";
@@ -245,6 +265,7 @@
     event.preventDefault();
     const form = new FormData(event.target);
     state.name = String(form.get("name") || "").trim();
+    saveName(state.name);
     state.email = String(form.get("email") || "").trim();
     state.homeName = String(form.get("homeName") || "").trim();
     state.goal = Math.max(1, Number(form.get("goal")) || 350);
