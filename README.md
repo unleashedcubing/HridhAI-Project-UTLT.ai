@@ -24,7 +24,7 @@ If Firebase setup is unavailable, the app falls back to local browser storage. C
 
 ## Remembered preferences
 
-The app saves the user's name, email address, selected utility, light/dark theme, home name, daily water goal, and chart breakdown preference. New profiles start with a **35-litre daily water goal**. Previously saved goals are retained until the user changes them.
+The app saves the user's name, email address, selected utility, light/dark theme, home name, daily water goal, and chart breakdown preference. New profiles start with a **350-litre daily water goal**. Previously saved goals are retained until the user changes them.
 
 Browser-local data remains on that browser. Firebase cloud data is tied to the anonymous browser identity; clearing browser site data can remove access to that identity.
 
