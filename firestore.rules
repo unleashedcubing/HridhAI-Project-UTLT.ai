@@ -42,10 +42,12 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.senderUid == request.auth.uid
         && request.resource.data.recipientUid != request.auth.uid
+        && exists(/databases/$(database)/documents/friendCodes/$(request.resource.data.recipientCode))
+        && get(/databases/$(database)/documents/friendCodes/$(request.resource.data.recipientCode)).data.uid == request.resource.data.recipientUid
         && request.resource.data.status == "pending"
         && requestId == request.auth.uid + "_" + request.resource.data.recipientUid
         && request.resource.data.keys().hasOnly([
-          "senderUid", "recipientUid", "senderName", "recipientName", "status", "createdAt"
+          "senderUid", "recipientUid", "recipientCode", "senderName", "recipientName", "status", "createdAt"
         ]);
       allow update: if signedIn() && (
         (resource.data.recipientUid == request.auth.uid
@@ -67,6 +69,8 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.auth.uid in request.resource.data.memberUids
         && request.resource.data.memberUids.size() == 2
+        && (friendshipId == request.resource.data.memberUids[0] + "_" + request.resource.data.memberUids[1]
+          || friendshipId == request.resource.data.memberUids[1] + "_" + request.resource.data.memberUids[0])
         && acceptedRequest(request.resource.data.requestId, request.resource.data.memberUids)
         && request.resource.data.keys().hasOnly(["memberUids", "displayNames", "requestId", "createdAt"]);
       allow update: if false;
