@@ -154,10 +154,13 @@
         }
       },
       async removeFriend(friendUid) {
+        const ownEdge = await firestoreSdk.getDoc(firestoreSdk.doc(db, "friendships", uid + "_" + friendUid));
+        const requestId = ownEdge.exists() ? ownEdge.data().requestId : "";
         const batch = firestoreSdk.writeBatch(db);
         batch.delete(firestoreSdk.doc(db, "friendships", uid + "_" + friendUid));
         batch.delete(firestoreSdk.doc(db, "friendships", friendUid + "_" + uid));
         await batch.commit();
+        if (requestId) await firestoreSdk.deleteDoc(firestoreSdk.doc(db, "friendRequests", requestId));
       },
       async loadFriendStats(friendUid) {
         const snap = await firestoreSdk.getDoc(firestoreSdk.doc(db, "friendStats", friendUid));
