@@ -166,6 +166,9 @@
       async publishStats(stats) {
         await firestoreSdk.setDoc(firestoreSdk.doc(db, "friendStats", uid), stats, { merge: true });
       },
+      async hideStats() {
+        await firestoreSdk.deleteDoc(firestoreSdk.doc(db, "friendStats", uid));
+      },
 
       async loadProfile() {
         const snapshot = await firestoreSdk.getDoc(profileRef);
@@ -416,10 +419,10 @@
   async function syncCompetitionStats() {
     if (!firebaseStore || !state.uid) return;
     const stats = currentCompetitionStats();
-    if (stats) {
-      try { await firebaseStore.publishStats(stats); }
-      catch (error) { state.friendMessage = error.message || "Could not publish leaderboard stats."; }
-    }
+    try {
+      if (stats && state.leaderboardVisible) await firebaseStore.publishStats(stats);
+      else await firebaseStore.hideStats();
+    } catch (error) { state.friendMessage = error.message || "Could not update leaderboard privacy."; }
   }
   function leaderboardRows(metric) {
     const own = currentCompetitionStats();
@@ -591,7 +594,7 @@
       });
     }
   });
-  root.addEventListener("submit", (event) => {
+  root.addEventListener("submit", async (event) => {
     if (event.target.id === "utlt-welcome-form") {
       event.preventDefault();
       const form = new FormData(event.target);
@@ -628,6 +631,7 @@
     state.goal = Math.max(1, Number(form.get("goal")) || 350);
     persistProfile();
     if (firebaseStore && state.friendCode) firebaseStore.updateFriendName(state.friendCode, state.name).catch(error => console.warn("Could not update friend code display name.", error));
+    syncCompetitionStats();
     state.saved = true;
     render(true);
   });
