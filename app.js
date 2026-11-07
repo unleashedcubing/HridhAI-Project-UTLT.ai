@@ -323,6 +323,7 @@
           user = (await authSdk.signInWithPopup(auth, provider)).user;
         }
       } else user = (await authSdk.signInWithPopup(auth, provider)).user;
+      state.authBusy = false;
       await completeGoogleLogin(user);
     } catch (error) {
       state.authMessage = error?.message || "Google sign-in could not be completed.";
@@ -332,6 +333,7 @@
   }
 
   async function initializePersistence() {
+    renderAuthGate("Preparing secure sign-in…");
     try {
       firebaseContext = await firebaseReady;
       const user = firebaseContext.auth.currentUser;
