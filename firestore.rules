@@ -102,6 +102,10 @@ service cloud.firestore {
       allow get: if signedIn() && (resource.data.requesterUid==request.auth.uid || (exists(/databases/$(database)/documents/families/$(resource.data.familyId)) && get(/databases/$(database)/documents/families/$(resource.data.familyId)).data.ownerUid==request.auth.uid));
       allow list: if signedIn() && (resource.data.requesterUid==request.auth.uid || (exists(/databases/$(database)/documents/families/$(resource.data.familyId)) && get(/databases/$(database)/documents/families/$(resource.data.familyId)).data.ownerUid==request.auth.uid));
       allow create: if signedIn() && request.resource.data.requesterUid==request.auth.uid && request.resource.data.status=="pending"
+        && exists(/databases/$(database)/documents/familyInvites/$(request.resource.data.inviteToken))
+        && get(/databases/$(database)/documents/familyInvites/$(request.resource.data.inviteToken)).data.familyId==request.resource.data.familyId
+        && get(/databases/$(database)/documents/familyInvites/$(request.resource.data.inviteToken)).data.ownerUid==request.resource.data.ownerUid
+        && get(/databases/$(database)/documents/familyInvites/$(request.resource.data.inviteToken)).data.expiresAt>request.time.toMillis()
         && request.resource.data.keys().hasOnly(["familyId","inviteToken","ownerUid","requesterUid","requesterName","status","createdAt"]);
       allow update: if signedIn() && resource.data.ownerUid==request.auth.uid && resource.data.status=="pending"
         && request.resource.data.status in ["accepted","declined"] && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status","updatedAt"]);
