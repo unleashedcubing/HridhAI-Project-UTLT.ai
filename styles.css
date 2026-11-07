@@ -618,3 +618,16 @@ button { -webkit-tap-highlight-color: transparent; }
 .utlt-community-optin { align-items:center; margin:14px 0; }
 .utlt-community-optin > div { flex:1; min-width:0; }
 .utlt-community-optin small { display:block; margin-top:6px; color:var(--utlt-muted); font-size:10px; line-height:1.45; }
+
+.utlt-tabbar .utlt-nav-icon svg,.utlt-tabbar .utlt-tab-avatar svg{color:#111!important;stroke:#111!important}
+.utlt-dark .utlt-tabbar .utlt-nav-icon svg,.utlt-dark .utlt-tabbar .utlt-tab-avatar svg{color:#fff!important;stroke:#fff!important}
+.utlt-tabbar .utlt-tab-avatar{background:transparent!important}
+.utlt-family-page{padding:18px 18px 32px}.utlt-family-page h1{margin:0;font-size:27px;letter-spacing:-.8px}
+.utlt-family-total,.utlt-family-card{margin-top:15px;padding:17px;border:1px solid var(--utlt-border);border-radius:17px;background:var(--utlt-panel)}
+.utlt-family-total{display:flex;flex-direction:column;gap:5px}.utlt-family-total span{color:var(--utlt-muted);font-size:9px;font-weight:800;letter-spacing:.12em}.utlt-family-total strong{font-size:32px}
+.utlt-family-total small,.utlt-family-card p,.utlt-family-muted{color:var(--utlt-muted);font-size:11px;line-height:1.5}.utlt-family-card h2{margin:0 0 7px;font-size:16px}
+.utlt-family-qr{display:block;width:220px;height:220px;margin:15px auto;padding:8px;border-radius:12px;background:#fff}
+.utlt-family-secondary{display:block;margin:10px auto 0;padding:9px 13px;border:1px solid var(--utlt-border);border-radius:10px;background:transparent;color:var(--utlt-text)}
+.utlt-family-member{display:flex;justify-content:space-between;align-items:center;gap:8px;padding:11px 0;border-top:1px solid var(--utlt-border);font-size:12px}.utlt-family-member strong{white-space:nowrap}
+.utlt-family-member button{padding:7px 9px;border:1px solid var(--utlt-border);border-radius:8px;background:var(--utlt-bg);color:var(--utlt-text);font-size:10px}
+.utlt-family-message{margin:10px 0;padding:10px;border-radius:10px;background:var(--utlt-panel);font-size:12px}.utlt-family-muted{margin-top:12px}
