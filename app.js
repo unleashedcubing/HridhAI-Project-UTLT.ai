@@ -370,6 +370,102 @@
   }
 
 
+
+  function todayKey() {
+    return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  }
+  function currentCompetitionStats() {
+    if (state.usingDemo) return null;
+    const today = todayKey();
+    const used = state.readings.filter(item => typeof item.recordedAt === "string" && item.recordedAt.startsWith(today) && Number.isFinite(item.litres) && item.litres >= 0)
+      .reduce((sum, item) => sum + item.litres, 0);
+    const goal = Math.max(1, Number(state.goal) || 350);
+    return { displayName: state.name || "UTLT user", date: today, dailyUsed: Number(used.toFixed(1)), dailyGoal: goal,
+      litresSaved: Number(Math.max(0, goal - used).toFixed(1)), leaderboardVisible: state.leaderboardVisible };
+  }
+  async function refreshFriendData() {
+    if (!firebaseStore || !state.uid) return;
+    try {
+      const results = await Promise.all([firebaseStore.loadFriendRequests(), firebaseStore.loadFriends()]);
+      state.friendRequests = results[0].incoming.map(item => Object.assign({direction:"incoming"}, item))
+        .concat(results[0].outgoing.map(item => Object.assign({direction:"outgoing"}, item)));
+      state.friends = results[1].map(item => {
+        const friendUid = item.memberUids.find(id => id !== state.uid);
+        return { uid: friendUid, name: item.displayNames && item.displayNames[friendUid] || "UTLT friend" };
+      });
+      const stats = [];
+      for (const friend of state.friends) {
+        try {
+          const data = await firebaseStore.loadFriendStats(friend.uid);
+          stats.push(Object.assign({uid:friend.uid,name:friend.name,hasStats:Boolean(data)}, data || {}));
+        } catch (error) {
+          stats.push({uid:friend.uid,name:friend.name,hasStats:false});
+        }
+      }
+      state.friendStats = stats;
+    } catch (error) {
+      state.friendMessage = error.message || "Could not load friends right now.";
+    }
+  }
+  async function syncCompetitionStats() {
+    if (!firebaseStore || !state.uid) return;
+    const stats = currentCompetitionStats();
+    if (stats) {
+      try { await firebaseStore.publishStats(stats); }
+      catch (error) { state.friendMessage = error.message || "Could not publish leaderboard stats."; }
+    }
+  }
+  function leaderboardRows(metric) {
+    const own = currentCompetitionStats();
+    const entries = [];
+    if (own) entries.push(Object.assign({uid:state.uid,name:state.name || "You",isYou:true,hasStats:true},own));
+    for (const friend of state.friendStats) {
+      if (friend.hasStats && friend.leaderboardVisible === true && friend.date === todayKey()) entries.push(Object.assign({isYou:false},friend));
+    }
+    entries.sort((a,b) => metric === "saved" ? b.litresSaved - a.litresSaved : a.dailyUsed - b.dailyUsed);
+    return entries;
+  }
+  function leaderboardCard(title, metric) {
+    const rows = leaderboardRows(metric);
+    let html = '<section class="utlt-leaderboard-card"><h3>' + title + '</h3>';
+    if (!rows.length) html += '<p class="utlt-friend-muted">No eligible stats yet. Friends must opt in and share real readings.</p>';
+    else rows.forEach((row,index) => {
+      const value = metric === "saved" ? row.litresSaved : row.dailyUsed;
+      html += '<div class="utlt-rank-row"><span class="utlt-rank-number">' + (index+1) + '</span><span class="utlt-rank-name">' +
+        escapeHtml(row.name) + (row.isYou ? ' (You)' : '') + '</span><strong>' + number(value) + ' L</strong></div>';
+    });
+    return html + '</section>';
+  }
+  function friendsPage() {
+    let html = '<section class="utlt-friends-page">' +
+      '<div class="utlt-friends-hero"><div><p class="utlt-eyebrow">YOUR COMMUNITY</p><h1>Friends &amp; Competition</h1><p>Challenge friends to save water together.</p></div><span>' + icon("trophy",34) + '</span></div>' +
+      '<section class="utlt-friend-code-card"><div><span class="utlt-friend-label">YOUR FRIEND CODE</span><strong>' + escapeHtml(state.friendCode || "Creating code…") + '</strong><small>Share this code. Your email is never shown.</small></div><button class="utlt-copy-code" data-action="copy-code" ' + (state.friendCode ? '' : 'disabled') + '>' + icon("copy",17) + ' Copy</button></section>' +
+      '<form id="utlt-friend-add-form" class="utlt-add-friend"><label for="utlt-friend-code-input">Add a friend by code</label><div><input id="utlt-friend-code-input" name="friendCode" maxlength="12" placeholder="UTLT-ABC234" required><button class="utlt-primary-button" type="submit" ' + (state.friendBusy ? 'disabled' : '') + '>Send request</button></div></form>';
+    if (state.friendMessage) html += '<p class="utlt-friend-message" role="status">' + escapeHtml(state.friendMessage) + '</p>';
+    html += '<section class="utlt-friend-section"><h2>Friend requests <span>' + state.friendRequests.length + '</span></h2>';
+    if (!state.friendRequests.length) html += '<p class="utlt-friend-muted">No pending requests.</p>';
+    state.friendRequests.forEach(request => {
+      if (request.direction === "incoming") {
+        html += '<div class="utlt-friend-row"><div><strong>' + escapeHtml(request.senderName || "UTLT user") + '</strong><small>Wants to be your friend</small></div><div class="utlt-friend-actions"><button data-action="accept-request" data-request-id="' + escapeHtml(request.id) + '">Accept</button><button data-action="decline-request" data-request-id="' + escapeHtml(request.id) + '">Decline</button></div></div>';
+      } else {
+        html += '<div class="utlt-friend-row"><div><strong>' + escapeHtml(request.recipientName || "UTLT user") + '</strong><small>Request sent · Waiting for response</small></div><span class="utlt-pending-tag">Pending</span></div>';
+      }
+    });
+    html += '</section><section class="utlt-friend-section"><h2>Your friends <span>' + state.friends.length + '</span></h2>';
+    if (!state.friends.length) html += '<p class="utlt-friend-muted">Add a friend using their UTLT code to get started.</p>';
+    state.friends.forEach(friend => {
+      html += '<div class="utlt-friend-row"><div><strong>' + escapeHtml(friend.name) + '</strong><small>UTLT friend</small></div><button class="utlt-remove-friend" data-action="remove-friend" data-friend-uid="' + escapeHtml(friend.uid) + '">Remove</button></div>';
+    });
+    html += '</section><section class="utlt-privacy-card"><div class="utlt-privacy-icon">' + icon("shield",20) + '</div><div><strong>Leaderboard privacy</strong><p>When enabled, accepted friends can see your daily water use and litres saved. Your email is never shared.</p></div><label class="utlt-switch"><input type="checkbox" data-action="leaderboard-privacy" ' + (state.leaderboardVisible ? 'checked' : '') + '><span></span></label></section>';
+    if (!state.leaderboardVisible) html += '<p class="utlt-friend-muted">Your stats are private until you turn on leaderboard sharing.</p>';
+    else if (!currentCompetitionStats()) html += '<p class="utlt-friend-muted">Connect a real monitor and send readings to join the leaderboards. Demo data never counts.</p>';
+    html += '<h2 class="utlt-leaderboard-heading">Today’s leaderboards</h2>' +
+      leaderboardCard("💧 Water Saver · Most saved", "saved") +
+      leaderboardCard("📉 Lowest Usage · Least used", "used") +
+      '<p class="utlt-friend-muted">Savings are measured against each person’s own daily goal. Leaderboards reset each day (India time).</p></section>';
+    return html;
+  }
+
   const tutorialSlides = [
     {
       title: "Your dashboard at a glance",
