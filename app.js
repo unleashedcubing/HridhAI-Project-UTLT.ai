@@ -468,11 +468,11 @@
     state.friends.forEach(friend => {
       html += '<div class="utlt-friend-row"><div><strong>' + escapeHtml(friend.name) + '</strong><small>UTLT friend</small></div><button class="utlt-remove-friend" data-action="remove-friend" data-friend-uid="' + escapeHtml(friend.uid) + '">Remove</button></div>';
     });
-    html += '</section><section class="utlt-privacy-card"><div class="utlt-privacy-icon">' + icon("shield",20) + '</div><div><strong>Leaderboard privacy</strong><p>When enabled, accepted friends can see your daily water use and litres saved. Your email is never shared.</p></div><label class="utlt-switch"><input type="checkbox" data-action="leaderboard-privacy" ' + (state.leaderboardVisible ? 'checked' : '') + '><span></span></label></section>';
+    html += '</section><section class="utlt-privacy-card"><div class="utlt-privacy-icon">' + icon("shield",20) + '</div><div><strong>Leaderboard privacy</strong><p>When enabled, accepted friends can see your daily water use and how far below your daily goal you are. Your email is never shared.</p></div><label class="utlt-switch"><input type="checkbox" data-action="leaderboard-privacy" ' + (state.leaderboardVisible ? 'checked' : '') + '><span></span></label></section>';
     if (!state.leaderboardVisible) html += '<p class="utlt-friend-muted">Your stats are private until you turn on leaderboard sharing.</p>';
     else if (!currentCompetitionStats()) html += '<p class="utlt-friend-muted">Connect a real monitor and send readings to join the leaderboards. Demo data never counts.</p>';
     html += '<h2 class="utlt-leaderboard-heading">Today’s leaderboards</h2>' +
-      leaderboardCard("💧 Water Saver · Most saved", "saved") +
+      leaderboardCard("💧 Goal Buffer · Most under goal", "saved") +
       leaderboardCard("📉 Lowest Usage · Least used", "used") +
       '<p class="utlt-friend-muted">Savings are measured against each person’s own daily goal. Leaderboards reset each day (India time).</p></section>';
     return html;
@@ -491,7 +491,7 @@
     },
     {
       title: "Your controls are here",
-      body: "Use Home for your dashboard, Devices to learn about connecting a monitor, and Account to edit your details or change appearance.",
+      body: "Use Home for your dashboard, Friends to compete with people you know, Devices to learn about connecting a monitor, and Account to edit your details or change appearance.",
       tip: "Gas and electricity tracking are not available in this preview yet."
     }
   ];
