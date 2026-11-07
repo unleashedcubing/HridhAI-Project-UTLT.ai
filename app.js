@@ -149,9 +149,9 @@
 
   const tutorialSlides = [
     {
-      title: "Your daily snapshot",
-      body: "The big circle shows how much water you have used compared with your daily goal. The number below shows your total in litres.",
-      tip: "You can change your daily water goal in Account."
+      title: "Your dashboard at a glance",
+      body: "Your dashboard is where your usage summary and daily goal appear. In this preview, the working charts and sample readings are available for water only.",
+      tip: "You can change your daily water goal in Account. Gas and electricity tracking are planned for a later version."
     },
     {
       title: "Understand your usage",
