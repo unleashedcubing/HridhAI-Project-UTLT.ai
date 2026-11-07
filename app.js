@@ -279,7 +279,7 @@
   }
 
   function header() {
-    const title = state.screen === "account" ? "Account" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : `${state.name.split(" ")[0] || "Your"}’s UTLT`;
+    const title = state.screen === "account" ? "Account" : state.screen === "friends" ? "Friends" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : `${state.name.split(" ")[0] || "Your"}’s UTLT`;
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
