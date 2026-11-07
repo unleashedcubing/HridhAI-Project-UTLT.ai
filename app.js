@@ -44,14 +44,14 @@
       import("https://www.gstatic.com/firebasejs/" + version + "/firebase-firestore.js")
     ]);
     const firebaseConfig = {
-      apiKey: "AIzaSyAXqm-gHRYSKBmqqgVWU4wvhBdXgFLWC9g",
-      authDomain: "utlt-ai.firebaseapp.com",
-      projectId: "utlt-ai",
-      storageBucket: "utlt-ai.firebasestorage.app",
-      messagingSenderId: "190773473724",
-      appId: "1:190773473724:web:6cbccf7c9d62a681be3bb9",
-      measurementId: "G-X0EEKYQCTG"
-    };
+    apiKey: "AIzaSyAvYOPq7VmZzy2aReQaF8OE0ezQn_LEMwM",
+    authDomain: "utlt-ai1.firebaseapp.com",
+    projectId: "utlt-ai1",
+    storageBucket: "utlt-ai1.firebasestorage.app",
+    messagingSenderId: "824195452987",
+    appId: "1:824195452987:web:184170a778e9edec1d0c1e",
+    measurementId: "G-H5HNX08WJJ"
+  };
     const firebaseApp = appSdk.initializeApp(firebaseConfig);
     const auth = authSdk.getAuth(firebaseApp);
     await authSdk.setPersistence(auth, authSdk.browserLocalPersistence);
