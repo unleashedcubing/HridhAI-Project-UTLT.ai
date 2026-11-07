@@ -77,6 +77,43 @@ service cloud.firestore {
       allow delete: if signedIn() && request.auth.uid in resource.data.memberUids;
     }
 
+
+    function isFamilyMember(familyId) {
+      return signedIn() && exists(/databases/$(database)/documents/families/$(familyId))
+        && request.auth.uid in get(/databases/$(database)/documents/families/$(familyId)).data.memberUids;
+    }
+    match /families/{familyId} {
+      allow get: if signedIn() && request.auth.uid in resource.data.memberUids;
+      allow list: if false;
+      allow create: if signedIn() && request.resource.data.ownerUid==request.auth.uid && request.resource.data.memberUids==[request.auth.uid]
+        && request.resource.data.keys().hasOnly(["ownerUid","familyName","memberUids","displayNames","createdAt"]);
+      allow update: if signedIn() && resource.data.ownerUid==request.auth.uid && request.resource.data.ownerUid==resource.data.ownerUid
+        && request.resource.data.memberUids.size()==resource.data.memberUids.size()+1 && request.resource.data.memberUids.hasAll(resource.data.memberUids)
+        && request.resource.data.keys().hasOnly(["ownerUid","familyName","memberUids","displayNames","createdAt","updatedAt"]);
+      allow delete: if signedIn() && resource.data.ownerUid==request.auth.uid;
+    }
+    match /familyInvites/{token} {
+      allow get: if signedIn(); allow list: if false;
+      allow create: if signedIn() && request.resource.data.ownerUid==request.auth.uid && request.resource.data.familyId==request.auth.uid
+        && request.resource.data.expiresAt is int && request.resource.data.keys().hasOnly(["familyId","ownerUid","ownerName","expiresAt","createdAt"]);
+      allow update,delete: if signedIn() && resource.data.ownerUid==request.auth.uid;
+    }
+    match /familyJoinRequests/{requestId} {
+      allow get: if signedIn() && (resource.data.requesterUid==request.auth.uid || (exists(/databases/$(database)/documents/families/$(resource.data.familyId)) && get(/databases/$(database)/documents/families/$(resource.data.familyId)).data.ownerUid==request.auth.uid));
+      allow list: if signedIn() && exists(/databases/$(database)/documents/families/$(resource.data.familyId)) && get(/databases/$(database)/documents/families/$(resource.data.familyId)).data.ownerUid==request.auth.uid;
+      allow create: if signedIn() && request.resource.data.requesterUid==request.auth.uid && request.resource.data.status=="pending"
+        && request.resource.data.keys().hasOnly(["familyId","inviteToken","ownerUid","requesterUid","requesterName","status","createdAt"]);
+      allow update: if signedIn() && resource.data.ownerUid==request.auth.uid && resource.data.status=="pending"
+        && request.resource.data.status in ["accepted","declined"] && request.resource.data.diff(resource.data).affectedKeys().hasOnly(["status","updatedAt"]);
+      allow delete: if false;
+    }
+    match /familyUsage/{usageId} {
+      allow get,list: if signedIn() && isFamilyMember(resource.data.familyId);
+      allow create,update: if signedIn() && request.resource.data.uid==request.auth.uid && isFamilyMember(request.resource.data.familyId)
+        && request.resource.data.litres is number && request.resource.data.litres>=0
+        && request.resource.data.keys().hasOnly(["familyId","uid","displayName","date","litres","updatedAt"]);
+      allow delete: if signedIn() && resource.data.uid==request.auth.uid;
+    }
     match /communityDaily/{date} {
       // Only date-level counts in broad usage bands are shared; no user IDs or exact readings.
       allow get: if signedIn();
