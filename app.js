@@ -224,6 +224,15 @@
       },
 
       async loadFamily() {
+        const accepted = firestoreSdk.query(firestoreSdk.collection(db, "familyJoinRequests"),
+          firestoreSdk.where("requesterUid", "==", uid), firestoreSdk.where("status", "==", "accepted"));
+        const joined = await firestoreSdk.getDocs(accepted);
+        if (!joined.empty) {
+          const familyId = joined.docs[joined.docs.length - 1].data().familyId;
+          const joinedRef = firestoreSdk.doc(db, "families", familyId);
+          const joinedSnap = await firestoreSdk.getDoc(joinedRef);
+          if (joinedSnap.exists() && joinedSnap.data().memberUids.includes(uid)) return { id: joinedSnap.id, ...joinedSnap.data() };
+        }
         const ref = firestoreSdk.doc(db, "families", uid), snap = await firestoreSdk.getDoc(ref);
         if (snap.exists()) return { id: snap.id, ...snap.data() };
         const data = { ownerUid: uid, familyName: state.homeName || "My family", memberUids: [uid], displayNames: { [uid]: state.name || "Family owner" }, createdAt: new Date().toISOString() };
