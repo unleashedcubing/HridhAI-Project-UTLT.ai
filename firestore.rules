@@ -77,6 +77,32 @@ service cloud.firestore {
       allow delete: if signedIn() && request.auth.uid in resource.data.memberUids;
     }
 
+    match /communityDaily/{date} {
+      // Only date-level counts in broad usage bands are shared; no user IDs or exact readings.
+      allow get: if signedIn();
+      allow list: if false;
+      allow create, update: if signedIn()
+        && request.resource.data.keys().hasOnly(["date", "bucketCounts", "updatedAt"])
+        && request.resource.data.date == date
+        && request.resource.data.bucketCounts is map
+        && request.resource.data.bucketCounts.keys().hasOnly([
+          "b0", "b1", "b2", "b3", "b4", "b5", "b6", "b7", "b8", "b9", "b10"
+        ])
+        && request.resource.data.bucketCounts.b0 is int && request.resource.data.bucketCounts.b0 >= 0
+        && request.resource.data.bucketCounts.b1 is int && request.resource.data.bucketCounts.b1 >= 0
+        && request.resource.data.bucketCounts.b2 is int && request.resource.data.bucketCounts.b2 >= 0
+        && request.resource.data.bucketCounts.b3 is int && request.resource.data.bucketCounts.b3 >= 0
+        && request.resource.data.bucketCounts.b4 is int && request.resource.data.bucketCounts.b4 >= 0
+        && request.resource.data.bucketCounts.b5 is int && request.resource.data.bucketCounts.b5 >= 0
+        && request.resource.data.bucketCounts.b6 is int && request.resource.data.bucketCounts.b6 >= 0
+        && request.resource.data.bucketCounts.b7 is int && request.resource.data.bucketCounts.b7 >= 0
+        && request.resource.data.bucketCounts.b8 is int && request.resource.data.bucketCounts.b8 >= 0
+        && request.resource.data.bucketCounts.b9 is int && request.resource.data.bucketCounts.b9 >= 0
+        && request.resource.data.bucketCounts.b10 is int && request.resource.data.bucketCounts.b10 >= 0
+        && request.resource.data.updatedAt is string;
+      allow delete: if false;
+    }
+
     match /friendStats/{userId} {
       allow get: if signedIn() && (request.auth.uid == userId || isFriend(userId));
       allow list: if false;
