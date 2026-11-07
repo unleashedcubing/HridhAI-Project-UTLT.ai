@@ -22,7 +22,7 @@
     screen: "home",
     utility: savedProfile.utility || "Water",
     breakdown: savedProfile.breakdown || "use",
-    dark: savedProfile.dark === true,
+    dark: typeof savedProfile.dark === "boolean" ? savedProfile.dark : true,
     name: savedProfile.name || "",
     email: savedProfile.email || "",
     homeName: savedProfile.homeName || "My home",
