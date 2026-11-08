@@ -34,6 +34,8 @@
     qrScanning: false,
     flowRateLpm: null,
     flowWarning: "",
+    rawPulseCount: null,
+    pulseRateHz: null,
     bridgeAvailable: false,
     readings: window.UTLTData.demoReadings,
     usingDemo: true,
@@ -674,6 +676,7 @@
       ${state.qrScanning ? '<video class="utlt-qr-preview" id="utlt-qr-preview" autoplay playsinline muted aria-label="Camera view for device QR code"></video>' : ''}
       <button class="utlt-primary-button" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : "Scan device QR"}</button>
       ${ready ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">' + (state.device.connected ? 'Reconnect Bluetooth' : 'Connect Bluetooth') + '</button>' : ''}
+      ${state.rawPulseCount !== null ? `<div class="utlt-meter-diagnostics"><strong>Sensor diagnostics</strong><span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span><small>App conversion: 450 pulses = 1 litre</small></div>` : ''}
       ${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : state.flowRateLpm !== null ? `<p class="utlt-pair-feedback">Measured flow: ${state.flowRateLpm.toFixed(2)} L/min</p>` : ''}
       ${state.pairStatus ? `<p class="utlt-pair-feedback" role="status">${escapeHtml(state.pairStatus)}</p>` : ''}
       <button class="utlt-reset-readings" type="button" data-action="reset-meter-readings">Clear this phone’s demo readings</button>
@@ -1019,6 +1022,8 @@
       state.usingDemo = false;
       state.flowWarning = "";
       state.flowRateLpm = null;
+      state.rawPulseCount = null;
+      state.pulseRateHz = null;
       state.pairStatus = "Readings cleared. The next packet sets a fresh baseline.";
       render(true);
       return;
@@ -1179,6 +1184,8 @@
     const impossibleFlow = elapsedMs >= 500 && rateLpm > 6; // Sensor is rated to 5 L/min.
     const previousWarning = state.flowWarning;
     state.flowRateLpm = rateLpm;
+    state.rawPulseCount = total;
+    state.pulseRateHz = elapsedMs >= 500 ? rawDelta * 1000 / elapsedMs : null;
     state.flowWarning = impossibleFlow ? `Sensor signal is too fast (${rateLpm.toFixed(1)} L/min). This sensor is rated to 5 L/min, so these pulses were not added. Check wiring and try separate pump power.` : "";
     const readings = Array.isArray(saved.readings) ? saved.readings.filter(item => item && typeof item.recordedAt === "string" && Date.parse(item.recordedAt) >= Date.now() - 6 * 86400000) : [];
     const delta = impossibleFlow ? 0 : rawDelta;

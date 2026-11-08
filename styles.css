@@ -306,6 +306,9 @@ img { max-width: 100%; }
 .utlt-pair-feedback { margin: 12px 0 20px; color: var(--utlt-muted); font-size: 13px; line-height: 1.45; }
 .utlt-flow-warning { margin: 12px 0; padding: 12px 14px; border: 1px solid var(--utlt-warn); border-radius: 14px; background: var(--utlt-warn-bg); color: var(--utlt-warn-ink); font-size: 13px; font-weight: 650; line-height: 1.45; }
 .utlt-reset-readings { display: block; margin: 14px auto 24px; padding: 6px 10px; border: 0; background: none; color: var(--utlt-muted); font-size: 12px; text-decoration: underline; cursor: pointer; }
+.utlt-meter-diagnostics { display: grid; gap: 3px; margin: 14px 0 4px; padding: 14px; border: 1px solid var(--utlt-border); border-radius: 16px; background: var(--utlt-panel); font-size: 13px; }
+.utlt-meter-diagnostics strong { margin-bottom: 4px; font-size: 14px; }
+.utlt-meter-diagnostics small { margin-top: 2px; color: var(--utlt-muted); font-size: 12px; }
 
 /* Sign-in uses the same surface, type and blue accent as the dashboard. */
 .utlt-auth-screen { display: grid; min-height: 100dvh; place-items: center; padding: 28px 18px; }
