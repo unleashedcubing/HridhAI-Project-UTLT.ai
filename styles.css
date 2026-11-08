@@ -46,7 +46,7 @@ img { max-width: 100%; }
   min-height: 100%;
   background: var(--utlt-page);
   color: var(--utlt-text);
-  font-family: "Inter", -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "SF Pro Display", "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
@@ -292,6 +292,7 @@ img { max-width: 100%; }
   border: 1px solid var(--utlt-warn); border-radius: 18px; background: var(--utlt-warn-bg); color: var(--utlt-warn-ink); font-size: 14px; line-height: 1.45;
 }
 .utlt-pair-notice span { font-size: 13px; opacity: .9; }
+.utlt-pair-notice.is-ready { border-color: var(--utlt-good); background: var(--utlt-good-bg); color: var(--utlt-good-ink); }
 .utlt-pair-page h2 { margin-bottom: 14px; font-size: 18px; letter-spacing: -.3px; }
 .utlt-pair-steps { display: flex; flex-direction: column; gap: 16px; margin: 0 0 26px; padding: 0; list-style: none; }
 .utlt-pair-steps li { display: flex; align-items: flex-start; gap: 12px; }
@@ -301,6 +302,24 @@ img { max-width: 100%; }
 .utlt-pair-steps strong { font-size: 14.5px; }
 .utlt-pair-steps small { color: var(--utlt-muted); font-size: 13px; line-height: 1.45; }
 .utlt-pair-page .utlt-primary-button { width: 100%; }
+
+/* Sign-in uses the same surface, type and blue accent as the dashboard. */
+.utlt-auth-screen { display: grid; min-height: 100dvh; place-items: center; padding: 28px 18px; }
+.utlt-auth-card {
+  width: min(100%, 430px); padding: 34px 28px 27px; border: 1px solid var(--utlt-border);
+  border-radius: 28px; background: var(--utlt-card); box-shadow: var(--utlt-shadow);
+}
+.utlt-auth-mark { display: grid; width: 58px; height: 58px; margin-bottom: 26px; place-items: center; border-radius: 18px; background: #d9edff; color: #0a6fd0; }
+.utlt-dark .utlt-auth-mark { background: #1b3f60; color: #8ac2ff; }
+.utlt-auth-card h1 { font-size: 32px; font-weight: 800; letter-spacing: -1.15px; line-height: 1.08; }
+.utlt-auth-intro { margin-top: 12px; color: var(--utlt-muted); font-size: 16px; line-height: 1.5; }
+.utlt-auth-feature { display: flex; align-items: center; gap: 11px; margin: 26px 0; padding: 14px 15px; border: 1px solid var(--utlt-border); border-radius: 16px; background: var(--utlt-panel); color: var(--utlt-muted); font-size: 13px; line-height: 1.4; }
+.utlt-auth-feature svg { flex: 0 0 auto; color: var(--utlt-accent); }
+.utlt-auth-google { width: 100%; }
+.utlt-auth-secondary { display: block; width: 100%; min-height: 48px; margin-top: 10px; border: 1px solid var(--utlt-border); border-radius: 16px; background: transparent; color: var(--utlt-text); font-weight: 700; cursor: pointer; }
+.utlt-auth-secondary:hover { background: var(--utlt-panel); }
+.utlt-auth-message { min-height: 20px; margin-top: 18px; color: var(--utlt-muted); font-size: 13px; line-height: 1.4; }
+.utlt-auth-note { margin-top: 11px; color: var(--utlt-muted); font-size: 11px; line-height: 1.45; }
 
 /* 14 · ACCOUNT + FORMS + BUTTONS ------------------------------------------- */
 .utlt-primary-button {

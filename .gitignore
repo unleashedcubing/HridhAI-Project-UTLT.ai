@@ -1,0 +1,4 @@
+water.sqlite3*
+esp32/config.py
+__pycache__/
+*.pyc

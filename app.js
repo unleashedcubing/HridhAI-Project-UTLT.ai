@@ -22,6 +22,7 @@
     goal: 350,
     saved: false,
     device: { connected: false, lastConnectedAt: null },
+    bridgeAvailable: false,
     readings: window.UTLTData.demoReadings,
     usingDemo: true,
     onboarding: "profile",
@@ -326,18 +327,22 @@
     state.communitySharing = profile.communitySharing === true;
   }
   function renderAuthGate(errorMessage = "") {
+    state.screen = "auth";
     const destination = state.pendingAuthScreen || "this feature";
     const featureName = destination === "family" ? "Family Connect" : destination === "account" ? "your account" : "device setup";
     const message = errorMessage || state.authMessage || `Sign in with Google to use ${featureName}. Your dashboard remains available without signing in.`;
-    root.innerHTML = `<main style="min-height:100dvh;display:grid;place-items:center;padding:24px;background:radial-gradient(circle at 15% 0%,#1d4f7a 0%,transparent 55%),radial-gradient(circle at 95% 100%,#0b5e7a 0%,transparent 50%),#0d151d;color:#f5f8fc;font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;">
-      <section style="width:min(100%,420px);padding:34px 30px;border:1px solid rgba(255,255,255,.1);border-radius:28px;background:linear-gradient(180deg,rgba(35,52,71,.94),rgba(24,37,52,.94));box-shadow:0 30px 80px rgba(0,0,0,.45),inset 0 1px 0 rgba(255,255,255,.08);text-align:center;">
-        <div style="width:64px;height:64px;margin:0 auto 16px;display:grid;place-items:center;border-radius:20px;background:linear-gradient(135deg,#2a9bff,#00c3d0);font-size:30px;box-shadow:0 12px 28px -8px rgba(22,136,248,.7);">💧</div><p style="margin:0 0 8px;color:#83bfff;font-size:11px;font-weight:800;letter-spacing:.16em;">UTLT.AI</p>
-        <h1 style="margin:0;font-size:30px;line-height:1.15;letter-spacing:-.8px;">One quick sign-in</h1><p style="margin:12px 0 24px;color:#b9c7d6;font-size:15px;line-height:1.6;">Google sign-in protects your family data, device connections and saved account settings. You can still use the water dashboard as a guest.</p>
-        <button type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""} style="width:100%;min-height:52px;border:0;border-radius:14px;background:#fff;color:#182536;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 8px 20px -8px rgba(0,0,0,.5);">${state.authBusy ? "Connecting…" : "Continue with Google"}</button>
-        <button type="button" data-action="auth-cancel" style="width:100%;min-height:46px;margin-top:10px;border:1px solid #526579;border-radius:14px;background:transparent;color:#dce7f2;font-size:14px;font-weight:650;cursor:pointer;">Back to dashboard</button>
-        <p role="status" style="min-height:36px;margin:16px 0 0;color:#c4d3e3;font-size:13px;line-height:1.5;">${escapeHtml(message)}</p>
-        <p style="margin:12px 0 0;color:#8aa0b6;font-size:11px;line-height:1.5;">You only need Google for protected features and cloud sync.</p>
-      </section></main>`;
+    root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><main class="utlt-auth-screen">
+      <section class="utlt-auth-card">
+        <div class="utlt-auth-mark" aria-hidden="true">${icon("droplet", 31)}</div>
+        <p class="utlt-eyebrow">UTLT.AI · SMART WATER</p>
+        <h1>Welcome to UTLT</h1>
+        <p class="utlt-auth-intro">Your home, your water, clearly understood.</p>
+        <div class="utlt-auth-feature">${icon("shield", 20)}<span>Sign in to save your family profile and settings.</span></div>
+        <button class="utlt-primary-button utlt-auth-google" type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "Connecting…" : "Continue with Google"}</button>
+        <button class="utlt-auth-secondary" type="button" data-action="auth-cancel">Continue to dashboard</button>
+        <p class="utlt-auth-message" role="status">${escapeHtml(message)}</p>
+        <p class="utlt-auth-note">Google is needed for Family and cloud account features. Your water dashboard and local device work as a guest.</p>
+      </section></main></div>`;
   }
 
   async function completeGoogleLogin(user) {
@@ -413,13 +418,13 @@
       if (user && user.providerData?.some(item => item.providerId === "google.com")) await completeGoogleLogin(user);
       else {
         state.pendingFamilyInvite = new URLSearchParams(location.search).get("familyInvite") || "";
-        render();
+        if (state.screen !== "auth") render();
       }
     } catch (error) {
       state.syncStatus = "guest";
       state.syncError = "";
       console.error("UTLT Firebase is unavailable; guest dashboard remains usable.", error);
-      render();
+      if (state.screen !== "auth") render();
     }
   }
 
@@ -526,9 +531,10 @@
       trend = `<strong>${icon(down ? "trendDown" : "trendUp", 16)}${Math.abs(change)}%</strong>`;
       trendClass = down ? " is-good" : " is-bad";
     }
-    const within = days.filter(day => day.litres <= goal).length;
-    const withinClass = days.length && within >= days.length / 2 ? " is-good" : "";
-    return `<section class="utlt-quickstats" aria-label="Today at a glance"><div class="utlt-stat${summary.used > goal ? " is-bad" : ""}"><span class="utlt-stat-label">Left today</span><strong>${number(left)} L</strong></div><div class="utlt-stat${trendClass}"><span class="utlt-stat-label">vs previous day</span>${trend}</div><div class="utlt-stat${withinClass}"><span class="utlt-stat-label">Days within goal</span><strong>${within}/${days.length}</strong></div></section>`;
+    const trackedDays = days.filter(day => day.hasData);
+    const within = trackedDays.filter(day => day.litres <= goal).length;
+    const withinClass = trackedDays.length && within >= trackedDays.length / 2 ? " is-good" : "";
+    return `<section class="utlt-quickstats" aria-label="Today at a glance"><div class="utlt-stat${summary.used > goal ? " is-bad" : ""}"><span class="utlt-stat-label">Left today</span><strong>${number(left)} L</strong></div><div class="utlt-stat${trendClass}"><span class="utlt-stat-label">vs previous day</span>${trend}</div><div class="utlt-stat${withinClass}"><span class="utlt-stat-label">Days within goal</span><strong>${within}/${trackedDays.length}</strong></div></section>`;
   }
 
   function tipCard(summary) {
@@ -559,7 +565,9 @@
       const sweep = total ? slice.litres / total * 360 : 0;
       const from = angle;
       angle += sweep;
-      return sweep > 0 ? `<path d="${sector(from, angle)}" fill="${slice.color}" stroke="var(--utlt-card)" stroke-width="2" stroke-linejoin="round"/>` : "";
+      if (sweep <= 0) return "";
+      if (sweep >= 359.999) return `<circle cx="88" cy="88" r="82" fill="${slice.color}"/>`;
+      return `<path d="${sector(from, angle)}" fill="${slice.color}"/>`;
     }).join("");
     return `<section class="utlt-glance"><h2>A Glance at Your Day</h2><div class="utlt-breakdown-switch" role="tablist" aria-label="Water breakdown"><button type="button" role="tab" aria-selected="${state.breakdown === "use"}" class="${state.breakdown === "use" ? "is-selected" : ""}" data-action="breakdown" data-value="use">By use</button><button type="button" role="tab" aria-selected="${state.breakdown === "time"}" class="${state.breakdown === "time" ? "is-selected" : ""}" data-action="breakdown" data-value="time">By time</button></div><div class="utlt-kokonut-card utlt-scroll-reveal"><div class="utlt-kokonut-card-head"><span>WATER BY ${state.breakdown.toUpperCase()}</span><strong>${number(total)} <small>L total</small></strong></div><svg class="utlt-kokonut-pie" viewBox="0 0 176 176" role="img" aria-label="Water usage by ${state.breakdown === "use" ? "activity" : "time of day"}, ${number(total)} litres total"><circle cx="88" cy="88" r="82" fill="var(--utlt-panel)"/>${sectors}<circle class="utlt-pie-hole" cx="88" cy="88" r="52"/><text class="utlt-pie-total" x="88" y="91">${number(total)}</text><text class="utlt-pie-caption" x="88" y="107">LITRES</text></svg><ul class="utlt-kokonut-legend">${slices.map((slice) => `<li><span class="utlt-kokonut-swatch" style="background-color:${slice.color}"></span><span class="utlt-kokonut-legend-copy"><span>${escapeHtml(slice.label)} · ${total ? Math.round(slice.litres / total * 100) : 0}%</span><strong>${number(slice.litres)} L</strong></span></li>`).join("")}</ul></div><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
   }
@@ -569,8 +577,9 @@
     const scale = Math.max(goal, ...summary.daily.map((day) => day.litres), 1) * 1.08;
     const baseline = 144;
     const goalY = baseline - goal / scale * 112;
-    const average = summary.daily.length ? summary.daily.reduce((sum, day) => sum + day.litres, 0) / summary.daily.length : 0;
-    const withinGoal = summary.daily.filter((day) => day.litres <= goal).length;
+    const trackedDays = summary.daily.filter(day => day.hasData);
+    const average = trackedDays.length ? trackedDays.reduce((sum, day) => sum + day.litres, 0) / trackedDays.length : 0;
+    const withinGoal = trackedDays.filter((day) => day.litres <= goal).length;
     const bars = summary.daily.map((item, index) => {
       const [year, month, day] = item.date.split("-").map(Number);
       const label = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(year, month - 1, day));
@@ -578,9 +587,9 @@
       const height = Math.max(2, item.litres / scale * 112);
       const y = baseline - height;
       const latest = index === summary.daily.length - 1 ? " is-latest" : "";
-      return `<g><rect class="utlt-trend-bar${latest}${item.litres > goal ? " is-over" : ""}" x="${x}" y="${y}" width="31" height="${height}" rx="5"/><text class="utlt-trend-value${latest}" x="${x + 15.5}" y="${Math.max(14, y - 7)}" text-anchor="middle">${Math.round(item.litres)}</text><text class="utlt-trend-date" x="${x + 15.5}" y="164" text-anchor="middle">${label}</text></g>`;
+      return `<g><rect class="utlt-trend-bar${latest}${item.litres > goal ? " is-over" : ""}" x="${x}" y="${y}" width="31" height="${height}" rx="5"/><text class="utlt-trend-value${latest}" x="${x + 15.5}" y="${Math.max(14, y - 7)}" text-anchor="middle">${number(item.litres)}</text><text class="utlt-trend-date" x="${x + 15.5}" y="164" text-anchor="middle">${label}</text></g>`;
     }).join("");
-    return `<section class="utlt-week utlt-scroll-reveal"><h2>See Across Days</h2><div class="utlt-trend-card"><div class="utlt-trend-head"><span>LAST ${summary.daily.length} DAYS</span><strong>Goal ${goal} L</strong></div><svg class="utlt-trend-plot" viewBox="0 0 300 175" role="img" aria-label="Water usage over the last ${summary.daily.length} days, daily goal ${goal} litres"><line class="utlt-trend-goal" x1="8" x2="292" y1="${goalY}" y2="${goalY}"/><line class="utlt-trend-baseline" x1="8" x2="292" y1="${baseline}" y2="${baseline}"/>${bars}</svg><div class="utlt-trend-footer"><span>Daily average</span><strong>${Math.round(average)} L</strong></div><div class="utlt-trend-footer"><span>Days within goal</span><strong>${withinGoal} of ${summary.daily.length}</strong></div></div></section>`;
+    return `<section class="utlt-week utlt-scroll-reveal"><h2>See Across Days</h2><div class="utlt-trend-card"><div class="utlt-trend-head"><span>LAST ${summary.daily.length} DAYS</span><strong>Goal ${goal} L</strong></div><svg class="utlt-trend-plot" viewBox="0 0 300 175" role="img" aria-label="Water usage over the last ${summary.daily.length} days, daily goal ${goal} litres"><line class="utlt-trend-goal" x1="8" x2="292" y1="${goalY}" y2="${goalY}"/><line class="utlt-trend-baseline" x1="8" x2="292" y1="${baseline}" y2="${baseline}"/>${bars}</svg><div class="utlt-trend-footer"><span>Daily average</span><strong>${number(average)} L</strong></div><div class="utlt-trend-footer"><span>Days within goal</span><strong>${withinGoal} of ${trackedDays.length} measured</strong></div></div></section>`;
   }
 
   function communityBucket(litres) {
@@ -644,22 +653,25 @@
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
       ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "—";
-    return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "No device paired"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your water monitor is ready to send readings." : "The dashboard is showing demo readings. Pair a water monitor to show measurements from your home."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "Manage your device" : "Pair your device"}</button><p class="utlt-device-help">Your monitor sends flow readings to UTLT over Wi-Fi. The ring and six-day chart use those readings. The daily breakdown uses readings labeled by activity; unlabeled water appears under Misc.</p></section>`;
+    return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "Device offline"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your ESP32 is sending water readings." : state.bridgeAvailable ? "The local bridge is ready. Turn on your ESP32 to send readings." : "Start the UTLT Python bridge to connect your ESP32."}</p></div></div><button class="utlt-primary-button" data-action="pair">Connection guide</button><p class="utlt-device-help">Your monitor sends flow readings to UTLT over Wi-Fi. The ring and six-day chart use those readings. Activity labels need user input; unlabeled water appears under Misc.</p></section>`;
   }
 
   function pairPage() {
-    return "<section class=\"utlt-pair-page\">" +
-      "<div class=\"utlt-pair-illustration\">" + icon("bluetooth", 34) + "</div>" +
-      "<p class=\"utlt-eyebrow\">DEVICE SETUP</p>" +
-      "<h1>Connect your water monitor</h1>" +
-      "<p class=\"utlt-pair-intro\">When device connection is enabled, your monitor will send water readings to this dashboard.</p>" +
-      "<div class=\"utlt-pair-notice\" role=\"status\"><strong>Device pairing is not available in this preview yet.</strong><span>You can still explore the dashboard using sample readings.</span></div>" +
-      "<h2>What you’ll need</h2>" +
-      "<ol class=\"utlt-pair-steps\">" +
-      "<li><span>1</span><div><strong>A compatible water monitor</strong><small>Use a monitor designed to measure your home’s water flow.</small></div></li>" +
-      "<li><span>2</span><div><strong>Your home Wi-Fi details</strong><small>The setup flow will guide you when device pairing is supported.</small></div></li>" +
-      "<li><span>3</span><div><strong>A few minutes</strong><small>We’ll show the connection status here once pairing is available.</small></div></li></ol>" +
-      "<button class=\"utlt-primary-button\" data-action=\"home\">Back to dashboard</button></section>";
+    return `<section class="utlt-pair-page">
+      <div class="utlt-pair-illustration">${icon("bluetooth", 34)}</div>
+      <p class="utlt-eyebrow">DEVICE SETUP</p>
+      <h1>Connect your water monitor</h1>
+      <p class="utlt-pair-intro">Your ESP32 sends measured flow to the UTLT Python bridge over Wi-Fi. Any phone on the same network can open this dashboard.</p>
+      <div class="utlt-pair-notice ${state.bridgeAvailable ? "is-ready" : ""}" role="status"><strong>${state.device.connected ? "ESP32 connected" : state.bridgeAvailable ? "Bridge ready · waiting for ESP32" : "Python bridge unavailable"}</strong><span>${state.device.connected ? "Live readings are now updating your water charts." : state.bridgeAvailable ? "Power the ESP32 with its Wi-Fi settings and device token." : "Start server.py on your computer and open its network address."}</span></div>
+      <h2>Three steps</h2>
+      <ol class="utlt-pair-steps">
+        <li><span>1</span><div><strong>Wire the flow sensor</strong><small>Sensor yellow → converter HV1 → LV1 → ESP32 GPIO27. Share 5 V, 3V3 and ground as shown in the build guide.</small></div></li>
+        <li><span>2</span><div><strong>Start the local bridge</strong><small>Run server.py on your computer, connected to the same Wi-Fi as the ESP32 and phone.</small></div></li>
+        <li><span>3</span><div><strong>Configure and power the ESP32</strong><small>Copy esp32/config.example.py to config.py and enter Wi-Fi, server address and device token. Then run main.py on the board.</small></div></li>
+      </ol>
+      <button class="utlt-primary-button" data-action="refresh-device">Check connection</button>
+      <p class="utlt-device-help">The flow sensor measures water passing through it. In a recirculating demo, the same water is counted each lap; this is simulated household usage, not consumption.</p>
+    </section>`;
   }
 
   function accountPage() {
@@ -885,6 +897,7 @@
     else if (action === "auth-cancel") { state.pendingAuthScreen = ""; state.screen = "home"; render(); return; }
     else if (action === "sign-out") { signOutOfApp().catch(error => renderAuthGate(error.message)); return; }
     else if (action === "theme") { state.dark = !state.dark; persistProfile(); }
+    else if (action === "refresh-device") { refreshWaterBridge(); return; }
     else if (action === "utility") { state.utility = button.dataset.value; persistProfile(); }
     else if (action === "breakdown") { state.breakdown = button.dataset.value; persistProfile(); }
     else if (action === "copy-code") {
@@ -917,7 +930,7 @@
     } else if (action === "family-approve" || action === "family-decline") {
       const req=state.familyRequests.find(x=>x.id===button.dataset.requestId);if(!req)return;firebaseStore.decideFamilyRequest(req,action==="family-approve").then(async()=>{state.familyMessage=action==="family-approve"?"Member approved.":"Request declined.";await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not update request.";}).finally(()=>render(true));return;
     } else if (["home", "pair", "account", "device", "family"].includes(action)) {
-      if (["pair", "account", "device", "family"].includes(action) && !firebaseStore) {
+      if (["account", "family"].includes(action) && !firebaseStore) {
         state.pendingAuthScreen = action;
         state.authMessage = "";
         renderAuthGate();
@@ -1015,5 +1028,40 @@
       return { ...state, device: { ...state.device }, readings: [...state.readings] };
     }
   });
+  let bridgeSignature = "";
+  let bridgeReadingsSignature = "";
+  async function refreshWaterBridge() {
+    try {
+      const response = await fetch("/api/water", { cache: "no-store" });
+      if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) throw new Error("Bridge unavailable");
+      const payload = await response.json();
+      if (!Array.isArray(payload.readings) || !payload.device) throw new Error("Invalid bridge response");
+      state.bridgeAvailable = true;
+      const signature = JSON.stringify(payload);
+      if (signature === bridgeSignature) return;
+      bridgeSignature = signature;
+      state.device = { connected: Boolean(payload.device.connected), lastConnectedAt: payload.device.lastConnectedAt || null };
+      if (payload.readings.length) {
+        const readingsSignature = JSON.stringify(payload.readings);
+        state.readings = payload.readings;
+        state.usingDemo = false;
+        if (readingsSignature !== bridgeReadingsSignature) {
+          bridgeReadingsSignature = readingsSignature;
+          syncFamilyUsage();
+          syncCommunityInsight();
+          syncCompetitionStats();
+        }
+      }
+      if (!root.querySelector(".utlt-auth-screen")) render(true);
+    } catch (_error) {
+      if (state.bridgeAvailable) {
+        state.bridgeAvailable = false;
+        state.device.connected = false;
+        if (!root.querySelector(".utlt-auth-screen")) render(true);
+      }
+    }
+  }
   initializePersistence();
+  refreshWaterBridge();
+  setInterval(refreshWaterBridge, 5000);
 })();
