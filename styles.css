@@ -309,6 +309,8 @@ img { max-width: 100%; }
 .utlt-meter-diagnostics { display: grid; gap: 3px; margin: 14px 0 4px; padding: 14px; border: 1px solid var(--utlt-border); border-radius: 16px; background: var(--utlt-panel); font-size: 13px; }
 .utlt-meter-diagnostics strong { margin-bottom: 4px; font-size: 14px; }
 .utlt-meter-diagnostics small { margin-top: 2px; color: var(--utlt-muted); font-size: 12px; }
+.utlt-qr-photo { position: relative; display: grid; min-height: 44px; margin-top: 10px; place-items: center; border: 1px solid var(--utlt-border); border-radius: 14px; color: var(--utlt-accent); font-size: 13px; font-weight: 700; cursor: pointer; }
+.utlt-qr-photo input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 
 /* Sign-in uses the same surface, type and blue accent as the dashboard. */
 .utlt-auth-screen { display: grid; min-height: 100dvh; place-items: center; padding: 28px 18px; }

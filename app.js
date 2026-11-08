@@ -666,15 +666,17 @@
   function pairPage() {
     const ready = Boolean(state.pairedDeviceId);
     const noticeTitle = state.device.connected ? "Water monitor connected" : ready ? "Ready for Bluetooth" : "Scan your device";
-    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `Sticker recognized: UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Connect and choose UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()} or MPY ESP32 in Android’s Bluetooth prompt.` : "Point your camera at the QR sticker on your ESP32 enclosure.";
+    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `Sticker recognized: UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Connect and choose UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()} or MPY ESP32 in the Bluetooth prompt.` : "Point your camera at the QR sticker on your ESP32 enclosure.";
     return `<section class="utlt-pair-page">
       <div class="utlt-pair-illustration">${icon("bluetooth", 34)}</div>
       <p class="utlt-eyebrow">DEVICE SETUP</p>
       <h1>Connect your water monitor</h1>
-      <p class="utlt-pair-intro">Scan the sticker inside this app, then connect directly to your ESP32 over Bluetooth. Use Chrome on Android.</p>
+      <p class="utlt-pair-intro">Scan the sticker inside this app, then connect directly to your ESP32 over Bluetooth. Use Chrome on Android or Bluefy on iPhone.</p>
+      ${/iPhone|iPad|iPod/i.test(navigator.userAgent) && !navigator.bluetooth?.requestDevice ? '<p class="utlt-flow-warning">iPhone Chrome cannot connect to Bluetooth devices. Open this same website in <a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055">Bluefy</a> to pair.</p>' : ''}
       <div class="utlt-pair-notice ${state.device.connected ? "is-ready" : ""}" role="status"><strong>${noticeTitle}</strong><span>${noticeBody}</span></div>
       ${state.qrScanning ? '<video class="utlt-qr-preview" id="utlt-qr-preview" autoplay playsinline muted aria-label="Camera view for device QR code"></video>' : ''}
       <button class="utlt-primary-button" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : "Scan device QR"}</button>
+      <label class="utlt-qr-photo">Or use a camera photo<input type="file" id="utlt-qr-photo" accept="image/*" capture="environment" aria-label="Take a photo of the device QR code"></label>
       ${ready ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">' + (state.device.connected ? 'Reconnect Bluetooth' : 'Connect Bluetooth') + '</button>' : ''}
       ${state.rawPulseCount !== null ? `<div class="utlt-meter-diagnostics"><strong>Sensor diagnostics</strong><span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span><small>App conversion: 450 pulses = 1 litre</small></div>` : ''}
       ${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : state.flowRateLpm !== null ? `<p class="utlt-pair-feedback">Measured flow: ${state.flowRateLpm.toFixed(2)} L/min</p>` : ''}
@@ -920,20 +922,39 @@
     state.qrScanning = false;
   }
 
+  function acceptDeviceQr(rawValue) {
+    const match = /^UTLT:BLE:1:([0-9a-f]{12})$/i.exec(String(rawValue || "").trim());
+    if (!match) {
+      state.pairStatus = "That is not a UTLT Bluetooth sticker.";
+      return false;
+    }
+    state.pairedDeviceId = match[1].toLowerCase();
+    try { localStorage.setItem(pairingKey, state.pairedDeviceId); } catch (_error) { /* Session pairing still works. */ }
+    state.pairStatus = `Found UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Connect Bluetooth.`;
+    stopQrScanner();
+    render(true);
+    return true;
+  }
+
   async function startQrScanner() {
-    if (!navigator.mediaDevices?.getUserMedia || !window.BarcodeDetector) {
-      state.pairStatus = "QR scanning needs a recent Chrome for Android on the secure GitHub Pages site.";
+    if (!navigator.mediaDevices?.getUserMedia) {
+      state.pairStatus = "Live camera access is unavailable here. Use a camera photo below instead.";
       render(true);
       return;
     }
     try {
-      const formats = await BarcodeDetector.getSupportedFormats();
-      if (!formats.includes("qr_code")) throw new Error("This Chrome version cannot scan QR codes. Please update Chrome.");
+      let detector = null;
+      if (typeof window.BarcodeDetector?.getSupportedFormats === "function") {
+        const formats = await BarcodeDetector.getSupportedFormats();
+        if (formats.includes("qr_code")) detector = new BarcodeDetector({ formats: ["qr_code"] });
+      }
+      if (!detector && !window.jsQR) throw new Error("QR decoder unavailable. Reload this page and try again.");
       state.qrScanning = true;
       state.pairStatus = "Point the camera at your UTLT device sticker.";
       render(true);
       const video = root.querySelector("#utlt-qr-preview");
-      const detector = new BarcodeDetector({ formats: ["qr_code"] });
+      const canvas = document.createElement("canvas");
+      const context = canvas.getContext("2d", { willReadFrequently: true });
       qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
       if (!state.qrScanning || !video?.isConnected) { stopQrScanner(); return; }
       video.srcObject = qrStream;
@@ -941,25 +962,55 @@
       const scanFrame = async () => {
         if (!state.qrScanning || !video.isConnected) { stopQrScanner(); return; }
         try {
-          for (const code of await detector.detect(video)) {
-            const match = /^UTLT:BLE:1:([0-9a-f]{12})$/i.exec(code.rawValue.trim());
-            if (!match) { state.pairStatus = "That is not a UTLT Bluetooth sticker."; continue; }
-            state.pairedDeviceId = match[1].toLowerCase();
-            try { localStorage.setItem(pairingKey, state.pairedDeviceId); } catch (_error) { /* Session pairing still works. */ }
-            state.pairStatus = `Found UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Connect Bluetooth.`;
-            stopQrScanner();
-            render(true);
-            return;
+          let codes = [];
+          if (detector) codes = await detector.detect(video);
+          else if (video.videoWidth && context) {
+            const scale = Math.min(1, 640 / video.videoWidth);
+            canvas.width = Math.round(video.videoWidth * scale);
+            canvas.height = Math.round(video.videoHeight * scale);
+            context.drawImage(video, 0, 0, canvas.width, canvas.height);
+            const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+            const result = window.jsQR(frame.data, frame.width, frame.height);
+            if (result) codes = [{ rawValue: result.data }];
           }
+          for (const code of codes) if (acceptDeviceQr(code.rawValue)) return;
         } catch (_error) { /* Ignore a frame that was not ready. */ }
-        qrTimer = setTimeout(scanFrame, 180);
+        qrTimer = setTimeout(scanFrame, 220);
       };
       scanFrame();
     } catch (error) {
       stopQrScanner();
-      state.pairStatus = error.message || "Camera access failed. Allow the camera in Chrome and try again.";
+      state.pairStatus = error.message || "Camera access failed. Allow the camera in this browser or use a camera photo below.";
       render(true);
     }
+  }
+
+  async function scanQrPhoto(file) {
+    if (state.qrScanning) stopQrScanner();
+    if (!file || !window.jsQR) {
+      state.pairStatus = "QR decoder unavailable. Reload the app and try again.";
+      render(true);
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const image = new Image();
+    image.onload = () => {
+      try {
+        const scale = Math.min(1, 1200 / image.naturalWidth);
+        const canvas = document.createElement("canvas");
+        canvas.width = Math.round(image.naturalWidth * scale);
+        canvas.height = Math.round(image.naturalHeight * scale);
+        const context = canvas.getContext("2d", { willReadFrequently: true });
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const frame = context.getImageData(0, 0, canvas.width, canvas.height);
+        const result = window.jsQR(frame.data, frame.width, frame.height);
+        if (!result) { state.pairStatus = "No QR found in that photo. Move closer and try again."; render(true); }
+        else if (!acceptDeviceQr(result.data)) render(true);
+      } catch (error) { state.pairStatus = error.message || "Could not read that photo."; render(true); }
+      URL.revokeObjectURL(url);
+    };
+    image.onerror = () => { URL.revokeObjectURL(url); state.pairStatus = "Could not open that photo."; render(true); };
+    image.src = url;
   }
 
   function onBlePacket(event) {
@@ -980,7 +1031,7 @@
   function connectBluetooth() {
     if (!state.pairedDeviceId) return;
     if (!navigator.bluetooth?.requestDevice) {
-      state.pairStatus = "Bluetooth pairing needs Chrome on Android. Open this page in Chrome, not an in-app browser.";
+      state.pairStatus = "Bluetooth needs Chrome on Android or Bluefy on iPhone. iPhone Chrome cannot connect to BLE devices.";
       render(true);
       return;
     }
@@ -1083,6 +1134,7 @@
   });
 
   root.addEventListener("change", (event) => {
+    if (event.target.id === "utlt-qr-photo") { scanQrPhoto(event.target.files?.[0]); return; }
     if (event.target.matches('input[data-action="community-sharing"]')) {
       state.communitySharing = event.target.checked === true;
       state.communityPercentile = null;

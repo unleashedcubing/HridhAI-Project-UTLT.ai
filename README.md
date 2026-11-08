@@ -1,13 +1,13 @@
 # UTLT.ai water demo
 
-## Android pairing
+## Phone pairing
 
-The GitHub Pages app is the phone interface. The ESP32 runs `esp32/main.py` and sends flow readings directly to **Chrome on Android** over Bluetooth Low Energy (BLE). After firmware is uploaded, the demo needs only the Android phone, ESP32, and power bank; the pump has its own power source. No computer bridge, home Wi-Fi, or device hotspot is needed.
+The GitHub Pages app is the phone interface. The ESP32 runs `esp32/main.py` and sends flow readings over Bluetooth Low Energy (BLE) to **Chrome on Android** or **Bluefy on iPhone**. iPhone Chrome cannot use Web Bluetooth. After firmware is uploaded, the demo needs only the phone, ESP32, and power bank; the pump has its own power source. No computer bridge, home Wi-Fi, or device hotspot is needed.
 
 1. Power the ESP32 from the USB power bank. It advertises as **UTLT-2C2C** on the current board.
-2. Open the GitHub Pages app in **Chrome on Android** over HTTPS, then open **Devices**.
-3. Tap **Scan device QR** and point the camera at [this board's sticker](assets/UTLT-2C2C-pairing-qr.png). Allow camera access.
-4. Tap **Connect Bluetooth**, choose **UTLT-2C2C** in Chrome's Bluetooth prompt, and allow the connection.
+2. Open the GitHub Pages app in **Chrome on Android** or **Bluefy on iPhone** over HTTPS, then open **Devices**.
+3. Tap **Scan device QR** and point the camera at [this board's sticker](assets/UTLT-2C2C-pairing-qr.png). Allow camera access. In Bluefy, **Or use a camera photo** is available if live camera scanning does not work.
+4. Tap **Connect Bluetooth**, choose **UTLT-2C2C** (or a cached **MPY ESP32** name) in the browser's Bluetooth prompt, and allow the connection.
 5. The dashboard reads the meter every two seconds. Pulse counts become litres using an initial **450 pulses per litre** calibration. Pump off should show no increase; pump on should make the total rise. In a recirculating demo, each lap is counted as simulated usage.
 
 Chrome camera and Bluetooth permissions must be allowed. If you reload the page, the scanned device ID is remembered on that phone, but tap **Connect Bluetooth** again. Keep the page open for live readings. Google account, Friends, and Family features require internet; the meter and water charts do not need them after the page loads. The QR contains the ESP32's public ID, **not** a Wi-Fi password. It identifies the device in the browser but does not provide secure ownership authentication; that is future product work.
@@ -16,7 +16,9 @@ The mini flow sensor is specified for 0.5–5 L/min. The app ignores intervals a
 
 The Devices screen also shows the raw pulse count and pulses per second. For example, 11 mL/s should produce about 5 pulses/s at 450 pulses/L. A display of about 500 pulses/s points to false pulses or a very different sensor calibration, not a decimal place in the app.
 
-The BLE path has been checked from a computer: the board advertised `UTLT-2C2C`, connected, and returned a 16-byte meter packet. Camera scanning and Chrome's permission prompt still need a physical Android phone test.
+The BLE path has been checked from a computer: the board advertised `UTLT-2C2C`, connected, and returned a 16-byte meter packet. Camera scanning and the Bluetooth permission prompt still need a physical test on each phone/browser.
+
+The browser-independent QR fallback uses [jsQR](https://github.com/cozmo/jsQR). Its bundled code and Apache 2.0 license are in `vendor/`.
 
 ## ESP32 setup
 

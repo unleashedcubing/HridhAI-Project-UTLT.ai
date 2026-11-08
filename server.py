@@ -21,7 +21,7 @@ PULSES_PER_LITRE = float(os.environ.get("UTLT_PULSES_PER_LITRE", "450"))
 DEVICE_TIMEOUT_SECONDS = 30
 DB_LOCK = Lock()
 FILES = {"/": "index.html", "/index.html": "index.html", "/styles.css": "styles.css",
-         "/data.js": "data.js", "/app.js": "app.js"}
+         "/data.js": "data.js", "/app.js": "app.js", "/vendor/jsQR.js": "vendor/jsQR.js"}
 SESSION_RE = re.compile(r"^[a-zA-Z0-9_-]{1,64}$")
 
 
