@@ -155,12 +155,22 @@ def main():
     parser.add_argument("--host", default="127.0.0.1",
                         help="Use 0.0.0.0 for phones and ESP32 on the same trusted Wi-Fi")
     parser.add_argument("--port", type=int, default=8080)
+    parser.add_argument("--ble", action="store_true",
+                        help="Also receive ESP32 Bluetooth readings (requires bleak)")
     args = parser.parse_args()
     if not DEVICE_TOKEN:
         parser.error("Set UTLT_DEVICE_TOKEN to a long random value before starting")
     if not 0 < PULSES_PER_LITRE < 100_000:
         parser.error("UTLT_PULSES_PER_LITRE must be positive")
     init_db()
+    if args.ble:
+        try:
+            import bleak  # noqa: F401 - check optional dependency before starting the server
+        except ImportError:
+            parser.error("Bluetooth requires bleak: python3 -m pip install bleak")
+        import ble_bridge
+        ble_bridge.start(record_packet)
+        print("BLE receiver enabled; scanning for UTLT-Water")
     server = ThreadingHTTPServer((args.host, args.port), Handler)
     print(f"UTLT dashboard: http://{args.host}:{args.port}/")
     print(f"Pulse calibration: {PULSES_PER_LITRE:g} pulses/L")

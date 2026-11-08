@@ -196,7 +196,7 @@ img { max-width: 100%; }
 .utlt-stat.is-bad strong { color: var(--utlt-bad); }
 
 /* 10 · TIP + COMMUNITY ------------------------------------------------------ */
-.utlt-tip-card, .utlt-community-insight, .utlt-community-optin {
+.utlt-tip-card, .utlt-community-optin {
   display: flex; align-items: flex-start; gap: 12px; margin: 14px 0; padding: 15px;
   border: 1px solid var(--utlt-border); border-radius: 20px; background: var(--utlt-card); box-shadow: var(--utlt-shadow);
 }
@@ -205,10 +205,8 @@ img { max-width: 100%; }
   display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border-radius: 13px;
   background: var(--utlt-panel); font-size: 21px;
 }
-.utlt-tip-card strong, .utlt-community-insight strong, .utlt-community-optin strong { display: block; font-size: 14px; line-height: 1.35; }
-.utlt-tip-card p, .utlt-community-insight p, .utlt-community-optin p { margin-top: 4px; color: var(--utlt-muted); font-size: 12.5px; line-height: 1.5; }
-.utlt-community-insight { align-items: center; }
-.utlt-community-insight.is-ready { border-color: var(--utlt-good); background: var(--utlt-good-bg); }
+.utlt-tip-card strong, .utlt-community-optin strong { display: block; font-size: 14px; line-height: 1.35; }
+.utlt-tip-card p, .utlt-community-optin p { margin-top: 4px; color: var(--utlt-muted); font-size: 12.5px; line-height: 1.5; }
 .utlt-community-optin { align-items: center; }
 .utlt-community-optin > div { flex: 1; min-width: 0; }
 .utlt-community-optin small { display: block; margin-top: 6px; color: var(--utlt-muted); font-size: 11px; line-height: 1.45; }
@@ -456,32 +454,30 @@ img { max-width: 100%; }
 
 /* 18 · MOTION --------------------------------------------------------------- */
 @keyframes utlt-ring-draw { from { stroke-dashoffset: 528; } to { stroke-dashoffset: 0; } }
-@keyframes utlt-pie-reveal { from { opacity: 0; transform: rotate(-38deg) scale(.72); } to { opacity: 1; transform: rotate(0) scale(1); } }
-@keyframes utlt-bars-rise { from { opacity: .25; transform: scaleY(.08); } to { opacity: 1; transform: scaleY(1); } }
+@keyframes utlt-pie-reveal { from { opacity: 0; transform: rotate(-10deg) scale(.94); } to { opacity: 1; transform: rotate(0) scale(1); } }
+@keyframes utlt-bars-rise { from { opacity: .4; transform: scaleY(.2); } to { opacity: 1; transform: scaleY(1); } }
 @keyframes utlt-chart-fade { from { opacity: 0; } to { opacity: 1; } }
-@keyframes utlt-chart-enter { from { opacity: 0; transform: translateY(22px) scale(.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
-@keyframes utlt-pop { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes utlt-chart-enter { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes utlt-pop { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: translateY(0); } }
 
 @media (prefers-reduced-motion: no-preference) {
   .utlt-app button, .utlt-field input, .utlt-add-friend input { transition: background-color .15s ease, color .15s ease, border-color .15s ease, box-shadow .15s ease, transform .12s ease; }
   .utlt-nav-icon, .utlt-tab-avatar { transition: background-color .2s ease, transform .15s ease; }
   .utlt-switch span, .utlt-switch span::after { transition: background-color .15s ease, transform .15s ease; }
-  .utlt-donut-value { stroke-dashoffset: 528; animation: utlt-ring-draw 1.35s cubic-bezier(.2, .75, .25, 1) .12s both; }
-  .utlt-quickstats .utlt-stat, .utlt-status-card, .utlt-tip-card { animation: utlt-pop .5s cubic-bezier(.2, .75, .25, 1) both; }
-  .utlt-quickstats .utlt-stat:nth-child(2) { animation-delay: .06s; }
-  .utlt-quickstats .utlt-stat:nth-child(3) { animation-delay: .12s; }
-  .utlt-kokonut-pie { transform-origin: 50% 50%; animation: utlt-pie-reveal .9s cubic-bezier(.2, .75, .25, 1) .18s both; }
-  .utlt-trend-plot { animation: utlt-chart-fade .55s ease-out .12s both; }
-  .utlt-trend-plot g { transform-box: fill-box; transform-origin: center bottom; animation: utlt-bars-rise .72s cubic-bezier(.2, .75, .25, 1) both; }
-  .utlt-trend-plot g:nth-of-type(1) { animation-delay: .12s; }
-  .utlt-trend-plot g:nth-of-type(2) { animation-delay: .2s; }
-  .utlt-trend-plot g:nth-of-type(3) { animation-delay: .28s; }
-  .utlt-trend-plot g:nth-of-type(4) { animation-delay: .36s; }
-  .utlt-trend-plot g:nth-of-type(5) { animation-delay: .44s; }
-  .utlt-trend-plot g:nth-of-type(6) { animation-delay: .52s; }
-  .utlt-trend-plot g:nth-of-type(7) { animation-delay: .6s; }
-  .utlt-scroll-reveal:not(.is-visible) { opacity: 0; transform: translateY(22px) scale(.985); }
-  .utlt-scroll-reveal.is-visible { animation: utlt-chart-enter .72s cubic-bezier(.2, .75, .25, 1) both; }
+  .utlt-enter .utlt-donut-value { stroke-dashoffset: 528; animation: utlt-ring-draw .85s cubic-bezier(.22, 1, .36, 1) .08s both; }
+  .utlt-enter .utlt-quickstats .utlt-stat, .utlt-enter .utlt-status-card, .utlt-enter .utlt-tip-card { animation: utlt-pop .4s cubic-bezier(.22, 1, .36, 1) both; }
+  .utlt-enter .utlt-quickstats .utlt-stat:nth-child(2) { animation-delay: .05s; }
+  .utlt-enter .utlt-quickstats .utlt-stat:nth-child(3) { animation-delay: .1s; }
+  .utlt-enter .utlt-kokonut-pie { transform-origin: 50% 50%; animation: utlt-pie-reveal .55s cubic-bezier(.22, 1, .36, 1) .08s both; }
+  .utlt-enter .utlt-trend-plot { animation: utlt-chart-fade .35s ease-out both; }
+  .utlt-enter .utlt-trend-plot rect { transform-box: fill-box; transform-origin: center bottom; animation: utlt-bars-rise .5s cubic-bezier(.22, 1, .36, 1) both; }
+  .utlt-enter .utlt-trend-plot g:nth-of-type(2) rect { animation-delay: .04s; }
+  .utlt-enter .utlt-trend-plot g:nth-of-type(3) rect { animation-delay: .08s; }
+  .utlt-enter .utlt-trend-plot g:nth-of-type(4) rect { animation-delay: .12s; }
+  .utlt-enter .utlt-trend-plot g:nth-of-type(5) rect { animation-delay: .16s; }
+  .utlt-enter .utlt-trend-plot g:nth-of-type(6) rect { animation-delay: .2s; }
+  .utlt-enter .utlt-scroll-reveal:not(.is-visible) { opacity: 0; transform: translateY(12px); }
+  .utlt-enter .utlt-scroll-reveal.is-visible { animation: utlt-chart-enter .5s cubic-bezier(.22, 1, .36, 1) both; }
 }
 @media (prefers-reduced-motion: reduce) {
   .utlt-donut-value, .utlt-kokonut-pie, .utlt-trend-plot, .utlt-trend-plot g, .utlt-scroll-reveal { animation: none !important; transform: none !important; opacity: 1 !important; stroke-dashoffset: 0; }

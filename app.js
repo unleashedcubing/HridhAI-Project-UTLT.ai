@@ -597,14 +597,6 @@
     const index = limits.findIndex(limit => litres < limit);
     return index < 0 ? 10 : index;
   }
-  function communityInsightMarkup() {
-    if (!state.communitySharing) return '<section class="utlt-community-insight"><span class="utlt-community-icon">🌍</span><div><strong>Community water insight</strong><p>Opt in from Friends to compare your daily usage anonymously with other participating UTLT users.</p></div></section>';
-    if (state.usingDemo) return '<section class="utlt-community-insight"><span class="utlt-community-icon">💧</span><div><strong>Community comparison is enabled</strong><p>Demo readings are never shared. Connect a real meter to contribute today’s usage.</p></div></section>';
-    if (state.communityStatus === "loading") return '<section class="utlt-community-insight"><span class="utlt-community-icon">🌍</span><div><strong>Checking community data…</strong><p>Comparing anonymous usage ranges for today.</p></div></section>';
-    if (state.communityPercentile !== null) return '<section class="utlt-community-insight is-ready"><span class="utlt-community-icon">🌱</span><div><strong>You used less water than approximately ' + state.communityPercentile + '% of participating users today!</strong><p>Compared with ' + state.communityParticipants + ' other opt-in users. This is an estimate based on broad usage ranges.</p></div></section>';
-    if (state.communityStatus === "error") return '<section class="utlt-community-insight"><span class="utlt-community-icon">⚠️</span><div><strong>Community insight unavailable</strong><p>Could not load the comparison. Your dashboard readings are unaffected.</p></div></section>';
-    return '<section class="utlt-community-insight"><span class="utlt-community-icon">🌍</span><div><strong>Collecting community data</strong><p>The comparison appears after at least five other users share real readings for today.</p></div></section>';
-  }
   async function syncCommunityInsight() {
     if (!firebaseStore || !state.uid) return;
     if (!state.communitySharing) {
@@ -646,14 +638,14 @@
   }
   function dashboard() {
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${greetingMarkup()}${usage(summary)}${status(summary)}${quickStats(summary)}${tipCard(summary)}${communityInsightMarkup()}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+    return `<div class="utlt-dashboard">${greetingMarkup()}${usage(summary)}${status(summary)}${quickStats(summary)}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
   }
 
   function devicePage() {
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
       ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "—";
-    return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "Device offline"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your ESP32 is sending water readings." : state.bridgeAvailable ? "The local bridge is ready. Turn on your ESP32 to send readings." : "Start the UTLT Python bridge to connect your ESP32."}</p></div></div><button class="utlt-primary-button" data-action="pair">Connection guide</button><p class="utlt-device-help">Your monitor sends flow readings to UTLT over Wi-Fi. The ring and six-day chart use those readings. Activity labels need user input; unlabeled water appears under Misc.</p></section>`;
+    return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "Device offline"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your ESP32 is sending water readings." : state.bridgeAvailable ? "The local bridge is ready. Turn on your ESP32 to send readings." : "Start the UTLT Python bridge to connect your ESP32."}</p></div></div><button class="utlt-primary-button" data-action="pair">Connection guide</button><p class="utlt-device-help">Your monitor sends readings by Bluetooth to the computer bridge, with Wi-Fi backup. The ring and six-day chart use those readings. Unlabeled water appears under Misc.</p></section>`;
   }
 
   function pairPage() {
@@ -661,12 +653,12 @@
       <div class="utlt-pair-illustration">${icon("bluetooth", 34)}</div>
       <p class="utlt-eyebrow">DEVICE SETUP</p>
       <h1>Connect your water monitor</h1>
-      <p class="utlt-pair-intro">Your ESP32 sends measured flow to the UTLT Python bridge over Wi-Fi. Any phone on the same network can open this dashboard.</p>
+      <p class="utlt-pair-intro">Your ESP32 sends measured flow to the computer bridge over Bluetooth, with Wi-Fi backup. Any phone on the same network can open this dashboard.</p>
       <div class="utlt-pair-notice ${state.bridgeAvailable ? "is-ready" : ""}" role="status"><strong>${state.device.connected ? "ESP32 connected" : state.bridgeAvailable ? "Bridge ready · waiting for ESP32" : "Python bridge unavailable"}</strong><span>${state.device.connected ? "Live readings are now updating your water charts." : state.bridgeAvailable ? "Power the ESP32 with its Wi-Fi settings and device token." : "Start server.py on your computer and open its network address."}</span></div>
       <h2>Three steps</h2>
       <ol class="utlt-pair-steps">
         <li><span>1</span><div><strong>Wire the flow sensor</strong><small>Sensor yellow → converter HV1 → LV1 → ESP32 GPIO27. Share 5 V, 3V3 and ground as shown in the build guide.</small></div></li>
-        <li><span>2</span><div><strong>Start the local bridge</strong><small>Run server.py on your computer, connected to the same Wi-Fi as the ESP32 and phone.</small></div></li>
+        <li><span>2</span><div><strong>Start the local bridge</strong><small>Run server.py with --ble on your computer. Keep it on the same Wi-Fi as the ESP32 and phone for backup.</small></div></li>
         <li><span>3</span><div><strong>Configure and power the ESP32</strong><small>Copy esp32/config.example.py to config.py and enter Wi-Fi, server address and device token. Then run main.py on the board.</small></div></li>
       </ol>
       <button class="utlt-primary-button" data-action="refresh-device">Check connection</button>
@@ -854,8 +846,12 @@
     return "";
   }
 
+  let lastMotionView = "";
   async function render(preserveScroll = false) {
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
+    const motionView = `${state.screen}:${state.utility}:${state.breakdown}`;
+    const enterMotion = motionView !== lastMotionView;
+    lastMotionView = motionView;
     const compact = state.screen === "home" && state.utility !== "Water";
     const content = state.screen === "home"
       ? utilityTabs() + (state.utility === "Water" ? dashboard() : `<section class="utlt-unavailable-card"><div class="utlt-unavailable-icon">${icon(state.utility === "Gas" ? "flame" : "bolt", 30)}</div><h2>${state.utility} tracking is coming soon</h2><p>This preview currently tracks water only. When ${state.utility.toLowerCase()} monitoring arrives, you will see:</p><ul class="utlt-coming-list"><li>Your daily ${state.utility.toLowerCase()} usage and goal</li><li>A clear “too much” or “still fine” message</li><li>Records of your previous days</li></ul><button class="utlt-primary-button" data-action="utility" data-value="Water">View water dashboard</button></section>`)
@@ -863,11 +859,11 @@
       : state.screen === "account" ? accountPage()
       : state.screen === "family" ? await familyPage()
       : pairPage();
-    root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>${onboardingMarkup()}`;
+    root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${enterMotion ? "utlt-enter" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>${onboardingMarkup()}`;
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute("content", state.dark ? "#12171d" : "#ffffff"));
     const scroller = root.querySelector(".utlt-content");
     if (scroller) scroller.scrollTop = previousScroll;
-    setupChartScrollAnimations(scroller);
+    if (enterMotion) setupChartScrollAnimations(scroller);
   }
 
   function setupChartScrollAnimations(scroller) {
