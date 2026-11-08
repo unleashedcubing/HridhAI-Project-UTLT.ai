@@ -32,6 +32,8 @@
     pairedDeviceId: /^[0-9a-f]{12}$/.test(savedPairing) ? savedPairing : "",
     pairStatus: "",
     qrScanning: false,
+    flowRateLpm: null,
+    flowWarning: "",
     bridgeAvailable: false,
     readings: window.UTLTData.demoReadings,
     usingDemo: true,
@@ -649,7 +651,7 @@
   }
   function dashboard() {
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${greetingMarkup()}${usage(summary)}${status(summary)}${quickStats(summary)}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+    return `<div class="utlt-dashboard">${greetingMarkup()}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${usage(summary)}${status(summary)}${quickStats(summary)}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
   }
 
   function devicePage() {
@@ -672,10 +674,12 @@
       ${state.qrScanning ? '<video class="utlt-qr-preview" id="utlt-qr-preview" autoplay playsinline muted aria-label="Camera view for device QR code"></video>' : ''}
       <button class="utlt-primary-button" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : "Scan device QR"}</button>
       ${ready ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">' + (state.device.connected ? 'Reconnect Bluetooth' : 'Connect Bluetooth') + '</button>' : ''}
+      ${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : state.flowRateLpm !== null ? `<p class="utlt-pair-feedback">Measured flow: ${state.flowRateLpm.toFixed(2)} L/min</p>` : ''}
       ${state.pairStatus ? `<p class="utlt-pair-feedback" role="status">${escapeHtml(state.pairStatus)}</p>` : ''}
+      <button class="utlt-reset-readings" type="button" data-action="reset-meter-readings">Clear this phone’s demo readings</button>
       <h2>Three steps</h2>
       <ol class="utlt-pair-steps">
-        <li><span>1</span><div><strong>Power your monitor</strong><small>Connect the ESP32 to a USB power bank. The pump uses its separate supply.</small></div></li>
+        <li><span>1</span><div><strong>Power your monitor</strong><small>Connect the ESP32 to a USB power bank. If readings look too fast, test the pump on a separate charger.</small></div></li>
         <li><span>2</span><div><strong>Scan the sticker in this app</strong><small>Allow camera access, then point it at the device QR code.</small></div></li>
         <li><span>3</span><div><strong>Connect Bluetooth</strong><small>Tap Connect and select the matching UTLT device. Your water charts will update as pulses arrive.</small></div></li>
       </ol>
@@ -1009,6 +1013,16 @@
     if (action === "scan-qr") { startQrScanner(); return; }
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
     if (action === "connect-ble") { connectBluetooth(); return; }
+    if (action === "reset-meter-readings") {
+      try { localStorage.removeItem("waterMeterReadingsV1"); } catch (_error) { /* This tab can still reset. */ }
+      state.readings = [];
+      state.usingDemo = false;
+      state.flowWarning = "";
+      state.flowRateLpm = null;
+      state.pairStatus = "Readings cleared. The next packet sets a fresh baseline.";
+      render(true);
+      return;
+    }
     if (action === "tutorial-next") { state.tutorialStep = Math.min(state.tutorialStep + 1, tutorialSlides.length - 1); }
     else if (action === "tutorial-skip" || action === "onboarding-done") { state.onboarding = ""; }
     if (action === "login-google") { signInWithGoogle(); return; }
@@ -1155,15 +1169,25 @@
     if (!Number.isSafeInteger(total) || total < 0 || typeof payload.session !== "string") throw new Error("Invalid meter reading");
     let saved = {};
     try { saved = JSON.parse(localStorage.getItem(directReadingsKey) || "{}"); } catch (_error) { /* Private browsing may block storage. */ }
-    const previous = saved.session === payload.session && Number.isSafeInteger(saved.lastPulses) && saved.lastPulses <= total ? saved.lastPulses : 0;
+    const now = Date.now();
+    const sameSession = saved.session === payload.session && Number.isSafeInteger(saved.lastPulses) && saved.lastPulses <= total;
+    const previous = sameSession ? saved.lastPulses : total;
+    const elapsedMs = sameSession && Number.isFinite(saved.lastObservedAt) ? now - saved.lastObservedAt : 0;
+    const pulsesPerLitre = Number(payload.pulsesPerLitre) || 450;
+    const rawDelta = total - previous;
+    const rateLpm = elapsedMs >= 500 ? rawDelta * 60000 / (pulsesPerLitre * elapsedMs) : 0;
+    const impossibleFlow = elapsedMs >= 500 && rateLpm > 6; // Sensor is rated to 5 L/min.
+    const previousWarning = state.flowWarning;
+    state.flowRateLpm = rateLpm;
+    state.flowWarning = impossibleFlow ? `Sensor signal is too fast (${rateLpm.toFixed(1)} L/min). This sensor is rated to 5 L/min, so these pulses were not added. Check wiring and try separate pump power.` : "";
     const readings = Array.isArray(saved.readings) ? saved.readings.filter(item => item && typeof item.recordedAt === "string" && Date.parse(item.recordedAt) >= Date.now() - 6 * 86400000) : [];
-    const delta = total - previous;
+    const delta = impossibleFlow ? 0 : rawDelta;
     if (delta > 0) {
       const indiaTime = new Date(Date.now() + 330 * 60000).toISOString().replace("Z", "+05:30");
-      readings.push({ recordedAt: indiaTime, litres: delta / (Number(payload.pulsesPerLitre) || 450), category: "Misc" });
+      readings.push({ recordedAt: indiaTime, litres: delta / pulsesPerLitre, category: "Misc" });
     }
-    try { localStorage.setItem(directReadingsKey, JSON.stringify({ session: payload.session, lastPulses: total, readings })); } catch (_error) { /* Live values still work without storage. */ }
-    const changed = delta > 0 || state.usingDemo || !state.device.connected;
+    try { localStorage.setItem(directReadingsKey, JSON.stringify({ session: payload.session, lastPulses: total, lastObservedAt: now, readings })); } catch (_error) { /* Live values still work without storage. */ }
+    const changed = delta > 0 || state.usingDemo || !state.device.connected || previousWarning !== state.flowWarning;
     state.readings = readings;
     state.usingDemo = false;
     state.bridgeAvailable = true;

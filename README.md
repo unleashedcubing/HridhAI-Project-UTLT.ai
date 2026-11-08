@@ -12,6 +12,8 @@ The GitHub Pages app is the phone interface. The ESP32 runs `esp32/main.py` and 
 
 Chrome camera and Bluetooth permissions must be allowed. If you reload the page, the scanned device ID is remembered on that phone, but tap **Connect Bluetooth** again. Keep the page open for live readings. Google account, Friends, and Family features require internet; the meter and water charts do not need them after the page loads. The QR contains the ESP32's public ID, **not** a Wi-Fi password. It identifies the device in the browser but does not provide secure ownership authentication; that is future product work.
 
+The mini flow sensor is specified for 0.5–5 L/min. The app ignores intervals above 6 L/min and shows a sensor warning instead of adding impossible litres. If readings rose falsely during a demo, use **Devices → Clear this phone's demo readings**, then reconnect. If the warning appears only while the pump is on, test the pump on a separate charger or power bank while keeping the ESP32 on its own 5 V USB supply. Check the sensor red/black/yellow wiring, converter HV/LV rails, and common ground; an app filter does not repair a noisy electrical signal.
+
 The BLE path has been checked from a computer: the board advertised `UTLT-2C2C`, connected, and returned a 16-byte meter packet. Camera scanning and Chrome's permission prompt still need a physical Android phone test.
 
 ## ESP32 setup
