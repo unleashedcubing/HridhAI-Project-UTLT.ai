@@ -662,7 +662,7 @@
   function pairPage() {
     const ready = Boolean(state.pairedDeviceId);
     const noticeTitle = state.device.connected ? "Water monitor connected" : ready ? "Ready for Bluetooth" : "Scan your device";
-    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `Sticker recognized: UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Connect and choose that device in Android’s Bluetooth prompt.` : "Point your camera at the QR sticker on your ESP32 enclosure.";
+    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `Sticker recognized: UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Connect and choose UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()} or MPY ESP32 in Android’s Bluetooth prompt.` : "Point your camera at the QR sticker on your ESP32 enclosure.";
     return `<section class="utlt-pair-page">
       <div class="utlt-pair-illustration">${icon("bluetooth", 34)}</div>
       <p class="utlt-eyebrow">DEVICE SETUP</p>
@@ -977,9 +977,10 @@
       render(true);
       return;
     }
-    const expectedName = `UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}`;
-    // The chooser must open directly from this button tap; do not await before requestDevice.
-    navigator.bluetooth.requestDevice({ filters: [{ name: expectedName }], optionalServices: [bleServiceUuid] })
+    // Some Android phones show a cached GAP name (for example "MPY ESP32") instead
+    // of the current advertisement name. Verify the QR identity from the packet.
+    // The chooser must open directly from this button tap; do not await first.
+    navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [bleServiceUuid] })
       .then(async device => {
         bleDevice = device;
         device.addEventListener("gattserverdisconnected", () => {
@@ -996,7 +997,7 @@
         onBlePacket({ target: { value: await bleCharacteristic.readValue() } });
       })
       .catch(error => {
-        state.pairStatus = error.name === "NotFoundError" ? "No device selected. Check that the ESP32 is powered and nearby." : `Bluetooth connection failed: ${error.message || error.name}`;
+        state.pairStatus = error.name === "NotFoundError" ? "No device selected. Look for UTLT-2C2C or MPY ESP32 with the powered board nearby." : `Bluetooth connection failed: ${error.message || error.name}`;
         render(true);
       });
   }
