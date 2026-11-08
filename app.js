@@ -11,6 +11,8 @@
     } catch (error) { console.warn("Could not clear all legacy UTLT browser data.", error); }
   }
   clearLegacyAppData();
+  const standaloneDevice = location.hostname === "192.168.4.1";
+  const pagesPreview = location.hostname.endsWith(".github.io");
   const state = {
     screen: "home",
     utility: "Water",
@@ -38,6 +40,7 @@
 
   // Firebase initializes in the background; the dashboard is available without signing in.
   const firebaseReady = (async () => {
+    if (standaloneDevice) throw new Error("Cloud account features need internet; water tracking works offline.");
     const version = "13.2.0";
     const [appSdk, authSdk, firestoreSdk] = await Promise.all([
       import("https://www.gstatic.com/firebasejs/" + version + "/firebase-app.js"),
@@ -645,23 +648,30 @@
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
       ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "—";
-    return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "Device offline"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your ESP32 is sending water readings." : state.bridgeAvailable ? "The local bridge is ready. Turn on your ESP32 to send readings." : "Start the UTLT Python bridge to connect your ESP32."}</p></div></div><button class="utlt-primary-button" data-action="pair">Connection guide</button><p class="utlt-device-help">Your monitor sends readings by Bluetooth to the computer bridge, with Wi-Fi backup. The ring and six-day chart use those readings. Unlabeled water appears under Misc.</p></section>`;
+    return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "Device offline"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your ESP32 is sending water readings." : "Power the ESP32, scan its Wi-Fi sticker, then open the device dashboard."}</p></div></div><button class="utlt-primary-button" data-action="pair">Connection guide</button><p class="utlt-device-help">Your monitor serves live readings directly over its own Wi-Fi. The ring and six-day chart use those readings. Unlabeled water appears under Misc.</p></section>`;
   }
 
   function pairPage() {
+    const intro = standaloneDevice
+      ? "Your phone is connected directly to the ESP32. Water readings update here without a Mac or internet connection."
+      : pagesPreview
+        ? "To pair, scan the QR sticker on your ESP32. Join UTLT-Water when your phone asks, then open http://192.168.4.1/ for live readings."
+        : "Your ESP32 sends measured flow to the computer bridge over Bluetooth, with Wi-Fi backup. Any phone on the same network can open this dashboard.";
+    const noticeTitle = standaloneDevice && state.device.connected ? "ESP32 connected" : pagesPreview ? "Ready to pair · sample readings" : state.device.connected ? "ESP32 connected" : state.bridgeAvailable ? "Bridge ready · waiting for ESP32" : "Device offline";
+    const noticeBody = standaloneDevice && state.device.connected ? "This phone is on the device’s Wi-Fi. Live readings are updating your water charts." : pagesPreview ? "Scan the device’s Wi-Fi sticker, accept Join, then open the address printed below its QR code." : state.device.connected ? "Live readings are now updating your water charts." : state.bridgeAvailable ? "Power the ESP32 and keep it within Bluetooth range." : "Power the ESP32 and scan the Wi-Fi QR sticker on it.";
     return `<section class="utlt-pair-page">
       <div class="utlt-pair-illustration">${icon("bluetooth", 34)}</div>
       <p class="utlt-eyebrow">DEVICE SETUP</p>
       <h1>Connect your water monitor</h1>
-      <p class="utlt-pair-intro">Your ESP32 sends measured flow to the computer bridge over Bluetooth, with Wi-Fi backup. Any phone on the same network can open this dashboard.</p>
-      <div class="utlt-pair-notice ${state.bridgeAvailable ? "is-ready" : ""}" role="status"><strong>${state.device.connected ? "ESP32 connected" : state.bridgeAvailable ? "Bridge ready · waiting for ESP32" : "Python bridge unavailable"}</strong><span>${state.device.connected ? "Live readings are now updating your water charts." : state.bridgeAvailable ? "Power the ESP32 with its Wi-Fi settings and device token." : "Start server.py on your computer and open its network address."}</span></div>
+      <p class="utlt-pair-intro">${intro}</p>
+      <div class="utlt-pair-notice ${pagesPreview ? "is-preview" : state.bridgeAvailable ? "is-ready" : ""}" role="status"><strong>${noticeTitle}</strong><span>${noticeBody}</span></div>
       <h2>Three steps</h2>
       <ol class="utlt-pair-steps">
         <li><span>1</span><div><strong>Wire the flow sensor</strong><small>Sensor yellow → converter HV1 → LV1 → ESP32 GPIO27. Share 5 V, 3V3 and ground as shown in the build guide.</small></div></li>
-        <li><span>2</span><div><strong>Start the local bridge</strong><small>Run server.py with --ble on your computer. Keep it on the same Wi-Fi as the ESP32 and phone for backup.</small></div></li>
-        <li><span>3</span><div><strong>Configure and power the ESP32</strong><small>Copy esp32/config.example.py to config.py and enter Wi-Fi, server address and device token. Then run main.py on the board.</small></div></li>
+        <li><span>2</span><div><strong>Power the ESP32</strong><small>Use a 5 V USB power bank. The pump remains on a separate power supply.</small></div></li>
+        <li><span>3</span><div><strong>Scan the device sticker</strong><small>Use your phone camera to scan the QR code on the ESP32 enclosure. Accept “Join UTLT-Water”, then open http://192.168.4.1/ in your browser.</small></div></li>
       </ol>
-      <button class="utlt-primary-button" data-action="refresh-device">Check connection</button>
+      ${pagesPreview ? "" : '<button class="utlt-primary-button" data-action="refresh-device">Check connection</button>'}
       <p class="utlt-device-help">The flow sensor measures water passing through it. In a recirculating demo, the same water is counted each lap; this is simulated household usage, not consumption.</p>
     </section>`;
   }
@@ -1026,11 +1036,37 @@
   });
   let bridgeSignature = "";
   let bridgeReadingsSignature = "";
+  const directReadingsKey = "waterMeterReadingsV1";
+  function applyStandaloneReading(payload) {
+    const total = Number(payload.totalPulses);
+    if (!Number.isSafeInteger(total) || total < 0 || typeof payload.session !== "string") throw new Error("Invalid meter reading");
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem(directReadingsKey) || "{}"); } catch (_error) { /* Private browsing may block storage. */ }
+    const previous = saved.session === payload.session && Number.isSafeInteger(saved.lastPulses) && saved.lastPulses <= total ? saved.lastPulses : 0;
+    const readings = Array.isArray(saved.readings) ? saved.readings.filter(item => item && typeof item.recordedAt === "string" && Date.parse(item.recordedAt) >= Date.now() - 6 * 86400000) : [];
+    const delta = total - previous;
+    if (delta > 0) {
+      const indiaTime = new Date(Date.now() + 330 * 60000).toISOString().replace("Z", "+05:30");
+      readings.push({ recordedAt: indiaTime, litres: delta / (Number(payload.pulsesPerLitre) || 450), category: "Misc" });
+    }
+    try { localStorage.setItem(directReadingsKey, JSON.stringify({ session: payload.session, lastPulses: total, readings })); } catch (_error) { /* Live values still work without storage. */ }
+    const changed = delta > 0 || state.usingDemo || !state.device.connected;
+    state.readings = readings;
+    state.usingDemo = false;
+    state.bridgeAvailable = true;
+    state.device = { connected: true, lastConnectedAt: new Date().toISOString() };
+    if (delta > 0) { syncFamilyUsage(); syncCommunityInsight(); syncCompetitionStats(); }
+    return changed;
+  }
   async function refreshWaterBridge() {
     try {
       const response = await fetch("/api/water", { cache: "no-store" });
       if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) throw new Error("Bridge unavailable");
       const payload = await response.json();
+      if (payload.mode === "standalone") {
+        if (applyStandaloneReading(payload) && !root.querySelector(".utlt-auth-screen")) render(true);
+        return;
+      }
       if (!Array.isArray(payload.readings) || !payload.device) throw new Error("Invalid bridge response");
       state.bridgeAvailable = true;
       const signature = JSON.stringify(payload);
@@ -1050,6 +1086,7 @@
       }
       if (!root.querySelector(".utlt-auth-screen")) render(true);
     } catch (_error) {
+      bridgeSignature = "";
       if (state.bridgeAvailable) {
         state.bridgeAvailable = false;
         state.device.connected = false;

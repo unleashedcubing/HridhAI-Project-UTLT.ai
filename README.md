@@ -1,4 +1,12 @@
-# UTLT.ai — local water demo
+# UTLT.ai — standalone water demo
+
+## Pair by scanning the device sticker
+
+The current `esp32/main.py` runs the demo directly on the ESP32. Power it from a USB power bank, scan the private `UTLT-Water` Wi-Fi QR sticker with an iPhone or Android phone, accept the Wi-Fi join prompt, and open **http://192.168.4.1/** in the phone browser. The phone may say this Wi-Fi has no internet; stay connected to use the local dashboard. The QR joins Wi-Fi; phone cameras do not reliably open a webpage as part of the same Wi-Fi QR action, so the sticker also prints the address. No Mac or router is needed while using the demo.
+
+The sticker PNG is kept outside this Git repository because its QR embeds the Wi-Fi password. Make the sticker and `esp32/config.py` use the same SSID and password. The ESP32 serves the app and `/api/water` itself. The flow sensor is on GPIO27. The pump has its own power supply and is not controlled by the ESP32. Google account and cloud social features require internet and are unavailable on the isolated device Wi-Fi.
+
+The sections below document the earlier optional computer bridge, preserved as `esp32/bridge_main.py`. They do not describe the current standalone firmware.
 
 This folder starts from the GitHub UTLT.ai web app and adds a Python bridge plus ESP32 MicroPython firmware. The ESP32 sends each flow reading to the computer over Bluetooth Low Energy (BLE), with Wi-Fi as a backup. The Python bridge stores each packet only once, then serves the same dashboard to Android and iPhone browsers over local Wi-Fi. The browser's ring, pie and bar charts come from stored flow packets. The app shows labeled demo data until a real packet arrives.
 

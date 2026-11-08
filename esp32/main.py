@@ -1,14 +1,15 @@
-"""UTLT.ai flow sensor: BLE to the computer, with Wi-Fi packet backup.
+"""Standalone UTLT.ai: ESP32 access point, flow sensor and phone web app.
 
-ESP32 MicroPython. Flow signal enters GPIO27 through a 5 V to 3.3 V converter.
-The pump is not connected to or controlled by the ESP32 in this version.
+Power the board from USB or a power bank. Connect the phone to AP_SSID from
+config.py, then open http://192.168.4.1/ in its browser. No Mac is needed.
+The pump is powered separately and is not connected to an ESP32 output.
 """
 
-import bluetooth
+import gc
 import json
 import machine
-import micropython
 import network
+import os
 import socket
 import struct
 import time
@@ -16,15 +17,19 @@ import time
 import config
 
 FLOW_PIN = 27
-INTERVAL_MS = 5000
-MAX_QUEUE = 120
-MAX_PULSES_PER_PACKET = 100000
-BLE_NAME = b"UTLT-Water"
-BLE_SERVICE = bluetooth.UUID("930a7d60-8489-4b31-9cc6-64ee5e809100")
-BLE_READING = bluetooth.UUID("930a7d60-8489-4b31-9cc6-64ee5e809101")
+PULSES_PER_LITRE = 450.0  # Calibrate with a measured volume later.
+FILES = {
+    "/": ("index.html", "text/html"),
+    "/index.html": ("index.html", "text/html"),
+    "/app.js": ("app.js", "text/javascript"),
+    "/data.js": ("data.js", "text/javascript"),
+    "/styles.css": ("styles.css", "text/css"),
+}
 
-micropython.alloc_emergency_exception_buf(100)
 _pulses = 0
+_last_ble_pulses = 0
+_session_bytes = machine.unique_id()[:4] + os.urandom(4)
+SESSION = _session_bytes.hex()
 
 
 def on_pulse(pin):
@@ -36,129 +41,145 @@ flow = machine.Pin(FLOW_PIN, machine.Pin.IN, machine.Pin.PULL_UP)
 flow.irq(trigger=machine.Pin.IRQ_FALLING, handler=on_pulse)
 
 
-class WaterBLE:
+def pulse_count():
+    state = machine.disable_irq()
+    count = _pulses
+    machine.enable_irq(state)
+    return count
+
+
+def start_access_point():
+    password = config.AP_PASSWORD
+    if len(password) < 8:
+        raise ValueError("AP_PASSWORD must have at least 8 characters")
+    ap = network.WLAN(network.AP_IF)
+    ap.active(True)
+    ap.config(essid=config.AP_SSID, password=password,
+              authmode=network.AUTH_WPA_WPA2_PSK)
+    print("Join Wi-Fi:", config.AP_SSID)
+    print("Open on phone: http://%s/" % ap.ifconfig()[0])
+    return ap
+
+
+class OptionalBLE:
+    """Keep BLE notifications available for testing; the phone app uses Wi-Fi."""
+
     def __init__(self):
-        self.radio = bluetooth.BLE()
-        self.radio.active(True)
+        self.radio = None
         self.connection = None
-        self.radio.irq(self.on_event)
-        ((self.handle,),) = self.radio.gatts_register_services((
-            (BLE_SERVICE, ((BLE_READING, bluetooth.FLAG_READ | bluetooth.FLAG_NOTIFY),)),
-        ))
-        self.advertise()
+        try:
+            import bluetooth
+            self.radio = bluetooth.BLE()
+            self.radio.active(True)
+            self.radio.irq(self.on_event)
+            service = bluetooth.UUID("930a7d60-8489-4b31-9cc6-64ee5e809100")
+            reading = bluetooth.UUID("930a7d60-8489-4b31-9cc6-64ee5e809101")
+            ((self.handle,),) = self.radio.gatts_register_services((
+                (service, ((reading, bluetooth.FLAG_READ | bluetooth.FLAG_NOTIFY),)),
+            ))
+            self.advertise()
+            print("BLE advertising as UTLT-Water")
+        except (ImportError, OSError) as exc:
+            print("BLE unavailable; phone Wi-Fi app still works:", exc)
+            self.radio = None
 
     def advertise(self):
-        advertisement = b"\x02\x01\x06" + bytes((len(BLE_NAME) + 1, 9)) + BLE_NAME
-        self.radio.gap_advertise(100000, adv_data=advertisement)
+        name = b"UTLT-Water"
+        payload = b"\x02\x01\x06" + bytes((len(name) + 1, 9)) + name
+        self.radio.gap_advertise(100000, adv_data=payload)
 
     def on_event(self, event, data):
-        if event == 1:  # Central connected.
+        if event == 1:
             self.connection = data[0]
-        elif event == 2:  # Central disconnected.
+        elif event == 2:
             self.connection = None
             self.advertise()
 
-    def publish(self, session_bytes, sequence, pulses):
-        # 16 bytes fits the default BLE notification payload of 20 bytes.
-        packet = session_bytes + struct.pack("<II", sequence, pulses)
+    def publish(self, sequence, pulses):
+        if self.radio is None:
+            return
+        packet = _session_bytes + struct.pack("<II", sequence, pulses)
         self.radio.gatts_write(self.handle, packet)
         if self.connection is not None:
             try:
                 self.radio.gatts_notify(self.connection, self.handle, packet)
-            except OSError as exc:
-                print("BLE notification failed:", exc)
+            except OSError:
+                pass
 
 
-def post_packet(session, sequence, pulses):
-    body = json.dumps({"session": session, "sequence": sequence, "pulses": pulses}).encode()
-    address = socket.getaddrinfo(config.SERVER_HOST, config.SERVER_PORT)[0][-1]
-    sock = socket.socket()
-    sock.settimeout(3)
+def write_response(client, status, mime, length):
+    header = ("HTTP/1.1 %s\r\nContent-Type: %s\r\nContent-Length: %d\r\n"
+              "Cache-Control: no-store\r\nConnection: close\r\n\r\n") % (status, mime, length)
+    client.write(header.encode())
+
+
+def handle_client(client):
+    client.settimeout(3)
+    request = client.recv(1024)
+    first_line = request.split(b"\r\n", 1)[0].split()
+    if len(first_line) < 2 or first_line[0] != b"GET":
+        write_response(client, "405 Method Not Allowed", "text/plain", 0)
+        return
+    path = first_line[1].decode().split("?", 1)[0]
+    if path == "/api/water":
+        body = json.dumps({
+            "mode": "standalone", "session": SESSION,
+            "totalPulses": pulse_count(), "pulsesPerLitre": PULSES_PER_LITRE,
+            "device": {"connected": True, "lastConnectedAt": None},
+            "readings": [],
+        }).encode()
+        write_response(client, "200 OK", "application/json", len(body))
+        client.write(body)
+        return
+    item = FILES.get(path)
+    if item is None:
+        write_response(client, "404 Not Found", "text/plain", 0)
+        return
+    filename, mime = item
     try:
-        sock.connect(address)
-        request = (
-            "POST /api/device/reading HTTP/1.1\r\n"
-            "Host: %s\r\n"
-            "Content-Type: application/json\r\n"
-            "X-UTLT-Device-Token: %s\r\n"
-            "Content-Length: %d\r\n"
-            "Connection: close\r\n\r\n"
-        ) % (config.SERVER_HOST, config.DEVICE_TOKEN, len(body))
-        sock.write(request.encode() + body)
-        response = sock.readline()
-        if b" 200 " not in response:
-            raise OSError("Server rejected packet: %s" % response)
-    finally:
-        sock.close()
+        size = os.stat(filename)[6]
+        write_response(client, "200 OK", mime, size)
+        with open(filename, "rb") as source:
+            while True:
+                chunk = source.read(1024)
+                if not chunk:
+                    break
+                client.write(chunk)
+    except OSError as exc:
+        print("File request failed:", filename, exc)
 
 
-def run():
-    global _pulses
-    wifi_enabled = (config.WIFI_SSID != "YOUR_WIFI_NAME" and
-                    config.WIFI_PASSWORD != "YOUR_WIFI_PASSWORD" and
-                    config.DEVICE_TOKEN != "SAME_LONG_RANDOM_TOKEN_AS_SERVER")
-
-    session_bytes = machine.unique_id()[:4] + struct.pack("<I", time.ticks_ms())
-    session = session_bytes.hex()  # Same ID on BLE and Wi-Fi for deduplication.
-    ble = WaterBLE()
-    wifi = network.WLAN(network.STA_IF) if wifi_enabled else None
-    if wifi_enabled:
-        wifi.active(True)
-    queue = []
+def serve():
+    start_access_point()
+    ble = OptionalBLE()
+    listener = socket.socket()
+    listener.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    listener.bind(("0.0.0.0", 80))
+    listener.listen(3)
+    listener.settimeout(0.3)
+    print("UTLT standalone dashboard ready; flow sensor on GPIO27")
     sequence = 0
-    last_sample = time.ticks_ms()
-    next_wifi_try = last_sample
-    next_upload = last_sample
-    wifi_was_connected = False
-    print("UTLT-Water BLE ready; flow GPIO27; pump not controlled")
-    if not wifi_enabled:
-        print("Wi-Fi backup disabled until config.py has your Wi-Fi details")
-
+    last_notify = time.ticks_ms()
+    global _last_ble_pulses
     while True:
         now = time.ticks_ms()
-        connected = wifi_enabled and wifi.isconnected()
-        if connected and not wifi_was_connected:
-            print("Wi-Fi backup connected:", wifi.ifconfig()[0])
-        wifi_was_connected = connected
-
-        if wifi_enabled and not connected and time.ticks_diff(now, next_wifi_try) >= 0:
-            try:
-                wifi.disconnect()
-                wifi.connect(config.WIFI_SSID, config.WIFI_PASSWORD)
-            except OSError as exc:
-                print("Wi-Fi retry:", exc)
-            next_wifi_try = time.ticks_add(now, 15000)
-
-        if time.ticks_diff(now, last_sample) >= INTERVAL_MS:
-            elapsed = max(1, time.ticks_diff(now, last_sample))
-            last_sample = now
-            irq_state = machine.disable_irq()
-            count = min(_pulses, MAX_PULSES_PER_PACKET)
-            _pulses -= count
-            machine.enable_irq(irq_state)
-            ble.publish(session_bytes, sequence, count)
-            if wifi_enabled:
-                if len(queue) >= MAX_QUEUE:
-                    queue.pop(0)
-                    print("Wi-Fi backup queue full; oldest backup packet dropped")
-                queue.append((sequence, count))
-            print("Flow: %d pulses | %.2f L/min | BLE %s" %
-                  (count, count * 60000 / (450 * elapsed),
-                   "connected" if ble.connection is not None else "advertising"))
+        if time.ticks_diff(now, last_notify) >= 5000:
+            count = pulse_count()
+            ble.publish(sequence, count - _last_ble_pulses)
+            _last_ble_pulses = count
             sequence += 1
+            last_notify = now
+        try:
+            client, _address = listener.accept()
+        except OSError:
+            continue
+        try:
+            handle_client(client)
+        except OSError as exc:
+            print("HTTP client error:", exc)
+        finally:
+            client.close()
+            gc.collect()
 
-        if connected and queue and time.ticks_diff(now, next_upload) >= 0:
-            packet_sequence, packet_count = queue[0]
-            try:
-                post_packet(session, packet_sequence, packet_count)
-                queue.pop(0)
-                print("Wi-Fi backup delivered packet", packet_sequence)
-                next_upload = now
-            except OSError as exc:
-                print("Wi-Fi upload retry:", exc)
-                next_upload = time.ticks_add(now, 5000)
 
-        time.sleep_ms(50)
-
-
-run()
+serve()

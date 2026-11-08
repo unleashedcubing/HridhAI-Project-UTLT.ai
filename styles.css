@@ -291,6 +291,7 @@ img { max-width: 100%; }
 }
 .utlt-pair-notice span { font-size: 13px; opacity: .9; }
 .utlt-pair-notice.is-ready { border-color: var(--utlt-good); background: var(--utlt-good-bg); color: var(--utlt-good-ink); }
+.utlt-pair-notice.is-preview { border-color: var(--utlt-blue); background: var(--utlt-panel); color: var(--utlt-text); }
 .utlt-pair-page h2 { margin-bottom: 14px; font-size: 18px; letter-spacing: -.3px; }
 .utlt-pair-steps { display: flex; flex-direction: column; gap: 16px; margin: 0 0 26px; padding: 0; list-style: none; }
 .utlt-pair-steps li { display: flex; align-items: flex-start; gap: 12px; }
