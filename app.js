@@ -1037,7 +1037,7 @@
       if (signature === bridgeSignature) return;
       bridgeSignature = signature;
       state.device = { connected: Boolean(payload.device.connected), lastConnectedAt: payload.device.lastConnectedAt || null };
-      if (payload.readings.length) {
+      if (payload.device.lastConnectedAt || payload.readings.length) {
         const readingsSignature = JSON.stringify(payload.readings);
         state.readings = payload.readings;
         state.usingDemo = false;
