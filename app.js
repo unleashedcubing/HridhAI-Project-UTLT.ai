@@ -16,8 +16,11 @@
   const bleServiceUuid = "930a7d60-8489-4b31-9cc6-64ee5e809100";
   const bleReadingUuid = "930a7d60-8489-4b31-9cc6-64ee5e809101";
   const pairingKey = "waterMeterPairingV1";
+  const calibrationKey = "waterMeterCalibrationV1";
   let savedPairing = "";
   try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) { /* Pairing still works in this tab. */ }
+  let savedCalibration = 450;
+  try { savedCalibration = Number(localStorage.getItem(calibrationKey)) || 450; } catch (_error) { /* Default calibration remains available. */ }
   const state = {
     screen: "home",
     utility: "Water",
@@ -36,6 +39,10 @@
     flowWarning: "",
     rawPulseCount: null,
     pulseRateHz: null,
+    pulsesPerLitre: savedCalibration > 0 && savedCalibration < 100000 ? savedCalibration : 450,
+    calibrationStartPulses: null,
+    calibrationStartSession: "",
+    currentMeterSession: "",
     bridgeAvailable: false,
     readings: window.UTLTData.demoReadings,
     usingDemo: true,
@@ -678,7 +685,8 @@
       <button class="utlt-primary-button" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : "Scan device QR"}</button>
       <label class="utlt-qr-photo">Or use a camera photo<input type="file" id="utlt-qr-photo" accept="image/*" capture="environment" aria-label="Take a photo of the device QR code"></label>
       ${ready ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">' + (state.device.connected ? 'Reconnect Bluetooth' : 'Connect Bluetooth') + '</button>' : ''}
-      ${state.rawPulseCount !== null ? `<div class="utlt-meter-diagnostics"><strong>Sensor diagnostics</strong><span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span><small>App conversion: 450 pulses = 1 litre</small></div>` : ''}
+      ${state.rawPulseCount !== null ? `<div class="utlt-meter-diagnostics"><strong>Sensor diagnostics</strong><span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span><small>App conversion: ${Math.round(state.pulsesPerLitre).toLocaleString("en-IN")} pulses = 1 litre</small></div>` : ''}
+      ${state.device.connected ? `<div class="utlt-calibration"><strong>Measured-volume calibration</strong><p>First confirm pulse speed is zero when the running pump bypasses the sensor. Then divert the sensor outlet into a measuring container. Tap Start, collect a known amount, stop the pump, and tap Finish.</p><button type="button" data-action="${state.calibrationStartPulses === null ? "start-calibration" : "finish-calibration"}">${state.calibrationStartPulses === null ? "Start measured test" : "Finish and enter mL"}</button>${state.calibrationStartPulses !== null ? `<small>Starting pulse count: ${state.calibrationStartPulses.toLocaleString("en-IN")}</small>` : ''}</div>` : ''}
       ${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : state.flowRateLpm !== null ? `<p class="utlt-pair-feedback">Measured flow: ${state.flowRateLpm.toFixed(2)} L/min</p>` : ''}
       ${state.pairStatus ? `<p class="utlt-pair-feedback" role="status">${escapeHtml(state.pairStatus)}</p>` : ''}
       <button class="utlt-reset-readings" type="button" data-action="reset-meter-readings">Clear this phone’s demo readings</button>
@@ -1023,8 +1031,13 @@
       render(true);
       return;
     }
-    applyStandaloneReading({ mode: "standalone", session, totalPulses: value.getUint32(12, true), pulsesPerLitre: 450 });
-    state.pairStatus = "Bluetooth connected. Live readings are updating.";
+    state.currentMeterSession = session;
+    if (state.calibrationStartPulses !== null && state.calibrationStartSession !== session) {
+      state.calibrationStartPulses = null;
+      state.pairStatus = "The ESP32 restarted during calibration. Start a new measured test.";
+    }
+    applyStandaloneReading({ mode: "standalone", session, totalPulses: value.getUint32(12, true), pulsesPerLitre: state.pulsesPerLitre });
+    if (!state.pairStatus.includes("restarted during calibration")) state.pairStatus = "Bluetooth connected. Live readings are updating.";
     if (!root.querySelector(".utlt-auth-screen")) render(true);
   }
 
@@ -1067,6 +1080,32 @@
     if (action === "scan-qr") { startQrScanner(); return; }
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
     if (action === "connect-ble") { connectBluetooth(); return; }
+    if (action === "start-calibration") {
+      if (state.rawPulseCount === null) return;
+      state.calibrationStartPulses = state.rawPulseCount;
+      state.calibrationStartSession = state.currentMeterSession;
+      state.pairStatus = "Collect a measured amount, then stop the pump and tap Finish.";
+      render(true);
+      return;
+    }
+    if (action === "finish-calibration") {
+      const measuredMl = Number(prompt("How many millilitres did you collect?", "160"));
+      if (!Number.isFinite(measuredMl) || measuredMl <= 0 || measuredMl > 10000) { state.pairStatus = "Enter a measured amount between 1 and 10,000 mL."; render(true); return; }
+      const pulseDelta = state.rawPulseCount - state.calibrationStartPulses;
+      if (!Number.isSafeInteger(pulseDelta) || pulseDelta < 10) { state.pairStatus = "Too few pulses to calibrate. Check the flow and try again."; render(true); return; }
+      const calibrated = pulseDelta * 1000 / measuredMl;
+      if (calibrated >= 100000) { state.pairStatus = "Pulse count is too high. Check for signal noise before calibrating."; render(true); return; }
+      state.pulsesPerLitre = calibrated;
+      state.calibrationStartPulses = null;
+      state.calibrationStartSession = "";
+      state.flowWarning = "";
+      try { localStorage.setItem(calibrationKey, String(calibrated)); localStorage.removeItem("waterMeterReadingsV1"); } catch (_error) { /* Calibration remains for this tab. */ }
+      state.readings = [];
+      state.usingDemo = false;
+      state.pairStatus = `Saved ${Math.round(calibrated).toLocaleString("en-IN")} pulses per litre for this phone. Previous estimates were cleared; the next packet sets a fresh baseline.`;
+      render(true);
+      return;
+    }
     if (action === "reset-meter-readings") {
       try { localStorage.removeItem("waterMeterReadingsV1"); } catch (_error) { /* This tab can still reset. */ }
       state.readings = [];

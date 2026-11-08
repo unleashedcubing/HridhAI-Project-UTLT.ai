@@ -311,6 +311,10 @@ img { max-width: 100%; }
 .utlt-meter-diagnostics small { margin-top: 2px; color: var(--utlt-muted); font-size: 12px; }
 .utlt-qr-photo { position: relative; display: grid; min-height: 44px; margin-top: 10px; place-items: center; border: 1px solid var(--utlt-border); border-radius: 14px; color: var(--utlt-accent); font-size: 13px; font-weight: 700; cursor: pointer; }
 .utlt-qr-photo input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+.utlt-calibration { display: grid; gap: 8px; margin: 14px 0; padding: 14px; border: 1px solid var(--utlt-border); border-radius: 16px; background: var(--utlt-panel); }
+.utlt-calibration strong { font-size: 14px; }
+.utlt-calibration p, .utlt-calibration small { color: var(--utlt-muted); font-size: 12px; line-height: 1.45; }
+.utlt-calibration button { min-height: 40px; border: 1px solid var(--utlt-blue); border-radius: 12px; background: var(--utlt-card); color: var(--utlt-accent); font-size: 13px; font-weight: 700; cursor: pointer; }
 
 /* Sign-in uses the same surface, type and blue accent as the dashboard. */
 .utlt-auth-screen { display: grid; min-height: 100dvh; place-items: center; padding: 28px 18px; }

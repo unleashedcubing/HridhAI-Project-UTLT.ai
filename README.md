@@ -16,6 +16,8 @@ The mini flow sensor is specified for 0.5–5 L/min. The app ignores intervals a
 
 The Devices screen also shows the raw pulse count and pulses per second. For example, 11 mL/s should produce about 5 pulses/s at 450 pulses/L. A display of about 500 pulses/s points to false pulses or a very different sensor calibration, not a decimal place in the app.
 
+For a measured-volume calibration, keep the ESP32 connected in Devices. Divert the sensor outlet into a measuring container, tap **Start measured test**, collect a known amount, stop the pump, then tap **Finish and enter mL**. The app computes pulses divided by litres and saves that value on the current phone. Earlier estimates are cleared because they used a different conversion. Repeat at another flow rate to check consistency. The current ~0.2–0.3 L/min demo flow is below the sensor's rated minimum, so calibration there is only a practical demo estimate, not a guarantee across other flows.
+
 The BLE path has been checked from a computer: the board advertised `UTLT-2C2C`, connected, and returned a 16-byte meter packet. Camera scanning and the Bluetooth permission prompt still need a physical test on each phone/browser.
 
 The browser-independent QR fallback uses [jsQR](https://github.com/cozmo/jsQR). Its bundled code and Apache 2.0 license are in `vendor/`.
