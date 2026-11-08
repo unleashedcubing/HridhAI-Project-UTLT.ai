@@ -16,6 +16,16 @@
     { label: "Night", color: "#0a4f8f" }
   ];
 
+  /* Water-saving tips shown on the dashboard, matched to the category used most today.
+     Plain content only: edit the wording freely. */
+  const tips = {
+    "Food/Drink": { emoji: "🚰", text: "Collect RO reject water and reuse it for mopping or watering plants. Wash vegetables in a bowl instead of under a running tap." },
+    "Bath": { emoji: "🚿", text: "A bucket bath or a shorter shower, and turning the water off while you soap, can save many litres every single day." },
+    "Housework": { emoji: "🧺", text: "Run the washing machine only with full loads, and reuse the last rinse water for mopping floors or cleaning the balcony." },
+    "Misc": { emoji: "🔧", text: "Check taps, flush tanks and pipes for leaks. A slow drip can quietly waste many litres every day." },
+    "default": { emoji: "💧", text: "Small habits add up. Fix leaks quickly and turn taps off while you are not using the water." }
+  };
+
   const amounts = [
     [55, 140, 75, 30],
     [48, 120, 65, 27],
@@ -77,5 +87,5 @@
     return { used: daily.at(-1)?.litres ?? 0, daily, byUse, byTime };
   }
 
-  window.UTLTData = Object.freeze({ categories, times, demoReadings, summarize });
+  window.UTLTData = Object.freeze({ categories, times, tips, demoReadings, summarize });
 })();
