@@ -13,6 +13,11 @@
   clearLegacyAppData();
   const standaloneDevice = location.hostname === "192.168.4.1";
   const pagesPreview = location.hostname.endsWith(".github.io");
+  const bleServiceUuid = "930a7d60-8489-4b31-9cc6-64ee5e809100";
+  const bleReadingUuid = "930a7d60-8489-4b31-9cc6-64ee5e809101";
+  const pairingKey = "waterMeterPairingV1";
+  let savedPairing = "";
+  try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) { /* Pairing still works in this tab. */ }
   const state = {
     screen: "home",
     utility: "Water",
@@ -24,6 +29,9 @@
     goal: 350,
     saved: false,
     device: { connected: false, lastConnectedAt: null },
+    pairedDeviceId: /^[0-9a-f]{12}$/.test(savedPairing) ? savedPairing : "",
+    pairStatus: "",
+    qrScanning: false,
     bridgeAvailable: false,
     readings: window.UTLTData.demoReadings,
     usingDemo: true,
@@ -648,30 +656,29 @@
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
       ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "—";
-    return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "Device offline"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your ESP32 is sending water readings." : "Power the ESP32, scan its Wi-Fi sticker, then open the device dashboard."}</p></div></div><button class="utlt-primary-button" data-action="pair">Connection guide</button><p class="utlt-device-help">Your monitor serves live readings directly over its own Wi-Fi. The ring and six-day chart use those readings. Unlabeled water appears under Misc.</p></section>`;
+    return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "Device offline"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your ESP32 is sending water readings over Bluetooth." : "Open Devices, scan its QR sticker, and connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">Pair device</button><p class="utlt-device-help">The ring and six-day chart use readings from your flow sensor. Unlabeled water appears under Misc.</p></section>`;
   }
 
   function pairPage() {
-    const intro = standaloneDevice
-      ? "Your phone is connected directly to the ESP32. Water readings update here without a Mac or internet connection."
-      : pagesPreview
-        ? "To pair, scan the QR sticker on your ESP32. Join UTLT-Water when your phone asks, then open http://192.168.4.1/ for live readings."
-        : "Your ESP32 sends measured flow to the computer bridge over Bluetooth, with Wi-Fi backup. Any phone on the same network can open this dashboard.";
-    const noticeTitle = standaloneDevice && state.device.connected ? "ESP32 connected" : pagesPreview ? "Ready to pair · sample readings" : state.device.connected ? "ESP32 connected" : state.bridgeAvailable ? "Bridge ready · waiting for ESP32" : "Device offline";
-    const noticeBody = standaloneDevice && state.device.connected ? "This phone is on the device’s Wi-Fi. Live readings are updating your water charts." : pagesPreview ? "Scan the device’s Wi-Fi sticker, accept Join, then open the address printed below its QR code." : state.device.connected ? "Live readings are now updating your water charts." : state.bridgeAvailable ? "Power the ESP32 and keep it within Bluetooth range." : "Power the ESP32 and scan the Wi-Fi QR sticker on it.";
+    const ready = Boolean(state.pairedDeviceId);
+    const noticeTitle = state.device.connected ? "Water monitor connected" : ready ? "Ready for Bluetooth" : "Scan your device";
+    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `Sticker recognized: UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Connect and choose that device in Android’s Bluetooth prompt.` : "Point your camera at the QR sticker on your ESP32 enclosure.";
     return `<section class="utlt-pair-page">
       <div class="utlt-pair-illustration">${icon("bluetooth", 34)}</div>
       <p class="utlt-eyebrow">DEVICE SETUP</p>
       <h1>Connect your water monitor</h1>
-      <p class="utlt-pair-intro">${intro}</p>
-      <div class="utlt-pair-notice ${pagesPreview ? "is-preview" : state.bridgeAvailable ? "is-ready" : ""}" role="status"><strong>${noticeTitle}</strong><span>${noticeBody}</span></div>
+      <p class="utlt-pair-intro">Scan the sticker inside this app, then connect directly to your ESP32 over Bluetooth. Use Chrome on Android.</p>
+      <div class="utlt-pair-notice ${state.device.connected ? "is-ready" : ""}" role="status"><strong>${noticeTitle}</strong><span>${noticeBody}</span></div>
+      ${state.qrScanning ? '<video class="utlt-qr-preview" id="utlt-qr-preview" autoplay playsinline muted aria-label="Camera view for device QR code"></video>' : ''}
+      <button class="utlt-primary-button" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : "Scan device QR"}</button>
+      ${ready ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">' + (state.device.connected ? 'Reconnect Bluetooth' : 'Connect Bluetooth') + '</button>' : ''}
+      ${state.pairStatus ? `<p class="utlt-pair-feedback" role="status">${escapeHtml(state.pairStatus)}</p>` : ''}
       <h2>Three steps</h2>
       <ol class="utlt-pair-steps">
-        <li><span>1</span><div><strong>Wire the flow sensor</strong><small>Sensor yellow → converter HV1 → LV1 → ESP32 GPIO27. Share 5 V, 3V3 and ground as shown in the build guide.</small></div></li>
-        <li><span>2</span><div><strong>Power the ESP32</strong><small>Use a 5 V USB power bank. The pump remains on a separate power supply.</small></div></li>
-        <li><span>3</span><div><strong>Scan the device sticker</strong><small>Use your phone camera to scan the QR code on the ESP32 enclosure. Accept “Join UTLT-Water”, then open http://192.168.4.1/ in your browser.</small></div></li>
+        <li><span>1</span><div><strong>Power your monitor</strong><small>Connect the ESP32 to a USB power bank. The pump uses its separate supply.</small></div></li>
+        <li><span>2</span><div><strong>Scan the sticker in this app</strong><small>Allow camera access, then point it at the device QR code.</small></div></li>
+        <li><span>3</span><div><strong>Connect Bluetooth</strong><small>Tap Connect and select the matching UTLT device. Your water charts will update as pulses arrive.</small></div></li>
       </ol>
-      ${pagesPreview ? "" : '<button class="utlt-primary-button" data-action="refresh-device">Check connection</button>'}
       <p class="utlt-device-help">The flow sensor measures water passing through it. In a recirculating demo, the same water is counted each lap; this is simulated household usage, not consumption.</p>
     </section>`;
   }
@@ -893,10 +900,114 @@
     targets.forEach(element => observer.observe(element));
   }
 
+  let qrStream = null;
+  let qrTimer = null;
+  let bleDevice = null;
+  let bleCharacteristic = null;
+
+  function stopQrScanner() {
+    if (qrTimer) clearTimeout(qrTimer);
+    qrTimer = null;
+    if (qrStream) qrStream.getTracks().forEach(track => track.stop());
+    qrStream = null;
+    state.qrScanning = false;
+  }
+
+  async function startQrScanner() {
+    if (!navigator.mediaDevices?.getUserMedia || !window.BarcodeDetector) {
+      state.pairStatus = "QR scanning needs a recent Chrome for Android on the secure GitHub Pages site.";
+      render(true);
+      return;
+    }
+    try {
+      const formats = await BarcodeDetector.getSupportedFormats();
+      if (!formats.includes("qr_code")) throw new Error("This Chrome version cannot scan QR codes. Please update Chrome.");
+      state.qrScanning = true;
+      state.pairStatus = "Point the camera at your UTLT device sticker.";
+      render(true);
+      const video = root.querySelector("#utlt-qr-preview");
+      const detector = new BarcodeDetector({ formats: ["qr_code"] });
+      qrStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" }, audio: false });
+      if (!state.qrScanning || !video?.isConnected) { stopQrScanner(); return; }
+      video.srcObject = qrStream;
+      await video.play();
+      const scanFrame = async () => {
+        if (!state.qrScanning || !video.isConnected) { stopQrScanner(); return; }
+        try {
+          for (const code of await detector.detect(video)) {
+            const match = /^UTLT:BLE:1:([0-9a-f]{12})$/i.exec(code.rawValue.trim());
+            if (!match) { state.pairStatus = "That is not a UTLT Bluetooth sticker."; continue; }
+            state.pairedDeviceId = match[1].toLowerCase();
+            try { localStorage.setItem(pairingKey, state.pairedDeviceId); } catch (_error) { /* Session pairing still works. */ }
+            state.pairStatus = `Found UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Connect Bluetooth.`;
+            stopQrScanner();
+            render(true);
+            return;
+          }
+        } catch (_error) { /* Ignore a frame that was not ready. */ }
+        qrTimer = setTimeout(scanFrame, 180);
+      };
+      scanFrame();
+    } catch (error) {
+      stopQrScanner();
+      state.pairStatus = error.message || "Camera access failed. Allow the camera in Chrome and try again.";
+      render(true);
+    }
+  }
+
+  function onBlePacket(event) {
+    const value = event.target.value;
+    if (!value || value.byteLength !== 16) return;
+    const session = Array.from({ length: 8 }, (_, index) => value.getUint8(index).toString(16).padStart(2, "0")).join("");
+    if (session.slice(0, 8) !== state.pairedDeviceId.slice(0, 8)) {
+      state.pairStatus = "This Bluetooth device does not match the scanned sticker.";
+      bleDevice?.gatt?.disconnect();
+      render(true);
+      return;
+    }
+    applyStandaloneReading({ mode: "standalone", session, totalPulses: value.getUint32(12, true), pulsesPerLitre: 450 });
+    state.pairStatus = "Bluetooth connected. Live readings are updating.";
+    if (!root.querySelector(".utlt-auth-screen")) render(true);
+  }
+
+  function connectBluetooth() {
+    if (!state.pairedDeviceId) return;
+    if (!navigator.bluetooth?.requestDevice) {
+      state.pairStatus = "Bluetooth pairing needs Chrome on Android. Open this page in Chrome, not an in-app browser.";
+      render(true);
+      return;
+    }
+    const expectedName = `UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}`;
+    // The chooser must open directly from this button tap; do not await before requestDevice.
+    navigator.bluetooth.requestDevice({ filters: [{ name: expectedName }], optionalServices: [bleServiceUuid] })
+      .then(async device => {
+        bleDevice = device;
+        device.addEventListener("gattserverdisconnected", () => {
+          bleCharacteristic = null;
+          state.device.connected = false;
+          state.pairStatus = "Bluetooth disconnected. Tap Connect Bluetooth to reconnect.";
+          render(true);
+        });
+        const server = await device.gatt.connect();
+        const service = await server.getPrimaryService(bleServiceUuid);
+        bleCharacteristic = await service.getCharacteristic(bleReadingUuid);
+        await bleCharacteristic.startNotifications();
+        bleCharacteristic.addEventListener("characteristicvaluechanged", onBlePacket);
+        onBlePacket({ target: { value: await bleCharacteristic.readValue() } });
+      })
+      .catch(error => {
+        state.pairStatus = error.name === "NotFoundError" ? "No device selected. Check that the ESP32 is powered and nearby." : `Bluetooth connection failed: ${error.message || error.name}`;
+        render(true);
+      });
+  }
+
   root.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
     const action = button.dataset.action;
+    if (action === "scan-qr") { startQrScanner(); return; }
+    if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
+    if (action === "connect-ble") { connectBluetooth(); return; }
     if (action === "tutorial-next") { state.tutorialStep = Math.min(state.tutorialStep + 1, tutorialSlides.length - 1); }
     else if (action === "tutorial-skip" || action === "onboarding-done") { state.onboarding = ""; }
     if (action === "login-google") { signInWithGoogle(); return; }
@@ -936,6 +1047,7 @@
     } else if (action === "family-approve" || action === "family-decline") {
       const req=state.familyRequests.find(x=>x.id===button.dataset.requestId);if(!req)return;firebaseStore.decideFamilyRequest(req,action==="family-approve").then(async()=>{state.familyMessage=action==="family-approve"?"Member approved.":"Request declined.";await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not update request.";}).finally(()=>render(true));return;
     } else if (["home", "pair", "account", "device", "family"].includes(action)) {
+      if (action !== "pair" && state.qrScanning) stopQrScanner();
       if (["account", "family"].includes(action) && !firebaseStore) {
         state.pendingAuthScreen = action;
         state.authMessage = "";
@@ -1059,6 +1171,7 @@
     return changed;
   }
   async function refreshWaterBridge() {
+    if (pagesPreview || bleDevice?.gatt?.connected) return;
     try {
       const response = await fetch("/api/water", { cache: "no-store" });
       if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) throw new Error("Bridge unavailable");
