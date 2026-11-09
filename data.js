@@ -17,13 +17,32 @@
   ];
 
   /* Water-saving tips shown on the dashboard, matched to the category used most today.
-     Plain content only: edit the wording freely. */
+     Each category has several tips; one is picked per day so the card stays fresh.
+     Plain content only: edit or add wording freely. */
   const tips = {
-    "Food/Drink": { emoji: "🚰", text: "Collect RO reject water and reuse it for mopping or watering plants. Wash vegetables in a bowl instead of under a running tap." },
-    "Bath": { emoji: "🚿", text: "A bucket bath or a shorter shower, and turning the water off while you soap, can save many litres every single day." },
-    "Housework": { emoji: "🧺", text: "Run the washing machine only with full loads, and reuse the last rinse water for mopping floors or cleaning the balcony." },
-    "Misc": { emoji: "🔧", text: "Check taps, flush tanks and pipes for leaks. A slow drip can quietly waste many litres every day." },
-    "default": { emoji: "💧", text: "Small habits add up. Fix leaks quickly and turn taps off while you are not using the water." }
+    "Food/Drink": { emoji: "🚰", texts: [
+      "Collect RO reject water and reuse it for mopping or watering plants. Wash vegetables in a bowl instead of under a running tap.",
+      "Keep a jug of drinking water in the fridge instead of running the tap until it turns cold.",
+      "After washing vegetables and fruit in a bowl, pour that water on your plants."
+    ] },
+    "Bath": { emoji: "🚿", texts: [
+      "A bucket bath or a shorter shower, and turning the water off while you soap, can save many litres every single day.",
+      "Keep a bucket under the shower to catch the first cold water, then use it for flushing or mopping.",
+      "A leaking shower head or bathroom tap can waste many litres without you noticing. Fix it early."
+    ] },
+    "Housework": { emoji: "🧺", texts: [
+      "Run the washing machine only with full loads, and reuse the last rinse water for mopping floors or cleaning the balcony.",
+      "Mop with a bucket instead of a running hose, and reuse water from rinsing rice or vegetables.",
+      "Soak dirty plates in a basin first instead of rinsing each one under a running tap."
+    ] },
+    "Misc": { emoji: "🔧", texts: [
+      "Check taps, flush tanks and pipes for leaks. A slow drip can quietly waste many litres every day.",
+      "Close the tap while brushing your teeth or washing your face. It adds up to many litres over a month.",
+      "Leak check: note your meter, don’t use any water for an hour, then look again. If it moved, you may have a leak."
+    ] },
+    "default": { emoji: "💧", texts: [
+      "Small habits add up. Fix leaks quickly and turn taps off while you are not using the water."
+    ] }
   };
 
   const amounts = [
