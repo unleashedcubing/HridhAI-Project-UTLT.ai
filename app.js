@@ -15,7 +15,7 @@
     screen: "home",
     utility: "Water",
     breakdown: "use",
-    dark: true,
+    dark: window.matchMedia ? window.matchMedia("(prefers-color-scheme: dark)").matches : true,
     name: "",
     email: "",
     homeName: "My home",
@@ -289,6 +289,7 @@
   let firebaseStore = null;
   let firebaseContext = null;
   let saveQueue = Promise.resolve();
+  let goalSaveTimer = 0;
   function profileSnapshot() {
     return {
       name: state.name, email: state.email, utility: state.utility,
@@ -440,7 +441,7 @@
       "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
     })[char]);
   }
-  function number(value) { return Number(value.toFixed(1)); }
+  function number(value) { return Number(Number(value).toFixed(1)).toLocaleString("en-IN"); }
 
   const paths = {
     home: '<path d="M5 12l-2 0l9 -9l9 9l-2 0"/><path d="M5 12v7a2 2 0 0 0 2 2h10a2 2 0 0 0 2 -2v-7"/><path d="M10 12h4v4h-4l0 -4"/>',
@@ -462,14 +463,15 @@
     bolt: '<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"/>',
     droplet: '<path d="M7.502 19.423c2.602 2.105 6.395 2.105 8.996 0c2.602 -2.105 3.262 -5.708 1.566 -8.546l-4.89 -7.26c-.42 -.625 -1.287 -.803 -1.936 -.397a1.376 1.376 0 0 0 -.41 .397l-4.893 7.26c-1.695 2.838 -1.035 6.441 1.567 8.546z"/>',
     trendDown: '<path d="M3 7l6 6l4 -4l8 8"/><path d="M21 10l0 7l-7 0"/>',
-    trendUp: '<path d="M3 17l6 -6l4 4l8 -8"/><path d="M14 7l7 0l0 7"/>'
+    trendUp: '<path d="M3 17l6 -6l4 4l8 -8"/><path d="M14 7l7 0l0 7"/>',
+    share: '<path d="M3 12a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M15 6a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M15 18a3 3 0 1 0 6 0a3 3 0 1 0 -6 0"/><path d="M8.7 10.7l6.6 -3.4"/><path d="M8.7 13.3l6.6 3.4"/>'
   };
   function icon(name, size = 24) {
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
   }
 
   function header() {
-    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : `${state.name.split(" ")[0] || "Your"}’s UTLT`;
+    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : (state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "Your UTLT");
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
@@ -480,14 +482,14 @@
 
   function utilityTabs() {
     const utilities = [["Water", "#1688f8"], ["Gas", "#528c00"], ["Electricity", "#baa500"]];
-    return `<div class="utlt-pills" role="tablist" aria-label="Utility type">${utilities.map(([name, color]) => `<button class="utlt-pill ${state.utility === name ? "is-active" : ""}" role="tab" aria-selected="${state.utility === name}" data-action="utility" data-value="${name}" style="--utility-color:${color}">${name}</button>`).join("")}</div>`;
+    return `<div class="utlt-pills" role="group" aria-label="Utility type">${utilities.map(([name, color]) => `<button class="utlt-pill ${state.utility === name ? "is-active" : ""}" aria-pressed="${state.utility === name}" data-action="utility" data-value="${name}" style="--utility-color:${color}">${name}</button>`).join("")}</div>`;
   }
 
   function usage(summary) {
     const goal = Math.max(1, Number(state.goal) || 350);
     const percent = Math.round(summary.used / goal * 100);
     const dash = Math.min(summary.used / goal, 1) * circumference;
-    return `<section class="utlt-usage"><div class="utlt-donut${summary.used > goal ? " is-over" : summary.used / goal >= 0.8 ? " is-warn" : ""}"><svg viewBox="0 0 193 193" role="img" aria-label="${percent} percent of daily water goal used"><defs><linearGradient id="utlt-water-gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="var(--utlt-ring-start)"/><stop offset="100%" stop-color="var(--utlt-ring-end)"/></linearGradient></defs><circle class="utlt-donut-track" cx="96.5" cy="96.5" r="84"/><circle class="utlt-donut-value" cx="96.5" cy="96.5" r="84" style="stroke-dasharray:${dash} ${circumference}"/></svg><div class="utlt-donut-label"><strong>${percent}%</strong><span>Used</span></div></div><div class="utlt-usage-summary"><strong>${number(summary.used)}</strong><span>/ ${goal} Litres</span></div></section>`;
+    return `<section class="utlt-usage"><div class="utlt-donut${summary.used > goal ? " is-over" : summary.used / goal >= 0.8 ? " is-warn" : ""}${summary.used <= 0 ? " is-empty" : ""}${percent > 999 ? " is-huge" : ""}"><svg viewBox="0 0 193 193" role="img" aria-label="${percent} percent of daily water goal used"><defs><linearGradient id="utlt-water-gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="var(--utlt-ring-start)"/><stop offset="100%" stop-color="var(--utlt-ring-end)"/></linearGradient></defs><circle class="utlt-donut-track" cx="96.5" cy="96.5" r="84"/><circle class="utlt-donut-value" cx="96.5" cy="96.5" r="84" style="stroke-dasharray:${dash} ${circumference}"/></svg><div class="utlt-donut-label"><strong>${percent > 999 ? "999+" : percent}%</strong><span>Used</span></div></div><div class="utlt-usage-summary"><strong>${number(summary.used)}</strong><span>/ ${number(goal)} Litres</span></div><div class="utlt-goal-stepper"><button type="button" data-action="goal-down" aria-label="Lower daily goal by 10 litres">−</button><span>Daily goal<strong>${number(goal)} L</strong></span><button type="button" data-action="goal-up" aria-label="Raise daily goal by 10 litres">+</button></div></section>`;
   }
 
   function status(summary) {
@@ -506,12 +508,17 @@
     return `<section class="utlt-status-card is-${tone}" aria-live="polite"><span class="utlt-status-check">${icon(iconName, 22)}</span><div><strong>${title}</strong><p>${text}</p></div></section>`;
   }
 
-  function greetingMarkup() {
+  function greetingMarkup(summary) {
     const hour = new Date().getHours();
     const part = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
     const first = (state.name || "").trim().split(" ")[0];
     const today = new Intl.DateTimeFormat("en-IN", { weekday: "long", day: "numeric", month: "long" }).format(new Date());
-    return `<div class="utlt-hero"><strong>${part}${first ? ", " + escapeHtml(first) : ""} 👋</strong><span>${today}</span></div>`;
+    const goal = Math.max(1, Number(state.goal) || 350);
+    let streak = 0;
+    const days = summary ? summary.daily : [];
+    for (let i = days.length - 1; i >= 0 && days[i].litres <= goal; i--) streak++;
+    const streakChip = streak >= 2 ? `<span class="utlt-streak">🔥 ${streak} days in a row within goal</span>` : "";
+    return `<div class="utlt-hero"><strong>${part}${first ? ", " + escapeHtml(first) : ""} 👋</strong><span>${today}</span>${streakChip}</div>`;
   }
 
   function quickStats(summary) {
@@ -539,7 +546,9 @@
     const tip = tips[top.label] || tips.default;
     if (!tip) return "";
     const share = Math.round(top.litres / total * 100);
-    return `<section class="utlt-tip-card"><span class="utlt-tip-icon" aria-hidden="true">${tip.emoji}</span><div><strong>${escapeHtml(top.label)} is ${share}% of today’s water</strong><p>${escapeHtml(tip.text)}</p></div></section>`;
+    const choices = Array.isArray(tip.texts) && tip.texts.length ? tip.texts : [tip.text || ""];
+    const tipText = choices[Math.floor(Date.now() / 86400000) % choices.length];
+    return `<section class="utlt-tip-card"><span class="utlt-tip-icon" aria-hidden="true">${tip.emoji}</span><div><strong>${escapeHtml(top.label)} is ${share}% of today’s water</strong><p>${escapeHtml(tipText)}</p></div></section>`;
   }
 
   function polar(angle) {
@@ -561,7 +570,9 @@
       angle += sweep;
       return sweep > 0 ? `<path d="${sector(from, angle)}" fill="${slice.color}" stroke="var(--utlt-card)" stroke-width="2" stroke-linejoin="round"/>` : "";
     }).join("");
-    return `<section class="utlt-glance"><h2>A Glance at Your Day</h2><div class="utlt-breakdown-switch" role="tablist" aria-label="Water breakdown"><button type="button" role="tab" aria-selected="${state.breakdown === "use"}" class="${state.breakdown === "use" ? "is-selected" : ""}" data-action="breakdown" data-value="use">By use</button><button type="button" role="tab" aria-selected="${state.breakdown === "time"}" class="${state.breakdown === "time" ? "is-selected" : ""}" data-action="breakdown" data-value="time">By time</button></div><div class="utlt-kokonut-card utlt-scroll-reveal"><div class="utlt-kokonut-card-head"><span>WATER BY ${state.breakdown.toUpperCase()}</span><strong>${number(total)} <small>L total</small></strong></div><svg class="utlt-kokonut-pie" viewBox="0 0 176 176" role="img" aria-label="Water usage by ${state.breakdown === "use" ? "activity" : "time of day"}, ${number(total)} litres total"><circle cx="88" cy="88" r="82" fill="var(--utlt-panel)"/>${sectors}<circle class="utlt-pie-hole" cx="88" cy="88" r="52"/><text class="utlt-pie-total" x="88" y="91">${number(total)}</text><text class="utlt-pie-caption" x="88" y="107">LITRES</text></svg><ul class="utlt-kokonut-legend">${slices.map((slice) => `<li><span class="utlt-kokonut-swatch" style="background-color:${slice.color}"></span><span class="utlt-kokonut-legend-copy"><span>${escapeHtml(slice.label)} · ${total ? Math.round(slice.litres / total * 100) : 0}%</span><strong>${number(slice.litres)} L</strong></span></li>`).join("")}</ul></div><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
+    const topSlice = slices.reduce((best, slice) => slice.litres > best.litres ? slice : best, slices[0]);
+    const peakLine = total ? `<p class="utlt-peak">${state.breakdown === "use" ? "Most water went to" : "Busiest time of day:"} <strong>${escapeHtml(topSlice.label)}</strong> (${Math.round(topSlice.litres / total * 100)}%)</p>` : "";
+    return `<section class="utlt-glance"><h2>A Glance at Your Day</h2><div class="utlt-breakdown-switch" role="group" aria-label="Water breakdown"><button type="button" aria-pressed="${state.breakdown === "use"}" class="${state.breakdown === "use" ? "is-selected" : ""}" data-action="breakdown" data-value="use">By use</button><button type="button" aria-pressed="${state.breakdown === "time"}" class="${state.breakdown === "time" ? "is-selected" : ""}" data-action="breakdown" data-value="time">By time</button></div><div class="utlt-kokonut-card utlt-scroll-reveal"><div class="utlt-kokonut-card-head"><span>WATER BY ${state.breakdown.toUpperCase()}</span><strong>${number(total)} <small>L total</small></strong></div><svg class="utlt-kokonut-pie" viewBox="0 0 176 176" role="img" aria-label="Water usage by ${state.breakdown === "use" ? "activity" : "time of day"}, ${number(total)} litres total"><circle cx="88" cy="88" r="82" fill="var(--utlt-panel)"/>${sectors}<circle class="utlt-pie-hole" cx="88" cy="88" r="52"/><text class="utlt-pie-total" x="88" y="91">${number(total)}</text><text class="utlt-pie-caption" x="88" y="107">LITRES</text></svg><ul class="utlt-kokonut-legend">${slices.map((slice) => `<li><span class="utlt-kokonut-swatch" style="background-color:${slice.color}"></span><span class="utlt-kokonut-legend-copy"><span>${escapeHtml(slice.label)} · ${total ? Math.round(slice.litres / total * 100) : 0}%</span><strong>${number(slice.litres)} L</strong></span></li>`).join("")}</ul>${peakLine}</div><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
   }
 
   function weekly(summary) {
@@ -571,6 +582,9 @@
     const goalY = baseline - goal / scale * 112;
     const average = summary.daily.length ? summary.daily.reduce((sum, day) => sum + day.litres, 0) / summary.daily.length : 0;
     const withinGoal = summary.daily.filter((day) => day.litres <= goal).length;
+    const weekTotal = summary.daily.reduce((sum, day) => sum + day.litres, 0);
+    const lowest = summary.daily.reduce((best, day) => day.litres < best.litres ? day : best, summary.daily[0] || { date: "", litres: 0 });
+    const lowestLabel = lowest.date ? (() => { const [y, m, d] = lowest.date.split("-").map(Number); return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(y, m - 1, d)); })() : "—";
     const bars = summary.daily.map((item, index) => {
       const [year, month, day] = item.date.split("-").map(Number);
       const label = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(year, month - 1, day));
@@ -580,7 +594,7 @@
       const latest = index === summary.daily.length - 1 ? " is-latest" : "";
       return `<g><rect class="utlt-trend-bar${latest}${item.litres > goal ? " is-over" : ""}" x="${x}" y="${y}" width="31" height="${height}" rx="5"/><text class="utlt-trend-value${latest}" x="${x + 15.5}" y="${Math.max(14, y - 7)}" text-anchor="middle">${Math.round(item.litres)}</text><text class="utlt-trend-date" x="${x + 15.5}" y="164" text-anchor="middle">${label}</text></g>`;
     }).join("");
-    return `<section class="utlt-week utlt-scroll-reveal"><h2>See Across Days</h2><div class="utlt-trend-card"><div class="utlt-trend-head"><span>LAST ${summary.daily.length} DAYS</span><strong>Goal ${goal} L</strong></div><svg class="utlt-trend-plot" viewBox="0 0 300 175" role="img" aria-label="Water usage over the last ${summary.daily.length} days, daily goal ${goal} litres"><line class="utlt-trend-goal" x1="8" x2="292" y1="${goalY}" y2="${goalY}"/><line class="utlt-trend-baseline" x1="8" x2="292" y1="${baseline}" y2="${baseline}"/>${bars}</svg><div class="utlt-trend-footer"><span>Daily average</span><strong>${Math.round(average)} L</strong></div><div class="utlt-trend-footer"><span>Days within goal</span><strong>${withinGoal} of ${summary.daily.length}</strong></div></div></section>`;
+    return `<section class="utlt-week utlt-scroll-reveal"><h2>See Across Days</h2><div class="utlt-trend-card"><div class="utlt-trend-head"><span>LAST ${summary.daily.length} DAYS</span><strong>Goal ${number(goal)} L</strong></div><svg class="utlt-trend-plot" viewBox="0 0 300 175" role="img" aria-label="Water usage over the last ${summary.daily.length} days, daily goal ${goal} litres"><line class="utlt-trend-goal" x1="8" x2="292" y1="${goalY}" y2="${goalY}"/><line class="utlt-trend-baseline" x1="8" x2="292" y1="${baseline}" y2="${baseline}"/>${bars}</svg><div class="utlt-trend-footer"><span>Daily average</span><strong>${Math.round(average)} L</strong></div><div class="utlt-trend-footer"><span>Days within goal</span><strong>${withinGoal} of ${summary.daily.length}</strong></div><div class="utlt-trend-footer"><span>${summary.daily.length}-day total</span><strong>${number(Math.round(weekTotal))} L</strong></div><div class="utlt-trend-footer"><span>Lowest day</span><strong>${lowestLabel} · ${number(Math.round(lowest.litres))} L</strong></div></div></section>`;
   }
 
   function communityBucket(litres) {
@@ -635,9 +649,17 @@
       console.warn("UTLT community insight unavailable.", error);
     }
   }
+  function emptyCard() {
+    return `<section class="utlt-empty-card"><span class="utlt-empty-icon" aria-hidden="true">${icon("droplet", 30)}</span><h2>Waiting for your first reading</h2><p>As soon as your water monitor sends data, your daily usage, charts and saving tips will appear here.</p><button type="button" class="utlt-primary-button" data-action="pair">Set up your device</button></section>`;
+  }
+  function shareCard() {
+    return `<button type="button" class="utlt-share-button" data-action="share-report">${icon("share", 18)} Share today’s report</button>`;
+  }
   function dashboard() {
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${greetingMarkup()}${usage(summary)}${status(summary)}${quickStats(summary)}${tipCard(summary)}${communityInsightMarkup()}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+    const source = `<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p>`;
+    if (!summary.daily.length) return `<div class="utlt-dashboard">${greetingMarkup(summary)}${usage(summary)}${emptyCard()}${source}</div>`;
+    return `<div class="utlt-dashboard">${greetingMarkup(summary)}${usage(summary)}${status(summary)}${quickStats(summary)}${tipCard(summary)}${communityInsightMarkup()}${breakdown(summary)}${weekly(summary)}${shareCard()}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
   }
 
   function devicePage() {
@@ -787,18 +809,18 @@
   const tutorialSlides = [
     {
       title: "Your dashboard at a glance",
-      body: "Your dashboard is where your usage summary and daily goal appear. In this preview, the working charts and sample readings are available for water only.",
-      tip: "You can change your daily water goal in Account. Gas and electricity tracking are planned for a later version."
+      body: "The ring shows how much of today’s water goal you have used. Green means you’re on track, amber means you’re close to the limit, and red means you’ve gone over.",
+      tip: "Change your daily goal any time with the − and + buttons under the ring."
     },
     {
       title: "Understand your usage",
-      body: "Use “By use” to see where water went, or “By time” to see when it was used. Scroll down to compare your recent days.",
-      tip: "These charts currently use sample readings until a real monitor is connected."
+      body: "Use “By use” to see where water went, or “By time” to see when it was used. Scroll down to compare your recent days and get a saving tip.",
+      tip: "These charts use sample readings until a real monitor is connected."
     },
     {
       title: "Your controls are here",
-      body: "Use Home for your dashboard, Family to connect household members, Devices to learn about connecting a monitor, and Account to edit your details or change appearance.",
-      tip: "Gas and electricity tracking are not available in this preview yet."
+      body: "Home is your dashboard. Family connects household members, Devices explains pairing a monitor, and Account lets you edit details or change appearance.",
+      tip: "Family, Devices and Account need a quick Google sign-in. Gas and electricity are coming in a later version."
     }
   ];
 
@@ -807,16 +829,16 @@
     const panelStyle = "width:min(100%,420px);max-height:90dvh;overflow:auto;padding:28px;border-radius:28px;background:#fff;color:#17202b;box-shadow:0 30px 80px rgba(0,0,0,.35);font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;";
     const labelStyle = "display:block;margin:18px 0 7px;font-size:13px;font-weight:700;";
     const inputStyle = "width:100%;height:50px;padding:0 14px;border:1.5px solid #cbd5e1;border-radius:14px;background:#fff;color:#17202b;font:inherit;font-size:16px;box-sizing:border-box;";
-    const primaryStyle = "width:100%;min-height:52px;margin-top:20px;border:0;border-radius:15px;background:linear-gradient(180deg,#2a9bff,#1688f8);color:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 10px 20px -10px rgba(22,136,248,.8);";
+    const primaryStyle = "width:100%;min-height:52px;margin-top:20px;border:0;border-radius:15px;background:linear-gradient(180deg,#1573de,#0a6fd0);color:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 10px 20px -10px rgba(10,111,208,.8);";
     const secondaryStyle = "width:100%;min-height:44px;margin-top:8px;border:0;background:transparent;color:#64748b;font:inherit;font-size:14px;font-weight:600;cursor:pointer;";
     if (state.onboarding === "profile") {
       return `<div style="${overlayStyle}" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="utlt-welcome-title" style="${panelStyle}">
-        <p style="margin:0 0 8px;color:#1688f8;font-size:11px;font-weight:800;letter-spacing:.13em;">WELCOME TO UTLT.AI</p>
-        <h2 id="utlt-welcome-title" style="margin:0;font-size:28px;line-height:1.15;letter-spacing:-.7px;">Let’s set things up</h2>
+        <p style="margin:0 0 8px;color:#0a6fd0;font-size:11px;font-weight:800;letter-spacing:.13em;">WELCOME TO UTLT.AI</p>
+        <h2 id="utlt-welcome-title" tabindex="-1" style="outline:none;margin:0;font-size:28px;line-height:1.15;letter-spacing:-.7px;">Let’s set things up</h2>
         <p style="margin:10px 0 0;color:#64748b;font-size:15px;line-height:1.55;">A couple of quick details will help us personalise your dashboard.</p>
         <form id="utlt-welcome-form">
           <label for="utlt-welcome-name" style="${labelStyle}">What is your name?</label>
-          <input id="utlt-welcome-name" name="name" type="text" maxlength="60" autocomplete="given-name" placeholder="Enter your name" required style="${inputStyle}">
+          <input id="utlt-welcome-name" name="name" type="text" maxlength="60" autocomplete="given-name" placeholder="Enter your name" required pattern=".*\\S.*" title="Please enter your name" style="${inputStyle}">
           <fieldset style="margin:20px 0 0;padding:0;border:0;min-width:0;">
             <legend style="padding:0;font-size:15px;font-weight:700;">What do you plan to save?</legend>
             <p style="margin:5px 0 10px;color:#64748b;font-size:13px;">Choose the utility you want to focus on first.</p>
@@ -830,9 +852,9 @@
       const slide = tutorialSlides[state.tutorialStep];
       const final = state.tutorialStep === tutorialSlides.length - 1;
       return `<div style="${overlayStyle}" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="utlt-tutorial-title" style="${panelStyle}">
-        <p style="margin:0 0 8px;color:#1688f8;font-size:11px;font-weight:800;letter-spacing:.13em;">QUICK TOUR · ${state.tutorialStep + 1} OF ${tutorialSlides.length}</p>
+        <p style="margin:0 0 8px;color:#0a6fd0;font-size:11px;font-weight:800;letter-spacing:.13em;">QUICK TOUR · ${state.tutorialStep + 1} OF ${tutorialSlides.length}</p>
         <div aria-hidden="true" style="display:flex;gap:6px;margin:0 0 20px;">${tutorialSlides.map((_,i)=>`<span style="height:6px;flex:1;border-radius:99px;background:${i <= state.tutorialStep ? "#1688f8" : "#e2e8f0"}"></span>`).join("")}</div>
-        <h2 id="utlt-tutorial-title" style="margin:0;font-size:26px;line-height:1.2;letter-spacing:-.6px;">${slide.title}</h2>
+        <h2 id="utlt-tutorial-title" tabindex="-1" style="outline:none;margin:0;font-size:26px;line-height:1.2;letter-spacing:-.6px;">${slide.title}</h2>
         <p style="margin:12px 0;color:#475569;font-size:15px;line-height:1.6;">${slide.body}</p>
         <p style="margin:16px 0 0;padding:14px;border-radius:14px;background:#eff6ff;border-left:4px solid #1688f8;color:#24527a;font-size:13px;line-height:1.55;">💡 ${slide.tip}</p>
         <button type="button" data-action="${final ? "onboarding-done" : "tutorial-next"}" style="${primaryStyle}">${final ? "Go to my dashboard" : "Next"}</button>
@@ -842,7 +864,9 @@
     return "";
   }
 
+  let renderToken = 0, lastRenderSig = "", lastDialogKey = "";
   async function render(preserveScroll = false) {
+    const token = ++renderToken;
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
     const compact = state.screen === "home" && state.utility !== "Water";
     const content = state.screen === "home"
@@ -851,16 +875,49 @@
       : state.screen === "account" ? accountPage()
       : state.screen === "family" ? await familyPage()
       : pairPage();
-    root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>${onboardingMarkup()}`;
+    // A newer render started while we were waiting (for example Family data): drop this stale one.
+    if (token !== renderToken) return;
+    // Only replay animations when the screen really changes, not on every tap.
+    const sig = state.screen + "|" + state.utility + "|" + (state.onboarding ? "dialog" : "app");
+    const still = sig === lastRenderSig;
+    lastRenderSig = sig;
+    // Remember what the person was typing / which control had focus, so a re-render never loses it.
+    const active = document.activeElement;
+    const focusKey = active && active !== document.body && root.contains(active)
+      ? { id: active.id || "", action: active.dataset?.action || "", value: active.dataset?.value || "", name: active.getAttribute?.("name") || "", fieldValue: active.getAttribute?.("value") || "" } : null;
+    const nameDraft = root.querySelector("#utlt-welcome-name")?.value;
+    const utilityDraft = root.querySelector('input[name="utility"]:checked')?.value;
+    root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${still ? "utlt-still" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>${onboardingMarkup()}`;
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute("content", state.dark ? "#12171d" : "#ffffff"));
     const scroller = root.querySelector(".utlt-content");
     if (scroller) scroller.scrollTop = previousScroll;
-    setupChartScrollAnimations(scroller);
+    setupChartScrollAnimations(scroller, still);
+    if (nameDraft !== undefined) { const input = root.querySelector("#utlt-welcome-name"); if (input && !input.value) input.value = nameDraft; }
+    if (utilityDraft) { const radio = root.querySelector(`input[name="utility"][value="${utilityDraft}"]`); if (radio) radio.checked = true; }
+    const appEl = root.querySelector(".utlt-app");
+    const restoreFocus = () => {
+      if (!focusKey) return;
+      let target = null;
+      if (focusKey.id) target = root.querySelector("#" + CSS.escape(focusKey.id));
+      else if (focusKey.name && !focusKey.action) target = root.querySelector(`[name="${CSS.escape(focusKey.name)}"]` + (focusKey.fieldValue ? `[value="${CSS.escape(focusKey.fieldValue)}"]` : ""));
+      else if (focusKey.action) target = root.querySelector(`[data-action="${CSS.escape(focusKey.action)}"]` + (focusKey.value ? `[data-value="${CSS.escape(focusKey.value)}"]` : ""));
+      if (!target) return;
+      target.focus({ preventScroll: true });
+      try { if (typeof target.value === "string" && target.setSelectionRange && /^(text|email|search|tel|url)$/.test(target.type)) target.setSelectionRange(target.value.length, target.value.length); } catch (error) { /* not a text field */ }
+    };
+    if (state.onboarding) {
+      // Pop-up open: keep the page behind it out of reach for keyboards and screen readers.
+      if (appEl) appEl.setAttribute("inert", "");
+      const dialogKey = state.onboarding + ":" + state.tutorialStep;
+      if (dialogKey !== lastDialogKey) { lastDialogKey = dialogKey; root.querySelector('[role="dialog"] h2')?.focus({ preventScroll: true }); }
+      else restoreFocus();
+    } else { lastDialogKey = ""; restoreFocus(); }
   }
 
-  function setupChartScrollAnimations(scroller) {
+  function setupChartScrollAnimations(scroller, still = false) {
     const targets = root.querySelectorAll(".utlt-scroll-reveal");
     if (!targets.length) return;
+    if (still) { targets.forEach(element => element.classList.add("is-visible")); return; }
     if (!("IntersectionObserver" in window)) {
       targets.forEach(element => element.classList.add("is-visible"));
       return;
@@ -875,6 +932,28 @@
     targets.forEach(element => observer.observe(element));
   }
 
+  function showToast(message) {
+    try {
+      document.querySelectorAll(".utlt-toast").forEach((node) => node.remove());
+      const toast = document.createElement("div");
+      toast.className = "utlt-toast"; toast.setAttribute("role", "status"); toast.textContent = message;
+      document.body.appendChild(toast);
+      setTimeout(() => toast.classList.add("is-leaving"), 2300);
+      setTimeout(() => toast.remove(), 2700);
+    } catch (error) { console.warn("Could not show message.", error); }
+  }
+  async function shareReport() {
+    const summary = window.UTLTData.summarize(state.readings);
+    const goal = Math.max(1, Number(state.goal) || 350);
+    const first = (state.name || "").trim().split(" ")[0];
+    const text = `${first ? first + "’s" : "My"} water report: ${number(summary.used)} L used of a ${number(goal)} L daily goal (${Math.round(summary.used / goal * 100)}%)${state.usingDemo ? " (sample data)" : ""}. Tracked with UTLT.ai 💧 Let’s save water in Hyderabad!`;
+    try {
+      if (navigator.share) { await navigator.share({ title: "UTLT.ai water report", text }); return; }
+      if (navigator.clipboard && navigator.clipboard.writeText) { await navigator.clipboard.writeText(text); showToast("Report copied. Paste it anywhere to share."); return; }
+      showToast("Sharing is not supported in this browser.");
+    } catch (error) { if (!error || error.name !== "AbortError") showToast("Could not share right now."); }
+  }
+
   root.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
@@ -884,6 +963,12 @@
     if (action === "login-google") { signInWithGoogle(); return; }
     else if (action === "auth-cancel") { state.pendingAuthScreen = ""; state.screen = "home"; render(); return; }
     else if (action === "sign-out") { signOutOfApp().catch(error => renderAuthGate(error.message)); return; }
+    else if (action === "goal-down" || action === "goal-up") {
+      state.goal = Math.min(5000, Math.max(10, (Number(state.goal) || 350) + (action === "goal-up" ? 10 : -10)));
+      clearTimeout(goalSaveTimer);
+      goalSaveTimer = setTimeout(() => { persistProfile(); syncCompetitionStats(); }, 700);
+    }
+    else if (action === "share-report") { shareReport(); return; }
     else if (action === "theme") { state.dark = !state.dark; persistProfile(); }
     else if (action === "utility") { state.utility = button.dataset.value; persistProfile(); }
     else if (action === "breakdown") { state.breakdown = button.dataset.value; persistProfile(); }
@@ -928,7 +1013,7 @@
         firebaseStore.loadFamily().then(async family=>{state.family=family;await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not load family.";}).finally(()=>render(true));
       }
     }
-    render(action === "theme" || action === "utility" || action === "breakdown");
+    render(action === "theme" || action === "utility" || action === "breakdown" || action === "goal-down" || action === "goal-up");
   });
 
   root.addEventListener("change", (event) => {
@@ -991,6 +1076,10 @@
     syncCompetitionStats();
     state.saved = true;
     render(true);
+  });
+
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && state.onboarding === "tutorial") { state.onboarding = ""; render(); }
   });
 
   // Integration surface for the future device bridge. Call these from your
