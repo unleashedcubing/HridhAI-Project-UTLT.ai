@@ -672,8 +672,8 @@
 
   function pairPage() {
     const ready = Boolean(state.pairedDeviceId);
-    const noticeTitle = state.device.connected ? "Water monitor connected" : ready ? "Ready for Bluetooth" : "Scan your device";
-    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `Sticker recognized: UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Connect and choose UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()} or MPY ESP32 in the Bluetooth prompt.` : "Point your camera at the QR sticker on your ESP32 enclosure.";
+    const noticeTitle = state.device.connected ? "Water monitor connected" : ready ? "QR scanned · Bluetooth permission next" : "Scan your device";
+    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `Found UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap the button below to open your phone's Bluetooth device chooser, then select UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()} (or MPY ESP32 if your phone shows its cached name).` : "Point your camera at the QR sticker on your ESP32 enclosure.";
     return `<section class="utlt-pair-page">
       <div class="utlt-pair-illustration">${icon("bluetooth", 34)}</div>
       <p class="utlt-eyebrow">DEVICE SETUP</p>
@@ -682,9 +682,9 @@
       ${/iPhone|iPad|iPod/i.test(navigator.userAgent) && !navigator.bluetooth?.requestDevice ? '<p class="utlt-flow-warning">iPhone Chrome cannot connect to Bluetooth devices. Open this same website in <a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055">Bluefy</a> to pair.</p>' : ''}
       <div class="utlt-pair-notice ${state.device.connected ? "is-ready" : ""}" role="status"><strong>${noticeTitle}</strong><span>${noticeBody}</span></div>
       ${state.qrScanning ? '<video class="utlt-qr-preview" id="utlt-qr-preview" autoplay playsinline muted aria-label="Camera view for device QR code"></video>' : ''}
-      <button class="utlt-primary-button" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : "Scan device QR"}</button>
+      ${ready ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">' + (state.device.connected ? 'Reconnect Bluetooth' : 'Open Bluetooth device chooser') + '</button>' : ''}
+      <button class="utlt-primary-button" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : ready ? "Scan another device QR" : "Scan device QR"}</button>
       <label class="utlt-qr-photo">Or use a camera photo<input type="file" id="utlt-qr-photo" accept="image/*" capture="environment" aria-label="Take a photo of the device QR code"></label>
-      ${ready ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">' + (state.device.connected ? 'Reconnect Bluetooth' : 'Connect Bluetooth') + '</button>' : ''}
       ${state.rawPulseCount !== null ? `<div class="utlt-meter-diagnostics"><strong>Sensor diagnostics</strong><span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span><small>App conversion: ${Math.round(state.pulsesPerLitre).toLocaleString("en-IN")} pulses = 1 litre</small></div>` : ''}
       ${state.device.connected ? `<div class="utlt-calibration"><strong>Measured-volume calibration</strong><p>First confirm pulse speed is zero when the running pump bypasses the sensor. Then divert the sensor outlet into a measuring container. Tap Start, collect a known amount, stop the pump, and tap Finish.</p><button type="button" data-action="${state.calibrationStartPulses === null ? "start-calibration" : "finish-calibration"}">${state.calibrationStartPulses === null ? "Start measured test" : "Finish and enter mL"}</button>${state.calibrationStartPulses !== null ? `<small>Starting pulse count: ${state.calibrationStartPulses.toLocaleString("en-IN")}</small>` : ''}</div>` : ''}
       ${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : state.flowRateLpm !== null ? `<p class="utlt-pair-feedback">Measured flow: ${state.flowRateLpm.toFixed(2)} L/min</p>` : ''}
@@ -694,7 +694,7 @@
       <ol class="utlt-pair-steps">
         <li><span>1</span><div><strong>Power your monitor</strong><small>Connect the ESP32 to a USB power bank. If readings look too fast, test the pump on a separate charger.</small></div></li>
         <li><span>2</span><div><strong>Scan the sticker in this app</strong><small>Allow camera access, then point it at the device QR code.</small></div></li>
-        <li><span>3</span><div><strong>Connect Bluetooth</strong><small>Tap Connect and select the matching UTLT device. Your water charts will update as pulses arrive.</small></div></li>
+        <li><span>3</span><div><strong>Allow Bluetooth connection</strong><small>After scanning, tap Open Bluetooth device chooser and select your UTLT device. Browsers require this tap before showing the permission prompt.</small></div></li>
       </ol>
       <p class="utlt-device-help">The flow sensor measures water passing through it. In a recirculating demo, the same water is counted each lap; this is simulated household usage, not consumption.</p>
     </section>`;
@@ -938,7 +938,7 @@
     }
     state.pairedDeviceId = match[1].toLowerCase();
     try { localStorage.setItem(pairingKey, state.pairedDeviceId); } catch (_error) { /* Session pairing still works. */ }
-    state.pairStatus = `Found UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Connect Bluetooth.`;
+    state.pairStatus = `Found UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Open Bluetooth device chooser to allow this phone to connect.`;
     stopQrScanner();
     render(true);
     return true;
