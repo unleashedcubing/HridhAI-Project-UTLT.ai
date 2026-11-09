@@ -4,25 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="UTLT.ai helps your family track daily water use, stay within your goal and save water in Hyderabad.">
-  <meta name="theme-color" content="#12171d">
+  <meta name="theme-color" content="#212121">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-title" content="UTLT.ai">
   <meta name="format-detection" content="telephone=no">
   <title>UTLT.ai · Smart water tracking</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./assets/utlt-icon-192.png">
   <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%92%A7%3C/text%3E%3C/svg%3E">
   <!-- Tiny inline style so the loading screen looks right before styles.css arrives -->
   <style>
-    html, body { margin: 0; background: #12171d; }
+    html, body { margin: 0; background: #212121; }
     .utlt-splash { display: grid; min-height: 100dvh; place-content: center; justify-items: center; gap: 14px; color: #9fb0c3; font: 600 14px/1.4 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Arial, sans-serif; }
     .utlt-splash span { display: grid; width: 72px; height: 72px; place-items: center; border-radius: 22px; background: linear-gradient(135deg, #2a9bff, #00c3d0); font-size: 34px; box-shadow: 0 16px 36px -10px rgba(22, 136, 248, .7); animation: utlt-splash-pulse 1.4s ease-in-out infinite; }
     @keyframes utlt-splash-pulse { 50% { transform: scale(.92); opacity: .8; } }
     @media (prefers-reduced-motion: reduce) { .utlt-splash span { animation: none; } }
   </style>
-  <link rel="stylesheet" href="./styles.css?v=water-calibration-1">
-  <script defer src="./data.js?v=water-calibration-1"></script>
-  <script defer src="./vendor/jsQR.js?v=water-calibration-1"></script>
-  <script defer src="./app.js?v=calibration-36s-1"></script>
+  <link rel="stylesheet" href="./styles.css?v=app-contrast-1">
+  <script defer src="./data.js?v=app-contrast-1"></script>
+  <script defer src="./vendor/jsQR.js?v=app-contrast-1"></script>
+  <script defer src="./app.js?v=app-contrast-1"></script>
 </head>
 <body>
   <!-- The app replaces this loading screen as soon as it starts -->

@@ -17,19 +17,22 @@
   const bleReadingUuid = "930a7d60-8489-4b31-9cc6-64ee5e809101";
   const pairingKey = "waterMeterPairingV1";
   const calibrationKey = "waterMeterCalibrationV1";
+  const demoKey = "waterMeterDemoEnabledV1";
   let savedPairing = "";
   try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) { /* Pairing still works in this tab. */ }
-  // 15.2 pulses/s for 36 s while collecting 160 mL gives about 3,420 pulses/L.
-  // This is a provisional demo calibration until a complete measured run confirms it.
-  const provisionalPulsesPerLitre = 3420;
+  // Midpoint of (15.7–17.3 pulses/s × 38–41 s) / 0.160 L. Confirm with
+  // pulses counted during one complete, measured 160 mL run.
+  const provisionalPulsesPerLitre = 4075;
   let savedCalibration = provisionalPulsesPerLitre;
+  let demoEnabled = false;
   try {
     const stored = Number(localStorage.getItem(calibrationKey));
-    if (stored > 0 && stored !== 450) savedCalibration = stored;
+    if (stored > 0 && stored !== 450 && stored !== 3420) savedCalibration = stored;
     else {
       localStorage.setItem(calibrationKey, String(provisionalPulsesPerLitre));
       localStorage.removeItem("waterMeterReadingsV1");
     }
+    demoEnabled = localStorage.getItem(demoKey) === "true";
   } catch (_error) { /* Provisional calibration remains available. */ }
   const state = {
     screen: "home",
@@ -54,10 +57,9 @@
     calibrationStartSession: "",
     currentMeterSession: "",
     bridgeAvailable: false,
-    readings: window.UTLTData.demoReadings,
+    readings: demoEnabled ? window.UTLTData.demoReadings : [],
     usingDemo: true,
-    onboarding: "profile",
-    tutorialStep: 0,
+    demoEnabled,
     syncStatus: "starting",
     syncError: "",
     uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
@@ -365,13 +367,14 @@
     const message = errorMessage || state.authMessage || `Sign in with Google to use ${featureName}. Your dashboard remains available without signing in.`;
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><main class="utlt-auth-screen">
       <section class="utlt-auth-card">
+        <div class="utlt-auth-top"><strong>UTLT.ai</strong><button type="button" data-action="auth-theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon", 22)}</button></div>
         <div class="utlt-auth-mark" aria-hidden="true">${icon("droplet", 31)}</div>
         <p class="utlt-eyebrow">UTLT.AI · SMART WATER</p>
-        <h1>Welcome to UTLT</h1>
-        <p class="utlt-auth-intro">Your home, your water, clearly understood.</p>
+        <h1>Welcome to UTLT.ai</h1>
+        <p class="utlt-auth-intro">Your water, clearly understood.</p>
         <div class="utlt-auth-feature">${icon("shield", 20)}<span>Sign in to save your family profile and settings.</span></div>
         <button class="utlt-primary-button utlt-auth-google" type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "Connecting…" : "Continue with Google"}</button>
-        <button class="utlt-auth-secondary" type="button" data-action="auth-cancel">Continue to dashboard</button>
+        <button class="utlt-auth-secondary" type="button" data-action="auth-cancel">Continue without an account</button>
         <p class="utlt-auth-message" role="status">${escapeHtml(message)}</p>
         <p class="utlt-auth-note">Google is needed for Family and cloud account features. Your water dashboard and local device work as a guest.</p>
       </section></main></div>`;
@@ -400,7 +403,6 @@
     await syncCommunityInsight();
     state.syncStatus = "cloud";
     state.syncError = "";
-    state.onboarding = state.name ? "" : "profile";
     render();
   }
 
@@ -442,7 +444,7 @@
   }
 
   async function initializePersistence() {
-    // Show the demo dashboard immediately. Firebase is only needed for protected features.
+    // Show the device-ready dashboard immediately. Firebase is only needed for protected features.
     render();
     try {
       firebaseContext = await firebaseReady;
@@ -466,7 +468,7 @@
     firebaseStore = null; state.uid = ""; state.name = ""; state.email = ""; state.friendCode = "";
     state.family = null; state.familyRequests = []; state.familyInviteUrl = ""; state.pendingAuthScreen = "";
     state.friends = []; state.friendRequests = []; state.friendStats = []; state.authProvider = "signed-out";
-    state.screen = "home"; state.onboarding = "profile"; state.syncStatus = "guest"; render();
+    state.screen = "home"; state.syncStatus = "guest"; render();
   }
 
   const root = document.getElementById("app");
@@ -506,7 +508,7 @@
   }
 
   function header() {
-    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : `${state.name.split(" ")[0] || "Your"}’s UTLT`;
+    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
@@ -669,34 +671,37 @@
     }
   }
   function dashboard() {
+    if (!state.device.connected && !state.demoEnabled && state.readings.length === 0) {
+      return `<div class="utlt-dashboard">${greetingMarkup()}<section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">WATER MONITOR</p><h2>Your water data starts here</h2><p>Connect your UTLT device to see today's usage, the breakdown, and your daily trend.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><span>Want to explore first? Enable demo data in Device Settings.</span></section><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></div>`;
+    }
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${greetingMarkup()}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${usage(summary)}${status(summary)}${quickStats(summary)}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.usingDemo ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${usage(summary)}${status(summary)}${quickStats(summary)}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
   }
 
   function devicePage() {
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
-      ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "—";
-    return `<section class="utlt-device-settings"><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : "Device offline"}</strong><span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span><p>${connected ? "Your ESP32 is sending water readings over Bluetooth." : "Open Devices, scan its QR sticker, and connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">Pair device</button><p class="utlt-device-help">The ring and six-day chart use readings from your flow sensor. Unlabeled water appears under Misc.</p></section>`;
+      ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "";
+    return `<section class="utlt-device-settings"><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button>${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p></section>`;
   }
 
   function pairPage() {
     const ready = Boolean(state.pairedDeviceId);
-    const noticeTitle = state.device.connected ? "Water monitor connected" : ready ? "QR scanned · Bluetooth permission next" : "Scan your device";
-    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `Found UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap the button below to open your phone's Bluetooth device chooser, then select UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()} (or MPY ESP32 if your phone shows its cached name).` : "Point your camera at the QR sticker on your ESP32 enclosure.";
+    const noticeTitle = state.device.connected ? "Water monitor connected" : ready ? "Device recognized" : "Scan your device";
+    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()} is ready. Previously allowed devices reconnect automatically. For a first connection, tap the Bluetooth button and select your device.` : "Point your camera at the QR sticker on your ESP32 enclosure.";
     return `<section class="utlt-pair-page">
       <div class="utlt-pair-illustration">${icon("bluetooth", 34)}</div>
       <p class="utlt-eyebrow">DEVICE SETUP</p>
       <h1>Connect your water monitor</h1>
-      <p class="utlt-pair-intro">Scan the sticker inside this app, then connect directly to your ESP32 over Bluetooth. Use Chrome on Android or Bluefy on iPhone.</p>
+      <p class="utlt-pair-intro">Scan your device sticker once, then see live water use over Bluetooth. Use Chrome on Android or Bluefy on iPhone.</p>
       ${/iPhone|iPad|iPod/i.test(navigator.userAgent) && !navigator.bluetooth?.requestDevice ? '<p class="utlt-flow-warning">iPhone Chrome cannot connect to Bluetooth devices. Open this same website in <a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055">Bluefy</a> to pair.</p>' : ''}
       <div class="utlt-pair-notice ${state.device.connected ? "is-ready" : ""}" role="status"><strong>${noticeTitle}</strong><span>${noticeBody}</span></div>
       ${state.qrScanning ? '<video class="utlt-qr-preview" id="utlt-qr-preview" autoplay playsinline muted aria-label="Camera view for device QR code"></video>' : ''}
-      ${ready ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">' + (state.device.connected ? 'Reconnect Bluetooth' : 'Open Bluetooth device chooser') + '</button>' : ''}
+      ${ready && !state.device.connected ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">Connect to UTLT-' + state.pairedDeviceId.slice(-4).toUpperCase() + '</button>' : ''}
       <button class="utlt-primary-button" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : ready ? "Scan another device QR" : "Scan device QR"}</button>
       <label class="utlt-qr-photo">Or use a camera photo<input type="file" id="utlt-qr-photo" accept="image/*" capture="environment" aria-label="Take a photo of the device QR code"></label>
-      ${state.rawPulseCount !== null ? `<div class="utlt-meter-diagnostics"><strong>Sensor diagnostics</strong><span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span><small>App conversion: ${Math.round(state.pulsesPerLitre).toLocaleString("en-IN")} pulses = 1 litre</small></div>` : ''}
-      ${state.device.connected ? `<div class="utlt-calibration"><strong>Measured-volume calibration</strong><p>First confirm pulse speed is zero when the running pump bypasses the sensor. Then divert the sensor outlet into a measuring container. Tap Start, collect a known amount, stop the pump, and tap Finish.</p><button type="button" data-action="${state.calibrationStartPulses === null ? "start-calibration" : "finish-calibration"}">${state.calibrationStartPulses === null ? "Start measured test" : "Finish and enter mL"}</button>${state.calibrationStartPulses !== null ? `<small>Starting pulse count: ${state.calibrationStartPulses.toLocaleString("en-IN")}</small>` : ''}</div>` : ''}
+      ${state.rawPulseCount !== null ? `<div class="utlt-meter-diagnostics"><strong>Sensor diagnostics</strong><span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span><small>App conversion: ${Math.round(state.pulsesPerLitre).toLocaleString("en-IN")} pulses = 1 litre${state.pulsesPerLitre === provisionalPulsesPerLitre ? " · provisional" : ""}</small></div>` : ''}
+      ${state.device.connected ? `<div class="utlt-calibration"><strong>Measured-volume calibration</strong><p>The current 4,075 pulses/L estimate comes from your 15.7–17.3 pulses/s and 38–41 s for 160 mL. For a precise value, keep the sensor connected, start with the pump off, then collect exactly 160 mL. Stop the pump before tapping Finish.</p><button type="button" data-action="${state.calibrationStartPulses === null ? "start-calibration" : "finish-calibration"}">${state.calibrationStartPulses === null ? "Start measured test" : "Finish and enter mL"}</button>${state.calibrationStartPulses !== null ? `<small>Starting pulse count: ${state.calibrationStartPulses.toLocaleString("en-IN")}</small>` : ''}</div>` : ''}
       ${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : state.flowRateLpm !== null ? `<p class="utlt-pair-feedback">Measured flow: ${state.flowRateLpm.toFixed(2)} L/min</p>` : ''}
       ${state.pairStatus ? `<p class="utlt-pair-feedback" role="status">${escapeHtml(state.pairStatus)}</p>` : ''}
       <button class="utlt-reset-readings" type="button" data-action="reset-meter-readings">Clear this phone’s demo readings</button>
@@ -704,7 +709,7 @@
       <ol class="utlt-pair-steps">
         <li><span>1</span><div><strong>Power your monitor</strong><small>Connect the ESP32 to a USB power bank. If readings look too fast, test the pump on a separate charger.</small></div></li>
         <li><span>2</span><div><strong>Scan the sticker in this app</strong><small>Allow camera access, then point it at the device QR code.</small></div></li>
-        <li><span>3</span><div><strong>Allow Bluetooth connection</strong><small>After scanning, tap Open Bluetooth device chooser and select your UTLT device. Browsers require this tap before showing the permission prompt.</small></div></li>
+        <li><span>3</span><div><strong>Allow Bluetooth once</strong><small>Tap Connect and choose your UTLT device. This browser can reconnect automatically after that first permission.</small></div></li>
       </ol>
       <p class="utlt-device-help">The flow sensor measures water passing through it. In a recirculating demo, the same water is counted each lap; this is simulated household usage, not consumption.</p>
     </section>`;
@@ -715,7 +720,7 @@
   }
 
   function nav() {
-    return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-current="${state.screen === "home" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("home", 24)}</span><span>Home</span></button><button class="${state.screen === "family" ? "is-current" : ""}" data-action="family" aria-current="${state.screen === "family" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("users", 24)}</span><span>Family</span></button><button class="${state.screen === "pair" ? "is-current" : ""}" data-action="pair" aria-current="${state.screen === "pair" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("plus", 24)}</span><span>Devices</span></button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-current="${state.screen === "account" ? "page" : "false"}"><span class="utlt-tab-avatar">${icon("user", 18)}</span><span>Account</span></button></nav>`;
+    return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-current="${state.screen === "home" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("home", 24)}</span><span>Home</span></button><button class="${state.screen === "family" ? "is-current" : ""}" data-action="family" aria-current="${state.screen === "family" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("users", 24)}</span><span>Family</span></button><button class="${["pair", "device"].includes(state.screen) ? "is-current" : ""}" data-action="device" aria-current="${["pair", "device"].includes(state.screen) ? "page" : "false"}"><span class="utlt-nav-icon">${icon("plus", 24)}</span><span>Devices</span></button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-current="${state.screen === "account" ? "page" : "false"}"><span class="utlt-tab-avatar">${icon("user", 18)}</span><span>Account</span></button></nav>`;
   }
 
 
@@ -832,64 +837,6 @@
     return html;
   }
 
-  const tutorialSlides = [
-    {
-      title: "Your dashboard at a glance",
-      body: "Your dashboard is where your usage summary and daily goal appear. In this preview, the working charts and sample readings are available for water only.",
-      tip: "You can change your daily water goal in Account. Gas and electricity tracking are planned for a later version."
-    },
-    {
-      title: "Understand your usage",
-      body: "Use “By use” to see where water went, or “By time” to see when it was used. Scroll down to compare your recent days.",
-      tip: "These charts currently use sample readings until a real monitor is connected."
-    },
-    {
-      title: "Your controls are here",
-      body: "Use Home for your dashboard, Family to connect household members, Devices to learn about connecting a monitor, and Account to edit your details or change appearance.",
-      tip: "Gas and electricity tracking are not available in this preview yet."
-    }
-  ];
-
-  function onboardingMarkup() {
-    const overlayStyle = "position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(10,18,30,.62);-webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);";
-    const panelStyle = "width:min(100%,420px);max-height:90dvh;overflow:auto;padding:28px;border-radius:28px;background:#fff;color:#17202b;box-shadow:0 30px 80px rgba(0,0,0,.35);font-family:Inter,-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;";
-    const labelStyle = "display:block;margin:18px 0 7px;font-size:13px;font-weight:700;";
-    const inputStyle = "width:100%;height:50px;padding:0 14px;border:1.5px solid #cbd5e1;border-radius:14px;background:#fff;color:#17202b;font:inherit;font-size:16px;box-sizing:border-box;";
-    const primaryStyle = "width:100%;min-height:52px;margin-top:20px;border:0;border-radius:15px;background:linear-gradient(180deg,#2a9bff,#1688f8);color:#fff;font:inherit;font-size:15px;font-weight:700;cursor:pointer;box-shadow:0 10px 20px -10px rgba(22,136,248,.8);";
-    const secondaryStyle = "width:100%;min-height:44px;margin-top:8px;border:0;background:transparent;color:#64748b;font:inherit;font-size:14px;font-weight:600;cursor:pointer;";
-    if (state.onboarding === "profile") {
-      return `<div style="${overlayStyle}" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="utlt-welcome-title" style="${panelStyle}">
-        <p style="margin:0 0 8px;color:#1688f8;font-size:11px;font-weight:800;letter-spacing:.13em;">WELCOME TO UTLT.AI</p>
-        <h2 id="utlt-welcome-title" style="margin:0;font-size:28px;line-height:1.15;letter-spacing:-.7px;">Let’s set things up</h2>
-        <p style="margin:10px 0 0;color:#64748b;font-size:15px;line-height:1.55;">A couple of quick details will help us personalise your dashboard.</p>
-        <form id="utlt-welcome-form">
-          <label for="utlt-welcome-name" style="${labelStyle}">What is your name?</label>
-          <input id="utlt-welcome-name" name="name" type="text" maxlength="60" autocomplete="given-name" placeholder="Enter your name" required style="${inputStyle}">
-          <fieldset style="margin:20px 0 0;padding:0;border:0;min-width:0;">
-            <legend style="padding:0;font-size:15px;font-weight:700;">What do you plan to save?</legend>
-            <p style="margin:5px 0 10px;color:#64748b;font-size:13px;">Choose the utility you want to focus on first.</p>
-            ${["Water","Gas","Electricity"].map((item,index) => `<label style="display:flex;align-items:center;gap:10px;margin:9px 0;padding:14px;border:1.5px solid #dbe3ec;border-radius:14px;background:#f8fafc;font-size:15px;font-weight:600;cursor:pointer;"><input type="radio" name="utility" value="${item}" ${index === 0 ? "checked" : ""} style="accent-color:#1688f8;width:17px;height:17px;">${item}</label>`).join("")}
-          </fieldset>
-          <button type="submit" style="${primaryStyle}">Continue</button>
-        </form>
-      </section></div>`;
-    }
-    if (state.onboarding === "tutorial") {
-      const slide = tutorialSlides[state.tutorialStep];
-      const final = state.tutorialStep === tutorialSlides.length - 1;
-      return `<div style="${overlayStyle}" role="presentation"><section role="dialog" aria-modal="true" aria-labelledby="utlt-tutorial-title" style="${panelStyle}">
-        <p style="margin:0 0 8px;color:#1688f8;font-size:11px;font-weight:800;letter-spacing:.13em;">QUICK TOUR · ${state.tutorialStep + 1} OF ${tutorialSlides.length}</p>
-        <div aria-hidden="true" style="display:flex;gap:6px;margin:0 0 20px;">${tutorialSlides.map((_,i)=>`<span style="height:6px;flex:1;border-radius:99px;background:${i <= state.tutorialStep ? "#1688f8" : "#e2e8f0"}"></span>`).join("")}</div>
-        <h2 id="utlt-tutorial-title" style="margin:0;font-size:26px;line-height:1.2;letter-spacing:-.6px;">${slide.title}</h2>
-        <p style="margin:12px 0;color:#475569;font-size:15px;line-height:1.6;">${slide.body}</p>
-        <p style="margin:16px 0 0;padding:14px;border-radius:14px;background:#eff6ff;border-left:4px solid #1688f8;color:#24527a;font-size:13px;line-height:1.55;">💡 ${slide.tip}</p>
-        <button type="button" data-action="${final ? "onboarding-done" : "tutorial-next"}" style="${primaryStyle}">${final ? "Go to my dashboard" : "Next"}</button>
-        <button type="button" data-action="tutorial-skip" style="${secondaryStyle}">Skip tutorial</button>
-      </section></div>`;
-    }
-    return "";
-  }
-
   let lastMotionView = "";
   async function render(preserveScroll = false) {
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
@@ -903,8 +850,8 @@
       : state.screen === "account" ? accountPage()
       : state.screen === "family" ? await familyPage()
       : pairPage();
-    root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${enterMotion ? "utlt-enter" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>${onboardingMarkup()}`;
-    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute("content", state.dark ? "#12171d" : "#ffffff"));
+    root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${enterMotion ? "utlt-enter" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>`;
+    document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute("content", state.dark ? "#212121" : "#ffffff"));
     const scroller = root.querySelector(".utlt-content");
     if (scroller) scroller.scrollTop = previousScroll;
     if (enterMotion) setupChartScrollAnimations(scroller);
@@ -931,6 +878,8 @@
   let qrTimer = null;
   let bleDevice = null;
   let bleCharacteristic = null;
+  let bleConnecting = false;
+  let reconnectTimer = null;
 
   function stopQrScanner() {
     if (qrTimer) clearTimeout(qrTimer);
@@ -948,9 +897,10 @@
     }
     state.pairedDeviceId = match[1].toLowerCase();
     try { localStorage.setItem(pairingKey, state.pairedDeviceId); } catch (_error) { /* Session pairing still works. */ }
-    state.pairStatus = `Found UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Tap Open Bluetooth device chooser to allow this phone to connect.`;
+    state.pairStatus = `Found UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Reconnecting if already allowed; otherwise tap Connect.`;
     stopQrScanner();
     render(true);
+    tryAutoConnectBluetooth();
     return true;
   }
 
@@ -1038,6 +988,7 @@
     if (session.slice(0, 8) !== state.pairedDeviceId.slice(0, 8)) {
       state.pairStatus = "This Bluetooth device does not match the scanned sticker.";
       bleDevice?.gatt?.disconnect();
+      bleDevice = null;
       render(true);
       return;
     }
@@ -1051,6 +1002,59 @@
     if (!root.querySelector(".utlt-auth-screen")) render(true);
   }
 
+  async function connectSelectedBluetoothDevice(device) {
+    if (bleConnecting || bleDevice?.gatt?.connected) return;
+    bleConnecting = true;
+    clearTimeout(reconnectTimer);
+    state.pairStatus = "Connecting to your water monitor…";
+    render(true);
+    try {
+      const server = await device.gatt.connect();
+      const service = await server.getPrimaryService(bleServiceUuid);
+      const characteristic = await service.getCharacteristic(bleReadingUuid);
+      const firstValue = await characteristic.readValue();
+      const identity = Array.from({ length: 4 }, (_, index) => firstValue.getUint8(index).toString(16).padStart(2, "0")).join("");
+      if (firstValue.byteLength !== 16 || identity !== state.pairedDeviceId.slice(0, 8)) {
+        device.gatt.disconnect();
+        throw new Error("This device does not match the scanned QR sticker.");
+      }
+      bleDevice = device;
+      bleCharacteristic = characteristic;
+      device.ongattserverdisconnected = () => {
+        if (bleDevice !== device) return;
+        bleCharacteristic = null;
+        state.device.connected = false;
+        state.pairStatus = "Device disconnected. Reconnecting when it is nearby…";
+        render(true);
+        if (document.visibilityState === "visible") reconnectTimer = setTimeout(tryAutoConnectBluetooth, 3000);
+      };
+      await characteristic.startNotifications();
+      characteristic.addEventListener("characteristicvaluechanged", onBlePacket);
+      onBlePacket({ target: { value: await characteristic.readValue() } });
+    } catch (error) {
+      if (device.gatt?.connected) device.gatt.disconnect();
+      state.pairStatus = `Bluetooth connection failed: ${error.message || error.name}`;
+      render(true);
+    } finally {
+      bleConnecting = false;
+    }
+  }
+
+  async function tryAutoConnectBluetooth() {
+    if (!state.pairedDeviceId || bleConnecting || bleDevice?.gatt?.connected || !navigator.bluetooth?.getDevices) return;
+    try {
+      const granted = await navigator.bluetooth.getDevices();
+      const suffix = state.pairedDeviceId.slice(-4).toUpperCase();
+      const matches = granted.filter(device => device.name === `UTLT-${suffix}` || device.name === "MPY ESP32");
+      if (matches.length === 1) await connectSelectedBluetoothDevice(matches[0]);
+      else if (matches.length === 0 && granted.length === 1) await connectSelectedBluetoothDevice(granted[0]);
+      else if (matches.length > 1) {
+        const exact = matches.find(device => device.name === `UTLT-${suffix}`);
+        if (exact) await connectSelectedBluetoothDevice(exact);
+      }
+    } catch (_error) { /* The manual chooser remains available. */ }
+  }
+
   function connectBluetooth() {
     if (!state.pairedDeviceId) return;
     if (!navigator.bluetooth?.requestDevice) {
@@ -1062,21 +1066,7 @@
     // of the current advertisement name. Verify the QR identity from the packet.
     // The chooser must open directly from this button tap; do not await first.
     navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [bleServiceUuid] })
-      .then(async device => {
-        bleDevice = device;
-        device.addEventListener("gattserverdisconnected", () => {
-          bleCharacteristic = null;
-          state.device.connected = false;
-          state.pairStatus = "Bluetooth disconnected. Tap Connect Bluetooth to reconnect.";
-          render(true);
-        });
-        const server = await device.gatt.connect();
-        const service = await server.getPrimaryService(bleServiceUuid);
-        bleCharacteristic = await service.getCharacteristic(bleReadingUuid);
-        await bleCharacteristic.startNotifications();
-        bleCharacteristic.addEventListener("characteristicvaluechanged", onBlePacket);
-        onBlePacket({ target: { value: await bleCharacteristic.readValue() } });
-      })
+      .then(connectSelectedBluetoothDevice)
       .catch(error => {
         state.pairStatus = error.name === "NotFoundError" ? "No device selected. Look for UTLT-2C2C or MPY ESP32 with the powered board nearby." : `Bluetooth connection failed: ${error.message || error.name}`;
         render(true);
@@ -1090,6 +1080,22 @@
     if (action === "scan-qr") { startQrScanner(); return; }
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
     if (action === "connect-ble") { connectBluetooth(); return; }
+    if (action === "toggle-demo") {
+      if (state.device.connected) return;
+      state.demoEnabled = !state.demoEnabled;
+      if (state.demoEnabled) {
+        state.readings = window.UTLTData.demoReadings;
+        state.usingDemo = true;
+      } else {
+        let saved = {};
+        try { saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}"); } catch (_error) { /* Empty dashboard is still available. */ }
+        state.readings = Array.isArray(saved.readings) ? saved.readings : [];
+        state.usingDemo = state.readings.length === 0;
+      }
+      try { localStorage.setItem(demoKey, String(state.demoEnabled)); } catch (_error) { /* Session toggle still works. */ }
+      render(true);
+      return;
+    }
     if (action === "start-calibration") {
       if (state.rawPulseCount === null) return;
       state.calibrationStartPulses = state.rawPulseCount;
@@ -1128,8 +1134,7 @@
       render(true);
       return;
     }
-    if (action === "tutorial-next") { state.tutorialStep = Math.min(state.tutorialStep + 1, tutorialSlides.length - 1); }
-    else if (action === "tutorial-skip" || action === "onboarding-done") { state.onboarding = ""; }
+    if (action === "auth-theme") { state.dark = !state.dark; renderAuthGate(); return; }
     if (action === "login-google") { signInWithGoogle(); return; }
     else if (action === "auth-cancel") { state.pendingAuthScreen = ""; state.screen = "home"; render(); return; }
     else if (action === "sign-out") { signOutOfApp().catch(error => renderAuthGate(error.message)); return; }
@@ -1205,17 +1210,6 @@
     }
   });
   root.addEventListener("submit", async (event) => {
-    if (event.target.id === "utlt-welcome-form") {
-      event.preventDefault();
-      const form = new FormData(event.target);
-      state.name = String(form.get("name") || "").trim();
-      state.utility = String(form.get("utility") || "Water");
-      persistProfile();
-        state.tutorialStep = 0;
-      state.onboarding = "tutorial";
-      render();
-      return;
-    }
     if (event.target.id === "utlt-friend-add-form") {
       event.preventDefault();
       if (!firebaseStore) { state.friendMessage = "Firebase is not connected yet. Check Firebase setup first."; render(true); return; }
@@ -1279,7 +1273,7 @@
     const sameSession = saved.session === payload.session && Number.isSafeInteger(saved.lastPulses) && saved.lastPulses <= total;
     const previous = sameSession ? saved.lastPulses : total;
     const elapsedMs = sameSession && Number.isFinite(saved.lastObservedAt) ? now - saved.lastObservedAt : 0;
-    const pulsesPerLitre = Number(payload.pulsesPerLitre) || 450;
+    const pulsesPerLitre = Number(payload.pulsesPerLitre) || provisionalPulsesPerLitre;
     const rawDelta = total - previous;
     const rateLpm = elapsedMs >= 500 ? rawDelta * 60000 / (pulsesPerLitre * elapsedMs) : 0;
     const impossibleFlow = elapsedMs >= 500 && rateLpm > 6; // Sensor is rated to 5 L/min.
@@ -1298,6 +1292,10 @@
     const changed = delta > 0 || state.usingDemo || !state.device.connected || previousWarning !== state.flowWarning;
     state.readings = readings;
     state.usingDemo = false;
+    if (state.demoEnabled) {
+      state.demoEnabled = false;
+      try { localStorage.setItem(demoKey, "false"); } catch (_error) { /* Live readings still take precedence. */ }
+    }
     state.bridgeAvailable = true;
     state.device = { connected: true, lastConnectedAt: new Date().toISOString() };
     if (delta > 0) { syncFamilyUsage(); syncCommunityInsight(); syncCompetitionStats(); }
@@ -1323,6 +1321,10 @@
         const readingsSignature = JSON.stringify(payload.readings);
         state.readings = payload.readings;
         state.usingDemo = false;
+        if (state.demoEnabled) {
+          state.demoEnabled = false;
+          try { localStorage.setItem(demoKey, "false"); } catch (_error) { /* Live data still takes precedence. */ }
+        }
         if (readingsSignature !== bridgeReadingsSignature) {
           bridgeReadingsSignature = readingsSignature;
           syncFamilyUsage();
@@ -1341,6 +1343,16 @@
     }
   }
   initializePersistence();
+  if ("serviceWorker" in navigator && location.protocol === "https:") {
+    navigator.serviceWorker.register("./sw.js").catch(() => { /* The dashboard still works in the browser. */ });
+  }
+  tryAutoConnectBluetooth();
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") tryAutoConnectBluetooth();
+  });
+  setInterval(() => {
+    if (document.visibilityState === "visible") tryAutoConnectBluetooth();
+  }, 15000);
   refreshWaterBridge();
   setInterval(refreshWaterBridge, 5000);
 })();
