@@ -8,13 +8,13 @@ The GitHub Pages app is the phone interface. The ESP32 runs `esp32/main.py` and 
 2. Open the GitHub Pages app in **Chrome on Android** or **Bluefy on iPhone** over HTTPS, then open **Devices**.
 3. Tap **Scan device QR** and point the camera at [this board's sticker](assets/UTLT-2C2C-pairing-qr.png). Allow camera access. In Bluefy, **Or use a camera photo** is available if live camera scanning does not work.
 4. Tap **Connect Bluetooth**, choose **UTLT-2C2C** (or a cached **MPY ESP32** name) in the browser's Bluetooth prompt, and allow the connection.
-5. The dashboard reads the meter every two seconds. Pulse counts become litres using an initial **450 pulses per litre** calibration. Pump off should show no increase; pump on should make the total rise. In a recirculating demo, each lap is counted as simulated usage.
+5. The dashboard reads the meter every two seconds. Pulse counts become litres using a **provisional 3,420 pulses per litre** conversion from the 15.2 pulses/s live reading and the reported 160 mL in 36 s. This is specific to that setup and should be confirmed with a full measured run. Pump off should show no increase; pump on should make the total rise. In a recirculating demo, each lap is counted as simulated usage.
 
 Chrome camera and Bluetooth permissions must be allowed. If you reload the page, the scanned device ID is remembered on that phone, but tap **Connect Bluetooth** again. Keep the page open for live readings. Google account, Friends, and Family features require internet; the meter and water charts do not need them after the page loads. The QR contains the ESP32's public ID, **not** a Wi-Fi password. It identifies the device in the browser but does not provide secure ownership authentication; that is future product work.
 
 The mini flow sensor is specified for 0.5–5 L/min. The app ignores intervals above 6 L/min and shows a sensor warning instead of adding impossible litres. If readings rose falsely during a demo, use **Devices → Clear this phone's demo readings**, then reconnect. If the warning appears only while the pump is on, test the pump on a separate charger or power bank while keeping the ESP32 on its own 5 V USB supply. Check the sensor red/black/yellow wiring, converter HV/LV rails, and common ground; an app filter does not repair a noisy electrical signal.
 
-The Devices screen also shows the raw pulse count and pulses per second. For example, 11 mL/s should produce about 5 pulses/s at 450 pulses/L. A display of about 500 pulses/s points to false pulses or a very different sensor calibration, not a decimal place in the app.
+The Devices screen also shows the raw pulse count and pulses per second. A display of hundreds of pulses/s would point to false pulses or a very different sensor calibration, not a decimal place in the app.
 
 ### 160 mL timing check (USB serial)
 

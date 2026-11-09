@@ -19,8 +19,18 @@
   const calibrationKey = "waterMeterCalibrationV1";
   let savedPairing = "";
   try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) { /* Pairing still works in this tab. */ }
-  let savedCalibration = 450;
-  try { savedCalibration = Number(localStorage.getItem(calibrationKey)) || 450; } catch (_error) { /* Default calibration remains available. */ }
+  // 15.2 pulses/s for 36 s while collecting 160 mL gives about 3,420 pulses/L.
+  // This is a provisional demo calibration until a complete measured run confirms it.
+  const provisionalPulsesPerLitre = 3420;
+  let savedCalibration = provisionalPulsesPerLitre;
+  try {
+    const stored = Number(localStorage.getItem(calibrationKey));
+    if (stored > 0 && stored !== 450) savedCalibration = stored;
+    else {
+      localStorage.setItem(calibrationKey, String(provisionalPulsesPerLitre));
+      localStorage.removeItem("waterMeterReadingsV1");
+    }
+  } catch (_error) { /* Provisional calibration remains available. */ }
   const state = {
     screen: "home",
     utility: "Water",
@@ -39,7 +49,7 @@
     flowWarning: "",
     rawPulseCount: null,
     pulseRateHz: null,
-    pulsesPerLitre: savedCalibration > 0 && savedCalibration < 100000 ? savedCalibration : 450,
+    pulsesPerLitre: savedCalibration > 0 && savedCalibration < 100000 ? savedCalibration : provisionalPulsesPerLitre,
     calibrationStartPulses: null,
     calibrationStartSession: "",
     currentMeterSession: "",
