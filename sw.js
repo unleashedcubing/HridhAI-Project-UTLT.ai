@@ -1,4 +1,4 @@
-const CACHE = "utlt-shell-v3";
+const CACHE = "utlt-shell-v4";
 const SHELL = [
   "./", "./index.html", "./styles.css", "./data.js", "./app.js",
   "./vendor/jsQR.js", "./manifest.webmanifest", "./assets/utlt-icon.svg",

@@ -17,23 +17,21 @@
   const bleReadingUuid = "930a7d60-8489-4b31-9cc6-64ee5e809101";
   const pairingKey = "waterMeterPairingV1";
   const calibrationKey = "waterMeterCalibrationV1";
+  const grantedDeviceKey = "waterMeterGrantedBluetoothV1";
   const demoKey = "waterMeterDemoEnabledV1";
   let savedPairing = "";
   try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) { /* Pairing still works in this tab. */ }
-  // Midpoint of (15.7–17.3 pulses/s × 38–41 s) / 0.160 L. Confirm with
-  // pulses counted during one complete, measured 160 mL run.
-  const provisionalPulsesPerLitre = 4075;
-  let savedCalibration = provisionalPulsesPerLitre;
+  // Fixed demo conversion from the measured 160 mL timing range.
+  const pulsesPerLitre = 4075;
   let demoEnabled = false;
   try {
     const stored = Number(localStorage.getItem(calibrationKey));
-    if (stored > 0 && stored !== 450 && stored !== 3420) savedCalibration = stored;
-    else {
-      localStorage.setItem(calibrationKey, String(provisionalPulsesPerLitre));
+    if (stored !== pulsesPerLitre) {
       localStorage.removeItem("waterMeterReadingsV1");
     }
+    localStorage.setItem(calibrationKey, String(pulsesPerLitre));
     demoEnabled = localStorage.getItem(demoKey) === "true";
-  } catch (_error) { /* Provisional calibration remains available. */ }
+  } catch (_error) { /* The fixed conversion remains available. */ }
   const state = {
     screen: "home",
     utility: "Water",
@@ -52,9 +50,7 @@
     flowWarning: "",
     rawPulseCount: null,
     pulseRateHz: null,
-    pulsesPerLitre: savedCalibration > 0 && savedCalibration < 100000 ? savedCalibration : provisionalPulsesPerLitre,
-    calibrationStartPulses: null,
-    calibrationStartSession: "",
+    pulsesPerLitre,
     currentMeterSession: "",
     bridgeAvailable: false,
     readings: demoEnabled ? window.UTLTData.demoReadings : [],
@@ -688,23 +684,22 @@
   function pairPage() {
     const ready = Boolean(state.pairedDeviceId);
     const noticeTitle = state.device.connected ? "Water monitor connected" : ready ? "Device recognized" : "Scan your device";
-    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()} is ready. Previously allowed devices reconnect automatically. For a first connection, tap the Bluetooth button and select your device.` : "Point your camera at the QR sticker on your ESP32 enclosure.";
+    const noticeBody = state.device.connected ? "Live flow readings are updating your dashboard." : ready ? `UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()} recognized. If this phone has connected before, it will reconnect automatically. Otherwise, tap Allow Bluetooth and select the matching device in Chrome's system chooser.` : "Point your camera at the QR sticker on your ESP32 enclosure.";
     return `<section class="utlt-pair-page">
       <div class="utlt-pair-illustration">${icon("bluetooth", 34)}</div>
       <p class="utlt-eyebrow">DEVICE SETUP</p>
       <h1>Connect your water monitor</h1>
       <p class="utlt-pair-intro">Scan your device sticker once, then see live water use over Bluetooth. Use Chrome on Android or Bluefy on iPhone.</p>
       ${/iPhone|iPad|iPod/i.test(navigator.userAgent) && !navigator.bluetooth?.requestDevice ? '<p class="utlt-flow-warning">iPhone Chrome cannot connect to Bluetooth devices. Open this same website in <a href="https://apps.apple.com/app/bluefy-web-ble-browser/id1492822055">Bluefy</a> to pair.</p>' : ''}
-      <div class="utlt-pair-notice ${state.device.connected ? "is-ready" : ""}" role="status"><strong>${noticeTitle}</strong><span>${noticeBody}</span></div>
+      <div class="utlt-pair-notice ${state.device.connected ? "is-ready" : ready ? "is-scanned" : ""}" role="status"><strong>${noticeTitle}</strong><span>${noticeBody}</span></div>
       ${state.qrScanning ? '<video class="utlt-qr-preview" id="utlt-qr-preview" autoplay playsinline muted aria-label="Camera view for device QR code"></video>' : ''}
-      ${ready && !state.device.connected ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">Connect to UTLT-' + state.pairedDeviceId.slice(-4).toUpperCase() + '</button>' : ''}
-      <button class="utlt-primary-button" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : ready ? "Scan another device QR" : "Scan device QR"}</button>
-      <label class="utlt-qr-photo">Or use a camera photo<input type="file" id="utlt-qr-photo" accept="image/*" capture="environment" aria-label="Take a photo of the device QR code"></label>
-      ${state.rawPulseCount !== null ? `<div class="utlt-meter-diagnostics"><strong>Sensor diagnostics</strong><span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span><small>App conversion: ${Math.round(state.pulsesPerLitre).toLocaleString("en-IN")} pulses = 1 litre${state.pulsesPerLitre === provisionalPulsesPerLitre ? " · provisional" : ""}</small></div>` : ''}
-      ${state.device.connected ? `<div class="utlt-calibration"><strong>Measured-volume calibration</strong><p>The current 4,075 pulses/L estimate comes from your 15.7–17.3 pulses/s and 38–41 s for 160 mL. For a precise value, keep the sensor connected, start with the pump off, then collect exactly 160 mL. Stop the pump before tapping Finish.</p><button type="button" data-action="${state.calibrationStartPulses === null ? "start-calibration" : "finish-calibration"}">${state.calibrationStartPulses === null ? "Start measured test" : "Finish and enter mL"}</button>${state.calibrationStartPulses !== null ? `<small>Starting pulse count: ${state.calibrationStartPulses.toLocaleString("en-IN")}</small>` : ''}</div>` : ''}
+      ${ready && !state.device.connected ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">Allow Bluetooth for UTLT-' + state.pairedDeviceId.slice(-4).toUpperCase() + '</button>' : ''}
+      <button class="utlt-primary-button ${ready ? "utlt-scan-again" : ""}" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : ready ? "Scan another device QR" : "Scan device QR"}</button>
+      ${!ready || state.qrScanning ? '<label class="utlt-qr-photo">Or use a camera photo<input type="file" id="utlt-qr-photo" accept="image/*" capture="environment" aria-label="Take a photo of the device QR code"></label>' : ''}
+      <div class="utlt-meter-diagnostics"><strong>Water conversion</strong><span>4,075 pulses = 1 litre</span>${state.rawPulseCount !== null ? `<span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span>` : ""}<small>Based on your 160 mL timing test; this is an estimate.</small></div>
       ${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : state.flowRateLpm !== null ? `<p class="utlt-pair-feedback">Measured flow: ${state.flowRateLpm.toFixed(2)} L/min</p>` : ''}
-      ${state.pairStatus ? `<p class="utlt-pair-feedback" role="status">${escapeHtml(state.pairStatus)}</p>` : ''}
-      <button class="utlt-reset-readings" type="button" data-action="reset-meter-readings">Clear this phone’s demo readings</button>
+      ${state.pairStatus && !state.pairStatus.startsWith("QR verified") ? `<p class="utlt-pair-feedback" role="status">${escapeHtml(state.pairStatus)}</p>` : ''}
+      <button class="utlt-reset-readings" type="button" data-action="reset-meter-readings">Clear saved water readings</button>
       <h2>Three steps</h2>
       <ol class="utlt-pair-steps">
         <li><span>1</span><div><strong>Power your monitor</strong><small>Connect the ESP32 to a USB power bank. If readings look too fast, test the pump on a separate charger.</small></div></li>
@@ -895,9 +890,16 @@
       state.pairStatus = "That is not a UTLT Bluetooth sticker.";
       return false;
     }
-    state.pairedDeviceId = match[1].toLowerCase();
+    const scannedId = match[1].toLowerCase();
+    if (state.pairedDeviceId && state.pairedDeviceId !== scannedId && bleDevice?.gatt?.connected) {
+      bleDevice.gatt.disconnect();
+      bleDevice = null;
+      bleCharacteristic = null;
+      state.device.connected = false;
+    }
+    state.pairedDeviceId = scannedId;
     try { localStorage.setItem(pairingKey, state.pairedDeviceId); } catch (_error) { /* Session pairing still works. */ }
-    state.pairStatus = `Found UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Reconnecting if already allowed; otherwise tap Connect.`;
+    state.pairStatus = `QR verified for UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Reconnecting if already allowed; otherwise tap Allow Bluetooth.`;
     stopQrScanner();
     render(true);
     tryAutoConnectBluetooth();
@@ -993,12 +995,8 @@
       return;
     }
     state.currentMeterSession = session;
-    if (state.calibrationStartPulses !== null && state.calibrationStartSession !== session) {
-      state.calibrationStartPulses = null;
-      state.pairStatus = "The ESP32 restarted during calibration. Start a new measured test.";
-    }
     applyStandaloneReading({ mode: "standalone", session, totalPulses: value.getUint32(12, true), pulsesPerLitre: state.pulsesPerLitre });
-    if (!state.pairStatus.includes("restarted during calibration")) state.pairStatus = "Bluetooth connected. Live readings are updating.";
+    state.pairStatus = "Bluetooth connected. Live readings are updating.";
     if (!root.querySelector(".utlt-auth-screen")) render(true);
   }
 
@@ -1020,6 +1018,7 @@
       }
       bleDevice = device;
       bleCharacteristic = characteristic;
+      try { localStorage.setItem(grantedDeviceKey, JSON.stringify({ qrId: state.pairedDeviceId, bluetoothId: device.id })); } catch (_error) { /* Reconnection can still match by name. */ }
       device.ongattserverdisconnected = () => {
         if (bleDevice !== device) return;
         bleCharacteristic = null;
@@ -1044,14 +1043,15 @@
     if (!state.pairedDeviceId || bleConnecting || bleDevice?.gatt?.connected || !navigator.bluetooth?.getDevices) return;
     try {
       const granted = await navigator.bluetooth.getDevices();
-      const suffix = state.pairedDeviceId.slice(-4).toUpperCase();
-      const matches = granted.filter(device => device.name === `UTLT-${suffix}` || device.name === "MPY ESP32");
-      if (matches.length === 1) await connectSelectedBluetoothDevice(matches[0]);
-      else if (matches.length === 0 && granted.length === 1) await connectSelectedBluetoothDevice(granted[0]);
-      else if (matches.length > 1) {
-        const exact = matches.find(device => device.name === `UTLT-${suffix}`);
-        if (exact) await connectSelectedBluetoothDevice(exact);
+      let remembered = {};
+      try { remembered = JSON.parse(localStorage.getItem(grantedDeviceKey) || "{}"); } catch (_error) { /* Fall back to advertised name. */ }
+      if (remembered.qrId === state.pairedDeviceId) {
+        const match = granted.find(device => device.id === remembered.bluetoothId);
+        if (match) { await connectSelectedBluetoothDevice(match); return; }
       }
+      const suffix = state.pairedDeviceId.slice(-4).toUpperCase();
+      const matches = granted.filter(device => device.name === `UTLT-${suffix}`);
+      if (matches.length === 1) await connectSelectedBluetoothDevice(matches[0]);
     } catch (_error) { /* The manual chooser remains available. */ }
   }
 
@@ -1062,13 +1062,13 @@
       render(true);
       return;
     }
-    // Some Android phones show a cached GAP name (for example "MPY ESP32") instead
-    // of the current advertisement name. Verify the QR identity from the packet.
-    // The chooser must open directly from this button tap; do not await first.
-    navigator.bluetooth.requestDevice({ acceptAllDevices: true, optionalServices: [bleServiceUuid] })
+    // The chooser must open directly from this button tap; camera decoding is
+    // asynchronous and cannot carry the browser's required user activation.
+    const expectedName = `UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}`;
+    navigator.bluetooth.requestDevice({ filters: [{ name: expectedName }], optionalServices: [bleServiceUuid] })
       .then(connectSelectedBluetoothDevice)
       .catch(error => {
-        state.pairStatus = error.name === "NotFoundError" ? "No device selected. Look for UTLT-2C2C or MPY ESP32 with the powered board nearby." : `Bluetooth connection failed: ${error.message || error.name}`;
+        state.pairStatus = error.name === "NotFoundError" ? `No ${expectedName} selected. Make sure the ESP32 is powered, nearby, and advertising that name.` : `Bluetooth connection failed: ${error.message || error.name}`;
         render(true);
       });
   }
@@ -1093,32 +1093,6 @@
         state.usingDemo = state.readings.length === 0;
       }
       try { localStorage.setItem(demoKey, String(state.demoEnabled)); } catch (_error) { /* Session toggle still works. */ }
-      render(true);
-      return;
-    }
-    if (action === "start-calibration") {
-      if (state.rawPulseCount === null) return;
-      state.calibrationStartPulses = state.rawPulseCount;
-      state.calibrationStartSession = state.currentMeterSession;
-      state.pairStatus = "Collect a measured amount, then stop the pump and tap Finish.";
-      render(true);
-      return;
-    }
-    if (action === "finish-calibration") {
-      const measuredMl = Number(prompt("How many millilitres did you collect?", "160"));
-      if (!Number.isFinite(measuredMl) || measuredMl <= 0 || measuredMl > 10000) { state.pairStatus = "Enter a measured amount between 1 and 10,000 mL."; render(true); return; }
-      const pulseDelta = state.rawPulseCount - state.calibrationStartPulses;
-      if (!Number.isSafeInteger(pulseDelta) || pulseDelta < 10) { state.pairStatus = "Too few pulses to calibrate. Check the flow and try again."; render(true); return; }
-      const calibrated = pulseDelta * 1000 / measuredMl;
-      if (calibrated >= 100000) { state.pairStatus = "Pulse count is too high. Check for signal noise before calibrating."; render(true); return; }
-      state.pulsesPerLitre = calibrated;
-      state.calibrationStartPulses = null;
-      state.calibrationStartSession = "";
-      state.flowWarning = "";
-      try { localStorage.setItem(calibrationKey, String(calibrated)); localStorage.removeItem("waterMeterReadingsV1"); } catch (_error) { /* Calibration remains for this tab. */ }
-      state.readings = [];
-      state.usingDemo = false;
-      state.pairStatus = `Saved ${Math.round(calibrated).toLocaleString("en-IN")} pulses per litre for this phone. Previous estimates were cleared; the next packet sets a fresh baseline.`;
       render(true);
       return;
     }
@@ -1273,7 +1247,6 @@
     const sameSession = saved.session === payload.session && Number.isSafeInteger(saved.lastPulses) && saved.lastPulses <= total;
     const previous = sameSession ? saved.lastPulses : total;
     const elapsedMs = sameSession && Number.isFinite(saved.lastObservedAt) ? now - saved.lastObservedAt : 0;
-    const pulsesPerLitre = Number(payload.pulsesPerLitre) || provisionalPulsesPerLitre;
     const rawDelta = total - previous;
     const rateLpm = elapsedMs >= 500 ? rawDelta * 60000 / (pulsesPerLitre * elapsedMs) : 0;
     const impossibleFlow = elapsedMs >= 500 && rateLpm > 6; // Sensor is rated to 5 L/min.
