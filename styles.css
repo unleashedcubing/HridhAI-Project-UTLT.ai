@@ -100,7 +100,6 @@ img { max-width: 100%; }
 
 /* 04 · HEADER --------------------------------------------------------------- */
 .utlt-header {
-  flex-wrap: wrap;
   display: flex;
   min-height: 60px;
   align-items: center;
@@ -127,10 +126,9 @@ img { max-width: 100%; }
 .utlt-icon-button:active { background: var(--utlt-panel); transform: scale(.94); }
 
 /* 05 · UTILITY PILLS -------------------------------------------------------- */
-.utlt-pills { flex-wrap: wrap; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 16px 6px; }
+.utlt-pills { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 16px 6px; }
 .utlt-pill {
-  min-width: 0;
-  display: inline-flex; height: 44px; flex: 1 1 96px; max-width: 128px; align-items: center; justify-content: center; gap: 7px;
+  display: inline-flex; height: 44px; flex: 1 1 0; max-width: 128px; align-items: center; justify-content: center; gap: 7px;
   padding: 0 12px; border: 1.5px solid var(--utlt-border); border-radius: 999px;
   background: var(--utlt-card); color: var(--utlt-text); font-size: 14px; font-weight: 650; cursor: pointer;
 }
@@ -154,7 +152,7 @@ img { max-width: 100%; }
 
 /* 07 · WATER RING ----------------------------------------------------------- */
 .utlt-usage { display: flex; flex-direction: column; align-items: center; padding-top: 8px; }
-.utlt-donut { position: relative; width: min(224px, 100%); height: auto; aspect-ratio: 1;  filter: drop-shadow(0 14px 22px rgb(22 136 248 / .22)); }
+.utlt-donut { position: relative; width: 224px; height: 224px; filter: drop-shadow(0 14px 22px rgb(22 136 248 / .22)); }
 .utlt-donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .utlt-donut.is-warn { --utlt-ring-start: #c77700; --utlt-ring-end: #ffb938; filter: drop-shadow(0 14px 22px rgb(217 138 0 / .25)); }
 .utlt-donut.is-over { --utlt-ring-start: #c0262b; --utlt-ring-end: #ff7479; filter: drop-shadow(0 14px 22px rgb(229 72 77 / .28)); }
@@ -232,7 +230,7 @@ img { max-width: 100%; }
 .utlt-kokonut-card-head > span, .utlt-trend-head > span { color: var(--utlt-muted); font-size: 11px; font-weight: 750; letter-spacing: .1em; }
 .utlt-kokonut-card-head strong { min-width: 0; overflow-wrap: anywhere; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .utlt-kokonut-card-head small { color: var(--utlt-muted); font-size: 12px; font-weight: 650; }
-.utlt-kokonut-pie { display: block; width: min(200px, 100%); height: auto; aspect-ratio: 1; margin: 10px auto 14px; }
+.utlt-kokonut-pie { display: block; width: 200px; height: 200px; margin: 10px auto 14px; }
 .utlt-pie-hole { fill: var(--utlt-card); }
 .utlt-pie-total { fill: var(--utlt-text); font-size: 24px; font-weight: 800; text-anchor: middle; }
 .utlt-pie-caption { fill: var(--utlt-muted); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-anchor: middle; }
@@ -321,7 +319,7 @@ img { max-width: 100%; }
 .utlt-unavailable-card .utlt-primary-button { width: 100%; }
 .utlt-account { padding: 14px 20px 26px; }
 .utlt-profile-card { display: flex; align-items: center; gap: 14px; padding: 18px 16px; border: 1px solid var(--utlt-border); border-radius: 24px; background: var(--utlt-card); box-shadow: var(--utlt-shadow); }
-.utlt-avatar { display: grid; width: 54px; height: 54px; flex: 0 0 54px; place-items: center; border-radius: 50%; font-size: 19px; font-weight: 800; letter-spacing: -.5px; background: linear-gradient(135deg, #cfe7ff, #e9f4ff); color: #0a6fd0; }
+.utlt-avatar { display: grid; width: 54px; height: 54px; flex: 0 0 54px; place-items: center; border-radius: 50%; background: linear-gradient(135deg, #cfe7ff, #e9f4ff); color: #0a6fd0; }
 .utlt-dark .utlt-avatar { background: linear-gradient(135deg, #1c4568, #183958); color: #7db6ff; }
 .utlt-profile-card > div:nth-child(2) { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .utlt-profile-card strong { overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
@@ -337,7 +335,7 @@ img { max-width: 100%; }
 .utlt-field { display: flex; flex-direction: column; gap: 7px; margin: 0 0 16px; font-size: 13px; font-weight: 650; }
 .utlt-field input, .utlt-add-friend input {
   width: 100%; height: 50px; padding: 0 14px; border: 1.5px solid var(--utlt-border); border-radius: 14px; outline: none;
-  background: var(--utlt-card); color: var(--utlt-text); font-size: 16px; font-weight: 450;
+  background: var(--utlt-card); color: var(--utlt-text); font-size: 15px; font-weight: 450;
 }
 .utlt-field input:focus, .utlt-add-friend input:focus { border-color: var(--utlt-blue); box-shadow: 0 0 0 4px rgb(22 136 248 / .18); }
 .utlt-input-wrap { position: relative; }
@@ -365,7 +363,7 @@ img { max-width: 100%; }
 }
 .utlt-tabbar > button {
   display: flex; min-width: 0; height: 54px; flex: 1 1 0; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  border: 0; border-radius: 14px; background: transparent; color: var(--utlt-muted); font-size: clamp(9px, 2.9vw, 11.5px); font-weight: 650; cursor: pointer;
+  border: 0; border-radius: 14px; background: transparent; color: var(--utlt-muted); font-size: 11.5px; font-weight: 650; cursor: pointer;
 }
 .utlt-tabbar > button.is-current { color: var(--utlt-accent); font-weight: 800; }
 .utlt-nav-icon, .utlt-tab-avatar { display: grid; width: 54px; height: 28px; place-items: center; border-radius: 999px; background: transparent; }
@@ -407,7 +405,7 @@ img { max-width: 100%; }
 .utlt-add-friend { margin: 18px 0 10px; }
 .utlt-add-friend > label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 700; }
 .utlt-add-friend > div { display: flex; gap: 8px; }
-.utlt-add-friend input { width: 0; min-width: 0; flex: 1; font-size: 16px; text-transform: uppercase; }
+.utlt-add-friend input { width: 0; min-width: 0; flex: 1; font-size: 14px; text-transform: uppercase; }
 .utlt-add-friend .utlt-primary-button { min-height: 50px; padding-inline: 14px; white-space: nowrap; font-size: 13px; }
 .utlt-friend-section { margin-top: 22px; }
 .utlt-friend-section h2, .utlt-leaderboard-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 18px; letter-spacing: -.3px; }
@@ -486,7 +484,7 @@ img { max-width: 100%; }
 }
 @media (max-width: 360px) {
   .utlt-dashboard { padding-inline: 14px; }
-  .utlt-donut { width: min(200px, 100%); }
+  .utlt-donut { width: 200px; height: 200px; }
   .utlt-donut-label strong { font-size: 46px; }
   .utlt-title { font-size: 20px; }
   .utlt-pill { padding: 0 8px; font-size: 13px; }
@@ -496,7 +494,7 @@ img { max-width: 100%; }
   .utlt-pair-page h1 { font-size: 26px; }
 }
 @media (max-height: 640px) and (orientation: landscape) {
-  .utlt-donut { width: 170px; }
+  .utlt-donut { width: 170px; height: 170px; }
 }
 
 /* 20 · ACCESSIBILITY --------------------------------------------------------- */
@@ -557,43 +555,4 @@ img { max-width: 100%; }
 }
 @media (max-width: 360px) {
   .utlt-goal-stepper button { width: 44px; height: 44px; }
-}
-
-
-/* 22 · ROUND 4 ADDITIONS ---------------------------------------------------- */
-/* Hour-by-hour chart (By time view) */
-.utlt-hourly { margin-top: 12px; padding: 16px 14px 14px; border: 1px solid var(--utlt-border); border-radius: 24px; background: var(--utlt-card); box-shadow: var(--utlt-shadow); }
-.utlt-hourly svg { display: block; width: 100%; height: auto; margin-top: 6px; overflow: visible; }
-.utlt-hour-bar { fill: #8fb5f3; }
-.utlt-hour-bar.is-night { fill: #f6b73c; }
-.utlt-dark .utlt-hour-bar { fill: #4d86d6; }
-.utlt-dark .utlt-hour-bar.is-night { fill: #e0a21f; }
-.utlt-hour-tick { fill: var(--utlt-muted); font-size: 9px; font-weight: 600; }
-.utlt-hourly-note { margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: var(--utlt-good-bg); color: var(--utlt-good-ink); font-size: 12.5px; font-weight: 600; line-height: 1.5; }
-.utlt-hourly-note.is-alert { background: var(--utlt-warn-bg); color: var(--utlt-warn-ink); }
-
-/* Goal buttons: no text-selection / callout while press-and-holding */
-.utlt-goal-stepper button { user-select: none; -webkit-user-select: none; -webkit-touch-callout: none; }
-
-/* Short landscape phones: compact header and a one-line tab bar so the content gets room */
-@media (max-height: 520px) and (orientation: landscape) {
-  .utlt-header { min-height: 46px; padding-block: 4px; }
-  .utlt-pills { margin-block: 4px; }
-  .utlt-hero span { display: none; }
-  .utlt-tabbar { min-height: 52px; padding-block: 2px; }
-  .utlt-tabbar > button { height: 46px; flex-direction: row; gap: 8px; }
-  .utlt-nav-icon, .utlt-tab-avatar, .utlt-tabbar > button.is-current .utlt-nav-icon { width: 40px; }
-}
-
-/* Big desktop screens: brand message beside the phone */
-@media (min-width: 1200px) {
-  .utlt-app {
-    background:
-      radial-gradient(60rem 40rem at 10% 8%, rgb(22 136 248 / .16), transparent 60%),
-      radial-gradient(50rem 36rem at 96% 96%, rgb(18 194 165 / .15), transparent 60%),
-      var(--utlt-page);
-  }
-  .utlt-app::before, .utlt-app::after { position: fixed; left: max(48px, calc(50% - 640px)); width: calc(50% - 342px); max-width: 440px; pointer-events: none; }
-  .utlt-app::before { content: "Every litre counts."; top: 50%; transform: translateY(-100%); padding-bottom: 16px; color: var(--utlt-text); font-size: clamp(38px, 3.6vw, 58px); font-weight: 800; letter-spacing: -2px; line-height: 1.05; }
-  .utlt-app::after { content: "Track your home’s water use, stay inside your daily goal and help save water in Hyderabad."; top: 50%; color: var(--utlt-muted); font-size: 18px; line-height: 1.6; }
 }
