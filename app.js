@@ -470,12 +470,6 @@
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
   }
 
-  function initials(name) {
-    const parts = String(name || "").trim().split(/\s+/).filter(Boolean);
-    if (!parts.length) return "";
-    return escapeHtml((parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase());
-  }
-
   function header() {
     const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : (state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "Your UTLT");
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
@@ -483,8 +477,7 @@
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
     if (state.screen === "friends") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     if (state.screen === "account" || state.screen === "device") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
-    const titleTag = ["home", "account", "device"].includes(state.screen) ? "h1" : "div";
-    return `<header class="utlt-header"><${titleTag} class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</${titleTag}>${actions}</header>`;
+    return `<header class="utlt-header"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${actions}</header>`;
   }
 
   function utilityTabs() {
@@ -578,8 +571,8 @@
       return sweep > 0 ? `<path d="${sector(from, angle)}" fill="${slice.color}" stroke="var(--utlt-card)" stroke-width="2" stroke-linejoin="round"/>` : "";
     }).join("");
     const topSlice = slices.reduce((best, slice) => slice.litres > best.litres ? slice : best, slices[0]);
-    const peakLine = total ? `<p class="utlt-peak">${state.breakdown === "use" ? "Most water went to" : "Busiest time of day:"} <strong>${topSlice.emoji ? topSlice.emoji + " " : ""}${escapeHtml(topSlice.label)}</strong> (${Math.round(topSlice.litres / total * 100)}%)</p>` : "";
-    return `<section class="utlt-glance"><h2>A Glance at Your Day</h2><div class="utlt-breakdown-switch" role="group" aria-label="Water breakdown"><button type="button" aria-pressed="${state.breakdown === "use"}" class="${state.breakdown === "use" ? "is-selected" : ""}" data-action="breakdown" data-value="use">By use</button><button type="button" aria-pressed="${state.breakdown === "time"}" class="${state.breakdown === "time" ? "is-selected" : ""}" data-action="breakdown" data-value="time">By time</button></div><div class="utlt-kokonut-card utlt-scroll-reveal"><div class="utlt-kokonut-card-head"><span>WATER BY ${state.breakdown.toUpperCase()}</span><strong>${number(total)} <small>L total</small></strong></div><svg class="utlt-kokonut-pie" viewBox="0 0 176 176" role="img" aria-label="Water usage by ${state.breakdown === "use" ? "activity" : "time of day"}, ${number(total)} litres total"><circle cx="88" cy="88" r="82" fill="var(--utlt-panel)"/>${sectors}<circle class="utlt-pie-hole" cx="88" cy="88" r="52"/><text class="utlt-pie-total" x="88" y="91">${number(total)}</text><text class="utlt-pie-caption" x="88" y="107">LITRES</text></svg><ul class="utlt-kokonut-legend">${slices.map((slice) => `<li><span class="utlt-kokonut-swatch" style="background-color:${slice.color}"></span><span class="utlt-kokonut-legend-copy"><span>${slice.emoji ? slice.emoji + " " : ""}${escapeHtml(slice.label)} · ${total ? Math.round(slice.litres / total * 100) : 0}%</span><strong>${number(slice.litres)} L</strong></span></li>`).join("")}</ul>${peakLine}</div>${state.breakdown === "time" ? hourlyCard(summary) : ""}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
+    const peakLine = total ? `<p class="utlt-peak">${state.breakdown === "use" ? "Most water went to" : "Busiest time of day:"} <strong>${escapeHtml(topSlice.label)}</strong> (${Math.round(topSlice.litres / total * 100)}%)</p>` : "";
+    return `<section class="utlt-glance"><h2>A Glance at Your Day</h2><div class="utlt-breakdown-switch" role="group" aria-label="Water breakdown"><button type="button" aria-pressed="${state.breakdown === "use"}" class="${state.breakdown === "use" ? "is-selected" : ""}" data-action="breakdown" data-value="use">By use</button><button type="button" aria-pressed="${state.breakdown === "time"}" class="${state.breakdown === "time" ? "is-selected" : ""}" data-action="breakdown" data-value="time">By time</button></div><div class="utlt-kokonut-card utlt-scroll-reveal"><div class="utlt-kokonut-card-head"><span>WATER BY ${state.breakdown.toUpperCase()}</span><strong>${number(total)} <small>L total</small></strong></div><svg class="utlt-kokonut-pie" viewBox="0 0 176 176" role="img" aria-label="Water usage by ${state.breakdown === "use" ? "activity" : "time of day"}, ${number(total)} litres total"><circle cx="88" cy="88" r="82" fill="var(--utlt-panel)"/>${sectors}<circle class="utlt-pie-hole" cx="88" cy="88" r="52"/><text class="utlt-pie-total" x="88" y="91">${number(total)}</text><text class="utlt-pie-caption" x="88" y="107">LITRES</text></svg><ul class="utlt-kokonut-legend">${slices.map((slice) => `<li><span class="utlt-kokonut-swatch" style="background-color:${slice.color}"></span><span class="utlt-kokonut-legend-copy"><span>${escapeHtml(slice.label)} · ${total ? Math.round(slice.litres / total * 100) : 0}%</span><strong>${number(slice.litres)} L</strong></span></li>`).join("")}</ul>${peakLine}</div><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
   }
 
   function weekly(summary) {
@@ -590,7 +583,6 @@
     const average = summary.daily.length ? summary.daily.reduce((sum, day) => sum + day.litres, 0) / summary.daily.length : 0;
     const withinGoal = summary.daily.filter((day) => day.litres <= goal).length;
     const weekTotal = summary.daily.reduce((sum, day) => sum + day.litres, 0);
-    const savedTotal = summary.daily.reduce((sum, day) => sum + Math.max(0, goal - day.litres), 0);
     const lowest = summary.daily.reduce((best, day) => day.litres < best.litres ? day : best, summary.daily[0] || { date: "", litres: 0 });
     const lowestLabel = lowest.date ? (() => { const [y, m, d] = lowest.date.split("-").map(Number); return new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(y, m - 1, d)); })() : "—";
     const bars = summary.daily.map((item, index) => {
@@ -602,7 +594,7 @@
       const latest = index === summary.daily.length - 1 ? " is-latest" : "";
       return `<g><rect class="utlt-trend-bar${latest}${item.litres > goal ? " is-over" : ""}" x="${x}" y="${y}" width="31" height="${height}" rx="5"/><text class="utlt-trend-value${latest}" x="${x + 15.5}" y="${Math.max(14, y - 7)}" text-anchor="middle">${Math.round(item.litres)}</text><text class="utlt-trend-date" x="${x + 15.5}" y="164" text-anchor="middle">${label}</text></g>`;
     }).join("");
-    return `<section class="utlt-week utlt-scroll-reveal"><h2>See Across Days</h2><div class="utlt-trend-card"><div class="utlt-trend-head"><span>LAST ${summary.daily.length} DAYS</span><strong>Goal ${number(goal)} L</strong></div><svg class="utlt-trend-plot" viewBox="0 0 300 175" role="img" aria-label="Water usage over the last ${summary.daily.length} days, daily goal ${goal} litres"><line class="utlt-trend-goal" x1="8" x2="292" y1="${goalY}" y2="${goalY}"/><line class="utlt-trend-baseline" x1="8" x2="292" y1="${baseline}" y2="${baseline}"/>${bars}</svg><div class="utlt-trend-footer"><span>Daily average</span><strong>${Math.round(average)} L</strong></div><div class="utlt-trend-footer"><span>Days within goal</span><strong>${withinGoal} of ${summary.daily.length}</strong></div><div class="utlt-trend-footer"><span>${summary.daily.length}-day total</span><strong>${number(Math.round(weekTotal))} L</strong></div><div class="utlt-trend-footer"><span>Saved vs goal</span><strong>${number(Math.round(savedTotal))} L</strong></div><div class="utlt-trend-footer"><span>Lowest day</span><strong>${lowestLabel} · ${number(Math.round(lowest.litres))} L</strong></div></div></section>`;
+    return `<section class="utlt-week utlt-scroll-reveal"><h2>See Across Days</h2><div class="utlt-trend-card"><div class="utlt-trend-head"><span>LAST ${summary.daily.length} DAYS</span><strong>Goal ${number(goal)} L</strong></div><svg class="utlt-trend-plot" viewBox="0 0 300 175" role="img" aria-label="Water usage over the last ${summary.daily.length} days, daily goal ${goal} litres"><line class="utlt-trend-goal" x1="8" x2="292" y1="${goalY}" y2="${goalY}"/><line class="utlt-trend-baseline" x1="8" x2="292" y1="${baseline}" y2="${baseline}"/>${bars}</svg><div class="utlt-trend-footer"><span>Daily average</span><strong>${Math.round(average)} L</strong></div><div class="utlt-trend-footer"><span>Days within goal</span><strong>${withinGoal} of ${summary.daily.length}</strong></div><div class="utlt-trend-footer"><span>${summary.daily.length}-day total</span><strong>${number(Math.round(weekTotal))} L</strong></div><div class="utlt-trend-footer"><span>Lowest day</span><strong>${lowestLabel} · ${number(Math.round(lowest.litres))} L</strong></div></div></section>`;
   }
 
   function communityBucket(litres) {
@@ -657,30 +649,6 @@
       console.warn("UTLT community insight unavailable.", error);
     }
   }
-  function hourlyCard(summary) {
-    const day = summary.daily.length ? summary.daily[summary.daily.length - 1].date : "";
-    const hours = Array.from({ length: 24 }, () => 0);
-    for (const reading of state.readings) {
-      if (typeof reading.recordedAt !== "string" || !reading.recordedAt.startsWith(day) || !Number.isFinite(reading.litres) || reading.litres < 0) continue;
-      const hour = Number(reading.recordedAt.slice(11, 13));
-      if (hour >= 0 && hour < 24) hours[hour] += reading.litres;
-    }
-    const max = Math.max(...hours);
-    if (!(max > 0)) return "";
-    const peakHour = hours.indexOf(max);
-    const label = (hour) => `${hour % 12 === 0 ? 12 : hour % 12} ${hour < 12 ? "am" : "pm"}`;
-    const bars = hours.map((litres, hour) => {
-      const height = litres ? Math.max(3, litres / max * 68) : 0;
-      return `<rect class="utlt-hour-bar${hour >= 1 && hour < 5 ? " is-night" : ""}" x="${hour * 12 + 1}" y="${78 - height}" width="9" height="${height}" rx="3"><title>${label(hour)}: ${number(litres)} L</title></rect>`;
-    }).join("");
-    const ticks = [[0, "12 am"], [6, "6 am"], [12, "12 pm"], [18, "6 pm"]].map(([hour, text]) => `<text class="utlt-hour-tick" x="${hour * 12 + 1}" y="96">${text}</text>`).join("");
-    const night = hours.slice(1, 5).reduce((sum, litres) => sum + litres, 0);
-    const note = night >= 5
-      ? `<p class="utlt-hourly-note is-alert">💡 ${number(night)} L was used between 1 am and 5 am. If nobody was using water then, check taps, tanks and pipes for leaks.</p>`
-      : `<p class="utlt-hourly-note">✓ No unusual water use between 1 am and 5 am.</p>`;
-    return `<div class="utlt-hourly"><div class="utlt-trend-head"><span>TODAY, HOUR BY HOUR</span><strong>Peak ${label(peakHour)}</strong></div><svg viewBox="0 0 288 104" role="img" aria-label="Water used in each hour of today. The busiest hour is ${label(peakHour)} with ${number(max)} litres.">${bars}<line class="utlt-trend-baseline" x1="0" x2="288" y1="79" y2="79"/>${ticks}</svg>${note}</div>`;
-  }
-
   function emptyCard() {
     return `<section class="utlt-empty-card"><span class="utlt-empty-icon" aria-hidden="true">${icon("droplet", 30)}</span><h2>Waiting for your first reading</h2><p>As soon as your water monitor sends data, your daily usage, charts and saving tips will appear here.</p><button type="button" class="utlt-primary-button" data-action="pair">Set up your device</button></section>`;
   }
@@ -717,7 +685,7 @@
   }
 
   function accountPage() {
-    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${initials(state.name) || icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>Google account connected</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><p class="utlt-data-source" role="status">✓ Signed in with Google. Your profile is stored in Firebase.</p><button class="utlt-settings-row" type="button" data-action="sign-out"><span>Sign out</span>${icon("chevron",18)}</button></section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
+    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>Google account connected</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><p class="utlt-data-source" role="status">✓ Signed in with Google. Your profile is stored in Firebase.</p><button class="utlt-settings-row" type="button" data-action="sign-out"><span>Sign out</span>${icon("chevron",18)}</button></section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
   }
 
   function nav() {
@@ -846,7 +814,7 @@
     },
     {
       title: "Understand your usage",
-      body: "Use “By use” to see where water went, or “By time” to see when it was used, hour by hour, with a quick overnight leak check. Scroll down to compare your recent days.",
+      body: "Use “By use” to see where water went, or “By time” to see when it was used. Scroll down to compare your recent days and get a saving tip.",
       tip: "These charts use sample readings until a real monitor is connected."
     },
     {
@@ -920,9 +888,6 @@
     const nameDraft = root.querySelector("#utlt-welcome-name")?.value;
     const utilityDraft = root.querySelector('input[name="utility"]:checked')?.value;
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${still ? "utlt-still" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>${onboardingMarkup()}`;
-    const screenNames = { home: state.utility === "Water" ? "Water dashboard" : state.utility + " (coming soon)", account: "Account", device: "Device settings", pair: "Pair your device", family: "Family" };
-    document.title = (screenNames[state.screen] || "Home") + " · UTLT.ai";
-    root.querySelectorAll("button:not([type])").forEach((button) => { if (!button.closest("form")) button.type = "button"; });
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute("content", state.dark ? "#12171d" : "#ffffff"));
     const scroller = root.querySelector(".utlt-content");
     if (scroller) scroller.scrollTop = previousScroll;
@@ -967,31 +932,6 @@
     targets.forEach(element => observer.observe(element));
   }
 
-  function applyGoalStep(direction, size = 10) {
-    state.goal = Math.min(5000, Math.max(10, (Number(state.goal) || 350) + direction * size));
-    clearTimeout(goalSaveTimer);
-    goalSaveTimer = setTimeout(() => { persistProfile(); syncCompetitionStats(); }, 700);
-  }
-  // Press and hold − or + to change the goal quickly (10 L steps, then 50 L steps).
-  let holdTimer = 0, holdRepeat = 0, holdFired = false, holdCount = 0;
-  function stopGoalHold() {
-    clearTimeout(holdTimer); clearInterval(holdRepeat); holdTimer = holdRepeat = 0;
-    if (holdFired) setTimeout(() => { holdFired = false; }, 350);
-  }
-  root.addEventListener("pointerdown", (event) => {
-    const button = event.target.closest ? event.target.closest('[data-action="goal-up"], [data-action="goal-down"]') : null;
-    if (!button || event.button > 0) return;
-    const direction = button.dataset.action === "goal-up" ? 1 : -1;
-    holdCount = 0;
-    holdTimer = setTimeout(() => {
-      holdFired = true;
-      holdRepeat = setInterval(() => { holdCount += 1; applyGoalStep(direction, holdCount > 12 ? 50 : 10); render(true); }, 100);
-    }, 450);
-  });
-  ["pointerup", "pointercancel"].forEach((name) => document.addEventListener(name, stopGoalHold));
-  window.addEventListener("blur", stopGoalHold);
-  root.addEventListener("contextmenu", (event) => { if (event.target.closest && event.target.closest('[data-action^="goal-"]')) event.preventDefault(); });
-
   function showToast(message) {
     try {
       document.querySelectorAll(".utlt-toast").forEach((node) => node.remove());
@@ -1024,8 +964,9 @@
     else if (action === "auth-cancel") { state.pendingAuthScreen = ""; state.screen = "home"; render(); return; }
     else if (action === "sign-out") { signOutOfApp().catch(error => renderAuthGate(error.message)); return; }
     else if (action === "goal-down" || action === "goal-up") {
-      if (holdFired) return; // a press-and-hold already changed the goal
-      applyGoalStep(action === "goal-up" ? 1 : -1);
+      state.goal = Math.min(5000, Math.max(10, (Number(state.goal) || 350) + (action === "goal-up" ? 10 : -10)));
+      clearTimeout(goalSaveTimer);
+      goalSaveTimer = setTimeout(() => { persistProfile(); syncCompetitionStats(); }, 700);
     }
     else if (action === "share-report") { shareReport(); return; }
     else if (action === "theme") { state.dark = !state.dark; persistProfile(); }
