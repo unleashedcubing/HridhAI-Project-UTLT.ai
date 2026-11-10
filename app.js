@@ -15,15 +15,23 @@
   const pagesPreview = location.hostname.endsWith(".github.io");
   const bleServiceUuid = "930a7d60-8489-4b31-9cc6-64ee5e809100";
   const bleReadingUuid = "930a7d60-8489-4b31-9cc6-64ee5e809101";
+  const bleControlUuid = "930a7d60-8489-4b31-9cc6-64ee5e809102";
+  const bleHistoryUuid = "930a7d60-8489-4b31-9cc6-64ee5e809103";
   const pairingKey = "waterMeterPairingV1";
   const calibrationKey = "waterMeterCalibrationV1";
   const grantedDeviceKey = "waterMeterGrantedBluetoothV1";
   const demoKey = "waterMeterDemoEnabledV1";
+  const surveyKey = "waterSurveyV1";
+  const reviewKey = "waterReviewedDaysV1";
+  const labelsKey = "waterConfirmedLabelsV1";
+  const correctionsKey = "waterModelCorrectionsV1";
+  const lastConnectedKey = "waterLastConnectedV1";
   let savedPairing = "";
   try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) { /* Pairing still works in this tab. */ }
   // Fixed demo conversion from the measured 160 mL timing range.
   const pulsesPerLitre = 4075;
   let demoEnabled = false;
+  let savedSurvey = null, reviewedDays = [], confirmedLabels = {}, corrections = [], lastConnected = null;
   try {
     const stored = Number(localStorage.getItem(calibrationKey));
     if (stored !== pulsesPerLitre) {
@@ -31,6 +39,12 @@
     }
     localStorage.setItem(calibrationKey, String(pulsesPerLitre));
     demoEnabled = localStorage.getItem(demoKey) === "true";
+    savedSurvey = JSON.parse(localStorage.getItem(surveyKey) || "null");
+    reviewedDays = JSON.parse(localStorage.getItem(reviewKey) || "[]");
+    confirmedLabels = JSON.parse(localStorage.getItem(labelsKey) || "{}");
+    corrections = JSON.parse(localStorage.getItem(correctionsKey) || "[]");
+    const savedConnection = JSON.parse(localStorage.getItem(lastConnectedKey) || "null");
+    if (savedConnection?.qrId === savedPairing) lastConnected = savedConnection.at;
   } catch (_error) { /* The fixed conversion remains available. */ }
   const state = {
     screen: "home",
@@ -42,7 +56,7 @@
     homeName: "My home",
     goal: 350,
     saved: false,
-    device: { connected: false, lastConnectedAt: null },
+    device: { connected: false, lastConnectedAt: lastConnected },
     pairedDeviceId: /^[0-9a-f]{12}$/.test(savedPairing) ? savedPairing : "",
     pairStatus: "",
     qrScanning: false,
@@ -56,6 +70,12 @@
     readings: demoEnabled ? window.UTLTData.demoReadings : [],
     usingDemo: true,
     demoEnabled,
+    survey: savedSurvey,
+    reviewedDays,
+    confirmedLabels,
+    corrections,
+    historyStatus: "",
+    unknownPulses: 0,
     syncStatus: "starting",
     syncError: "",
     uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
@@ -504,13 +524,14 @@
   }
 
   function header() {
-    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
+    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "survey" ? "Your Household" : state.screen === "review" ? "Review Water Use" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
+    const last = state.screen === "home" && !state.device.connected && state.device.lastConnectedAt ? `<span class="utlt-header-last">Last connected ${escapeHtml(new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(state.device.lastConnectedAt)))}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
     if (state.screen === "friends") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
-    if (state.screen === "account" || state.screen === "device") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
-    return `<header class="utlt-header"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${actions}</header>`;
+    if (["account", "device", "survey", "review"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
+    return `<header class="utlt-header"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${last}${actions}</header>`;
   }
 
   function utilityTabs() {
@@ -613,13 +634,39 @@
     const bars = summary.daily.map((item, index) => {
       const [year, month, day] = item.date.split("-").map(Number);
       const label = new Intl.DateTimeFormat("en-GB", { day: "numeric", month: "short" }).format(new Date(year, month - 1, day));
-      const x = 14 + index * 46;
+      const x = 10 + index * 41;
       const height = Math.max(2, item.litres / scale * 112);
       const y = baseline - height;
       const latest = index === summary.daily.length - 1 ? " is-latest" : "";
-      return `<g><rect class="utlt-trend-bar${latest}${item.litres > goal ? " is-over" : ""}" x="${x}" y="${y}" width="31" height="${height}" rx="5"/><text class="utlt-trend-value${latest}" x="${x + 15.5}" y="${Math.max(14, y - 7)}" text-anchor="middle">${number(item.litres)}</text><text class="utlt-trend-date" x="${x + 15.5}" y="164" text-anchor="middle">${label}</text></g>`;
+      return `<g><rect class="utlt-trend-bar${latest}${item.litres > goal ? " is-over" : ""}" x="${x}" y="${y}" width="29" height="${height}" rx="5"/><text class="utlt-trend-value${latest}" x="${x + 14.5}" y="${Math.max(14, y - 7)}" text-anchor="middle">${number(item.litres)}</text><text class="utlt-trend-date" x="${x + 14.5}" y="164" text-anchor="middle">${label}</text></g>`;
     }).join("");
     return `<section class="utlt-week utlt-scroll-reveal"><h2>See Across Days</h2><div class="utlt-trend-card"><div class="utlt-trend-head"><span>LAST ${summary.daily.length} DAYS</span><strong>Goal ${goal} L</strong></div><svg class="utlt-trend-plot" viewBox="0 0 300 175" role="img" aria-label="Water usage over the last ${summary.daily.length} days, daily goal ${goal} litres"><line class="utlt-trend-goal" x1="8" x2="292" y1="${goalY}" y2="${goalY}"/><line class="utlt-trend-baseline" x1="8" x2="292" y1="${baseline}" y2="${baseline}"/>${bars}</svg><div class="utlt-trend-footer"><span>Daily average</span><strong>${number(average)} L</strong></div><div class="utlt-trend-footer"><span>Days within goal</span><strong>${withinGoal} of ${trackedDays.length} measured</strong></div></div></section>`;
+  }
+
+  function reviewSessions() {
+    if (!state.survey || !window.UTLTAI.reviewEligible(state.survey)) return [];
+    return window.UTLTAI.sessions(state.readings, state.survey, window.UTLTAI.indiaDate(new Date()), state.corrections);
+  }
+
+  function learningCards() {
+    if (state.usingDemo || !state.pairedDeviceId) return "";
+    if (!state.survey) return `<section class="utlt-learning-card"><p class="utlt-eyebrow">PERSONALIZE UTLT</p><h2>Tell us about your home</h2><p>A short survey helps suggest likely water uses. Your flow meter cannot identify activities by itself.</p><button class="utlt-primary-button" data-action="survey">Start household survey</button></section>`;
+    const insight = window.UTLTAI.numericInsight(state.readings, state.survey);
+    const review = !state.reviewedDays.includes(window.UTLTAI.indiaDate(new Date())) && reviewSessions().length;
+    return `${review ? `<section class="utlt-learning-card"><p class="utlt-eyebrow">END-OF-DAY CHECK</p><h2>Help identify ${review} uncertain water period${review === 1 ? "" : "s"}</h2><p>Confirm only today's unclear readings. This check appears during your first seven days and on the first three days of each month.</p><button class="utlt-primary-button" data-action="review">Review today's use</button></section>` : ""}${insight?.average !== undefined ? `<section class="utlt-learning-card"><p class="utlt-eyebrow">YOUR SEVEN-DAY PATTERN</p><h2>${insight.average} L per day on average</h2><p>About ${insight.perPerson} L per person. A gentle goal based on your own week is ${insight.suggestedGoal} L/day. These are estimates from your meter, not a diagnosis of specific activities.</p></section>` : `<section class="utlt-learning-card"><p class="utlt-eyebrow">LEARNING YOUR ROUTINE</p><h2>${insight?.trackedDays || 0} of 7 days measured</h2><p>After seven days, UTLT will show your own average and suggest a daily goal.</p></section>`}`;
+  }
+
+  function surveyPage() {
+    const survey = state.survey || {};
+    const options = (values, selected) => values.map(([value, label]) => `<option value="${value}" ${String(selected) === String(value) ? "selected" : ""}>${label}</option>`).join("");
+    return `<section class="utlt-survey-page"><p class="utlt-eyebrow">HOUSEHOLD SURVEY</p><h1>Help UTLT learn your routine</h1><p>These answers guide activity suggestions. Your meter still measures only total flow.</p><form id="utlt-survey-form" class="utlt-survey-form"><label>People at home<input name="people" type="number" min="1" max="12" required value="${survey.people ?? 3}"></label><label>Usual shower time<select name="usualShowerHour">${options(Array.from({ length: 24 }, (_, hour) => [hour, `${String(hour).padStart(2, "0")}:00`]), survey.usualShowerHour ?? 7)}</select></label><label>Bathing style<select name="showerStyle">${options([["bucket", "Bucket"], ["shower", "Shower"], ["mixed", "Both"]], survey.showerStyle || "mixed")}</select></label><label>Typical shower minutes<input name="typicalShowerMinutes" type="number" min="1" max="60" value="${survey.typicalShowerMinutes ?? 8}" required></label><label>Laundry days per week<input name="laundryDaysPerWeek" type="number" min="0" max="7" value="${survey.laundryDaysPerWeek ?? 2}" required></label><label>Meals cooked per day<input name="cookingMealsPerDay" type="number" min="0" max="3" value="${survey.cookingMealsPerDay ?? 2}" required></label><label>Usual bedtime<select name="usualBedtimeHour">${options(Array.from({ length: 24 }, (_, hour) => [hour, `${String(hour).padStart(2, "0")}:00`]), survey.usualBedtimeHour ?? 22)}</select></label><label class="utlt-check-row"><input name="dishwasher" type="checkbox" ${survey.dishwasher ? "checked" : ""}>We use a dishwasher</label><button class="utlt-primary-button" type="submit">Save household routine</button></form><p class="utlt-device-help">Your survey stays on this phone. The first seven-day observation begins when you save it.</p></section>`;
+  }
+
+  function reviewPage() {
+    const day = window.UTLTAI.indiaDate(new Date());
+    const eligible = window.UTLTAI.reviewEligible(state.survey);
+    const groups = eligible && !state.reviewedDays.includes(day) ? reviewSessions() : [];
+    return `<section class="utlt-survey-page"><p class="utlt-eyebrow">DAILY WATER REVIEW</p><h1>Today's uncertain periods</h1><p>${eligible ? "The meter measured water, and UTLT suggests a likely activity. Confirm only what you recognize." : "Reviews open after 9 PM during the first seven survey days and the first three days of each month."}</p>${groups.length ? `<form id="utlt-review-form" class="utlt-review-form">${groups.map((group, index) => `<label class="utlt-review-row"><strong>${escapeHtml(new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(group.recordedAt)))} · ${number(group.litres)} L</strong><small>Possible ${escapeHtml(group.suggestion.category)} · ${Math.round(group.suggestion.confidence * 100)}% model confidence</small><select name="label-${index}"><option value="">I'm not sure</option>${window.UTLTData.categories.map(item => `<option value="${escapeHtml(item.label)}">${escapeHtml(item.label)}</option>`).join("")}</select></label>`).join("")}<button class="utlt-primary-button" type="submit">Save today's review</button></form>` : `<div class="utlt-learning-card"><strong>${state.reviewedDays.includes(day) ? "Today's review is complete" : eligible ? "Nothing unclear today" : "Review opens at day end"}</strong></div>`}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
   }
 
   function communityBucket(litres) {
@@ -671,14 +718,14 @@
       return `<div class="utlt-dashboard">${greetingMarkup()}<section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">WATER MONITOR</p><h2>Your water data starts here</h2><p>Connect your UTLT device to see today's usage, the breakdown, and your daily trend.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><span>Want to explore first? Enable demo data in Device Settings.</span></section><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></div>`;
     }
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${usage(summary)}${status(summary)}${quickStats(summary)}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${usage(summary)}${status(summary)}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
   }
 
   function devicePage() {
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
       ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "";
-    return `<section class="utlt-device-settings"><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button>${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p></section>`;
+    return `<section class="utlt-device-settings"><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button><button class="utlt-secondary-button" data-action="survey">${state.survey ? "Edit household survey" : "Start household survey"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p></section>`;
   }
 
   function pairPage() {
@@ -843,6 +890,8 @@
       ? utilityTabs() + (state.utility === "Water" ? dashboard() : `<section class="utlt-unavailable-card"><div class="utlt-unavailable-icon">${icon(state.utility === "Gas" ? "flame" : "bolt", 30)}</div><h2>${state.utility} tracking is coming soon</h2><p>This preview currently tracks water only. When ${state.utility.toLowerCase()} monitoring arrives, you will see:</p><ul class="utlt-coming-list"><li>Your daily ${state.utility.toLowerCase()} usage and goal</li><li>A clear “too much” or “still fine” message</li><li>Records of your previous days</li></ul><button class="utlt-primary-button" data-action="utility" data-value="Water">View water dashboard</button></section>`)
       : state.screen === "device" ? devicePage()
       : state.screen === "account" ? accountPage()
+      : state.screen === "survey" ? surveyPage()
+      : state.screen === "review" ? reviewPage()
       : state.screen === "family" ? await familyPage()
       : pairPage();
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${enterMotion ? "utlt-enter" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>`;
@@ -873,8 +922,16 @@
   let qrTimer = null;
   let bleDevice = null;
   let bleCharacteristic = null;
+  let historyCharacteristic = null;
+  let controlCharacteristic = null;
   let bleConnecting = false;
   let reconnectTimer = null;
+  let historyLoading = false;
+  let historyTimer = null;
+  let historyRows = new Map();
+  let historySnapshot = null;
+  let latestBlePacket = null;
+  let lastConnectionPersisted = 0;
 
   function stopQrScanner() {
     if (qrTimer) clearTimeout(qrTimer);
@@ -895,7 +952,10 @@
       bleDevice.gatt.disconnect();
       bleDevice = null;
       bleCharacteristic = null;
+      historyCharacteristic = null;
+      controlCharacteristic = null;
       state.device.connected = false;
+      state.device.lastConnectedAt = null;
     }
     state.pairedDeviceId = scannedId;
     try { localStorage.setItem(pairingKey, state.pairedDeviceId); } catch (_error) { /* Session pairing still works. */ }
@@ -983,6 +1043,114 @@
     image.src = url;
   }
 
+  function rememberConnected() {
+    const now = Date.now();
+    state.device = { connected: true, lastConnectedAt: new Date(now).toISOString() };
+    if (now - lastConnectionPersisted >= 60000) {
+      lastConnectionPersisted = now;
+      try { localStorage.setItem(lastConnectedKey, JSON.stringify({ qrId: state.pairedDeviceId, at: state.device.lastConnectedAt })); } catch (_error) { /* The current connection still works. */ }
+    }
+  }
+
+  function indiaIso(epochSeconds) {
+    return new Date(epochSeconds * 1000 + 330 * 60000).toISOString().replace("Z", "+05:30");
+  }
+
+  function finishHistory(complete) {
+    clearTimeout(historyTimer);
+    historyTimer = null;
+    historyLoading = false;
+    const latest = latestBlePacket;
+    if (!latest) return;
+    let saved = {};
+    try { saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}"); } catch (_error) { /* Continue with device history. */ }
+    if (!complete) {
+      saved.session = latest.session;
+      saved.lastPulses = latest.total;
+      saved.lastObservedAt = Date.now();
+      try { localStorage.setItem("waterMeterReadingsV1", JSON.stringify(saved)); } catch (_error) { /* Keep live meter. */ }
+      state.historyStatus = "History transfer did not finish. Reconnect or tap Download history to retry.";
+      render(true);
+      return;
+    }
+    const cutoff = Date.now() - 7 * 86400000;
+    const recovered = [...historyRows.entries()]
+      .filter(([epoch, count]) => epoch * 1000 >= cutoff && count > 0 && count <= 6 * 5 * 4075)
+      .sort((a, b) => a[0] - b[0])
+      .map(([epoch, count]) => {
+        const category = state.confirmedLabels[String(epoch)];
+        return { recordedAt: indiaIso(epoch), litres: count / pulsesPerLitre,
+          category: category || "Misc", bucketEpoch: epoch, verifiedCategory: Boolean(category) };
+      });
+    const firstEpoch = recovered[0]?.bucketEpoch;
+    const earlier = firstEpoch && Array.isArray(saved.readings) ? saved.readings.filter(item =>
+      Date.parse(item.recordedAt) >= cutoff && Date.parse(item.recordedAt) < firstEpoch * 1000 && !item.bucketEpoch
+    ) : [];
+    const afterSnapshot = historySnapshot !== null && latest.total >= historySnapshot ? latest.total - historySnapshot : 0;
+    if (afterSnapshot) recovered.push({ recordedAt: indiaIso(Math.floor(Date.now() / 1000)), litres: afterSnapshot / pulsesPerLitre, category: "Misc" });
+    const readings = recovered.length ? [...earlier, ...recovered] : Array.isArray(saved.readings) ? saved.readings : [];
+    try { localStorage.setItem("waterMeterReadingsV1", JSON.stringify({ session: latest.session, lastPulses: Math.max(latest.total, historySnapshot || 0), lastObservedAt: Date.now(), readings })); } catch (_error) { /* Readings remain in this tab. */ }
+    state.readings = readings;
+    state.usingDemo = false;
+    state.demoEnabled = false;
+    try { localStorage.setItem(demoKey, "false"); } catch (_error) { /* Device readings still take precedence. */ }
+    state.historyStatus = `Recovered ${historyRows.size} five-minute water period${historyRows.size === 1 ? "" : "s"} from the ESP32.`;
+    rememberConnected();
+    if (!state.survey && state.screen === "pair") state.screen = "survey";
+    syncFamilyUsage();
+    syncCommunityInsight();
+    syncCompetitionStats();
+    render(true);
+  }
+
+  function onHistoryPacket(event) {
+    const value = event.target.value;
+    if (!value || !value.byteLength) return;
+    const type = String.fromCharCode(value.getUint8(0));
+    if (type === "U" && value.byteLength === 5) {
+      state.unknownPulses = value.getUint32(1, true);
+      render(true);
+      return;
+    }
+    if (!historyLoading) return;
+    clearTimeout(historyTimer);
+    historyTimer = setTimeout(() => finishHistory(false), 150000);
+    if (type === "S" && value.byteLength === 5) {
+      historySnapshot = value.getUint32(1, true);
+      historyRows = new Map();
+      state.historyStatus = "Downloading seven days of water history…";
+      render(true);
+    } else if (type === "R" && value.byteLength === 9) {
+      const epoch = value.getUint32(1, true);
+      const count = value.getUint32(5, true);
+      historyRows.set(epoch, (historyRows.get(epoch) || 0) + count);
+    } else if (type === "E" && value.byteLength === 5 && value.getUint32(1, true) === historySnapshot) {
+      finishHistory(true);
+    }
+  }
+
+  async function requestHistory() {
+    if (!controlCharacteristic || !historyCharacteristic || historyLoading) return;
+    historyLoading = true;
+    historyRows = new Map();
+    historySnapshot = null;
+    state.historyStatus = "Requesting seven days of water history…";
+    render(true);
+    historyTimer = setTimeout(() => finishHistory(false), 150000);
+    try {
+      const clock = new Uint8Array(5);
+      clock[0] = 84;
+      new DataView(clock.buffer).setUint32(1, Math.floor(Date.now() / 1000), true);
+      const write = data => controlCharacteristic.writeValueWithResponse ? controlCharacteristic.writeValueWithResponse(data) : controlCharacteristic.writeValue(data);
+      await write(clock);
+      await write(new Uint8Array([72]));
+    } catch (error) {
+      finishHistory(false);
+      state.historyStatus = `History request failed: ${error.message || error.name}`;
+      render(true);
+    }
+  }
+
   function onBlePacket(event) {
     const value = event.target.value;
     if (!value || value.byteLength !== 16) return;
@@ -995,7 +1163,14 @@
       return;
     }
     state.currentMeterSession = session;
-    applyStandaloneReading({ mode: "standalone", session, totalPulses: value.getUint32(12, true), pulsesPerLitre: state.pulsesPerLitre });
+    latestBlePacket = { session, total: value.getUint32(12, true) };
+    if (historyLoading) {
+      state.rawPulseCount = latestBlePacket.total;
+      rememberConnected();
+      return;
+    }
+    applyStandaloneReading({ mode: "standalone", session, totalPulses: latestBlePacket.total, pulsesPerLitre: state.pulsesPerLitre });
+    if (!state.survey && state.screen === "pair") state.screen = "survey";
     state.pairStatus = "Bluetooth connected. Live readings are updating.";
     if (!root.querySelector(".utlt-auth-screen")) render(true);
   }
@@ -1021,7 +1196,12 @@
       try { localStorage.setItem(grantedDeviceKey, JSON.stringify({ qrId: state.pairedDeviceId, bluetoothId: device.id })); } catch (_error) { /* Reconnection can still match by name. */ }
       device.ongattserverdisconnected = () => {
         if (bleDevice !== device) return;
+        try { localStorage.setItem(lastConnectedKey, JSON.stringify({ qrId: state.pairedDeviceId, at: state.device.lastConnectedAt })); } catch (_error) { /* The tag still shows in this tab. */ }
         bleCharacteristic = null;
+        historyCharacteristic = null;
+        controlCharacteristic = null;
+        historyLoading = false;
+        clearTimeout(historyTimer);
         state.device.connected = false;
         state.pairStatus = "Device disconnected. Reconnecting when it is nearby…";
         render(true);
@@ -1029,7 +1209,21 @@
       };
       await characteristic.startNotifications();
       characteristic.addEventListener("characteristicvaluechanged", onBlePacket);
+      let hasHistory = false;
+      try {
+        controlCharacteristic = await service.getCharacteristic(bleControlUuid);
+        historyCharacteristic = await service.getCharacteristic(bleHistoryUuid);
+        await historyCharacteristic.startNotifications();
+        historyCharacteristic.addEventListener("characteristicvaluechanged", onHistoryPacket);
+        hasHistory = true;
+      } catch (_error) {
+        controlCharacteristic = null;
+        historyCharacteristic = null;
+        state.historyStatus = "Live meter connected. Upload the new ESP32 firmware to enable seven-day history.";
+      }
+      if (hasHistory) historyLoading = true;
       onBlePacket({ target: { value: await characteristic.readValue() } });
+      if (hasHistory) { historyLoading = false; await requestHistory(); }
     } catch (error) {
       if (device.gatt?.connected) device.gatt.disconnect();
       state.pairStatus = `Bluetooth connection failed: ${error.message || error.name}`;
@@ -1080,6 +1274,7 @@
     if (action === "scan-qr") { startQrScanner(); return; }
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
     if (action === "connect-ble") { connectBluetooth(); return; }
+    if (action === "download-history") { requestHistory(); return; }
     if (action === "toggle-demo") {
       if (state.device.connected) return;
       state.demoEnabled = !state.demoEnabled;
@@ -1145,7 +1340,7 @@
       state.familyBusy=true; firebaseStore.getFamilyInvite(state.pendingFamilyInvite).then(async inv=>{if(!inv)throw new Error("This invite expired. Ask for a new QR code.");if(inv.ownerUid===state.uid)throw new Error("You cannot join your own family.");await firebaseStore.requestFamilyJoin(state.pendingFamilyInvite,inv);state.pendingFamilyInvite="";history.replaceState({},"",location.pathname);state.familyMessage="Request sent. The owner must approve you.";}).catch(e=>{state.familyMessage=e.message||"Could not send request.";}).finally(()=>{state.familyBusy=false;render(true);}); return;
     } else if (action === "family-approve" || action === "family-decline") {
       const req=state.familyRequests.find(x=>x.id===button.dataset.requestId);if(!req)return;firebaseStore.decideFamilyRequest(req,action==="family-approve").then(async()=>{state.familyMessage=action==="family-approve"?"Member approved.":"Request declined.";await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not update request.";}).finally(()=>render(true));return;
-    } else if (["home", "pair", "account", "device", "family"].includes(action)) {
+    } else if (["home", "pair", "account", "device", "family", "survey", "review"].includes(action)) {
       if (action !== "pair" && state.qrScanning) stopQrScanner();
       if (["account", "family"].includes(action) && !firebaseStore) {
         state.pendingAuthScreen = action;
@@ -1184,6 +1379,56 @@
     }
   });
   root.addEventListener("submit", async (event) => {
+    if (event.target.id === "utlt-survey-form") {
+      event.preventDefault();
+      const form = new FormData(event.target);
+      state.survey = {
+        startedAt: state.survey?.startedAt || window.UTLTAI.indiaDate(new Date()),
+        people: Math.max(1, Math.min(12, Number(form.get("people")) || 1)),
+        usualShowerHour: Number(form.get("usualShowerHour")) || 0,
+        showerStyle: String(form.get("showerStyle") || "mixed"),
+        typicalShowerMinutes: Math.max(1, Math.min(60, Number(form.get("typicalShowerMinutes")) || 8)),
+        laundryDaysPerWeek: Math.max(0, Math.min(7, Number(form.get("laundryDaysPerWeek")) || 0)),
+        cookingMealsPerDay: Math.max(0, Math.min(3, Number(form.get("cookingMealsPerDay")) || 0)),
+        usualBedtimeHour: Number(form.get("usualBedtimeHour")) || 0,
+        dishwasher: form.has("dishwasher")
+      };
+      try { localStorage.setItem(surveyKey, JSON.stringify(state.survey)); } catch (_error) { /* This tab still uses the survey. */ }
+      state.screen = "home";
+      render();
+      return;
+    }
+    if (event.target.id === "utlt-review-form") {
+      event.preventDefault();
+      const day = window.UTLTAI.indiaDate(new Date());
+      if (!window.UTLTAI.reviewEligible(state.survey) || state.reviewedDays.includes(day)) return;
+      const groups = reviewSessions();
+      const form = new FormData(event.target);
+      const allowed = new Set(window.UTLTData.categories.map(item => item.label));
+      groups.forEach((group, index) => {
+        const label = String(form.get(`label-${index}`) || "");
+        if (!allowed.has(label)) return;
+        group.keys.forEach(key => { state.confirmedLabels[key] = label; });
+        state.corrections.push({ features: window.UTLTAI.features(group, state.survey), category: label });
+      });
+      state.corrections = state.corrections.slice(-40);
+      state.readings = state.readings.map(item => {
+        const category = state.confirmedLabels[String(item.bucketEpoch || item.recordedAt)];
+        return category ? { ...item, category, verifiedCategory: true } : item;
+      });
+      state.reviewedDays.push(day);
+      try {
+        localStorage.setItem(reviewKey, JSON.stringify(state.reviewedDays));
+        localStorage.setItem(labelsKey, JSON.stringify(state.confirmedLabels));
+        localStorage.setItem(correctionsKey, JSON.stringify(state.corrections));
+        const saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}");
+        saved.readings = state.readings;
+        localStorage.setItem("waterMeterReadingsV1", JSON.stringify(saved));
+      } catch (_error) { /* Confirmations remain for this session. */ }
+      state.screen = "home";
+      render();
+      return;
+    }
     if (event.target.id === "utlt-friend-add-form") {
       event.preventDefault();
       if (!firebaseStore) { state.friendMessage = "Firebase is not connected yet. Check Firebase setup first."; render(true); return; }
@@ -1255,7 +1500,7 @@
     state.rawPulseCount = total;
     state.pulseRateHz = elapsedMs >= 500 ? rawDelta * 1000 / elapsedMs : null;
     state.flowWarning = impossibleFlow ? `Sensor signal is too fast (${rateLpm.toFixed(1)} L/min). This sensor is rated to 5 L/min, so these pulses were not added. Check wiring and try separate pump power.` : "";
-    const readings = Array.isArray(saved.readings) ? saved.readings.filter(item => item && typeof item.recordedAt === "string" && Date.parse(item.recordedAt) >= Date.now() - 6 * 86400000) : [];
+    const readings = Array.isArray(saved.readings) ? saved.readings.filter(item => item && typeof item.recordedAt === "string" && Date.parse(item.recordedAt) >= Date.now() - 7 * 86400000) : [];
     const delta = impossibleFlow ? 0 : rawDelta;
     if (delta > 0) {
       const indiaTime = new Date(Date.now() + 330 * 60000).toISOString().replace("Z", "+05:30");
@@ -1270,7 +1515,7 @@
       try { localStorage.setItem(demoKey, "false"); } catch (_error) { /* Live readings still take precedence. */ }
     }
     state.bridgeAvailable = true;
-    state.device = { connected: true, lastConnectedAt: new Date().toISOString() };
+    rememberConnected();
     if (delta > 0) { syncFamilyUsage(); syncCommunityInsight(); syncCompetitionStats(); }
     return changed;
   }
@@ -1316,6 +1561,7 @@
     }
   }
   initializePersistence();
+  window.UTLTAI.ready.then(() => { if (["home", "review"].includes(state.screen)) render(true); });
   if ("serviceWorker" in navigator && location.protocol === "https:") {
     navigator.serviceWorker.register("./sw.js").catch(() => { /* The dashboard still works in the browser. */ });
   }

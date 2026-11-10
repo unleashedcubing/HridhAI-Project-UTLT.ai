@@ -115,6 +115,7 @@ img { max-width: 100%; }
   border-radius: 50%; background: transparent; color: var(--utlt-muted);
 }
 .utlt-connection-icon.is-connected { background: transparent; color: #1688f8; }
+.utlt-header-last { max-width: 116px; margin-left: auto; overflow: hidden; color: var(--utlt-muted); font-size: 10px; line-height: 1.15; text-align: right; text-overflow: ellipsis; }
 .utlt-header-actions { display: flex; align-items: center; gap: 4px; }
 .utlt-icon-button {
   display: grid; width: 42px; height: 42px; place-items: center;
@@ -278,6 +279,23 @@ img { max-width: 100%; }
 .utlt-last-connected { display: inline-block; margin-top: 8px; padding: 5px 10px; border: 1px solid var(--utlt-border); border-radius: 999px; background: var(--utlt-panel); color: var(--utlt-muted); font-size: 11px; font-weight: 550; }
 .utlt-device-card p, .utlt-device-help { margin-top: 8px; color: var(--utlt-muted); font-size: 13.5px; line-height: 1.5; }
 .utlt-device-settings .utlt-primary-button { width: 100%; margin-top: 18px; }
+.utlt-secondary-button { display: block; width: 100%; min-height: 46px; margin-top: 10px; border: 1px solid var(--utlt-border); border-radius: 14px; background: var(--utlt-card); color: var(--utlt-accent); font-size: 13px; font-weight: 700; cursor: pointer; }
+.utlt-learning-card { margin: 18px 0; padding: 18px; border: 1px solid var(--utlt-border); border-radius: 20px; background: var(--utlt-panel); }
+.utlt-learning-card h2 { font-size: 19px; line-height: 1.25; letter-spacing: -.35px; }
+.utlt-learning-card p:not(.utlt-eyebrow) { margin-top: 8px; color: var(--utlt-muted); font-size: 13px; line-height: 1.5; }
+.utlt-learning-card .utlt-primary-button { width: 100%; margin-top: 16px; }
+.utlt-survey-page { padding: 24px 20px 36px; }
+.utlt-survey-page h1 { font-size: 28px; line-height: 1.15; letter-spacing: -.7px; }
+.utlt-survey-page > p:not(.utlt-eyebrow):not(.utlt-ai-note) { margin: 10px 0 20px; color: var(--utlt-muted); font-size: 14px; line-height: 1.5; }
+.utlt-survey-form, .utlt-review-form { display: grid; gap: 15px; }
+.utlt-survey-form > label, .utlt-review-row { display: grid; gap: 6px; font-size: 13px; font-weight: 700; }
+.utlt-survey-form input:not([type="checkbox"]), .utlt-survey-form select, .utlt-review-row select { width: 100%; min-height: 46px; padding: 0 12px; border: 1px solid var(--utlt-border); border-radius: 12px; background: var(--utlt-card); color: var(--utlt-text); font-size: 15px; }
+.utlt-survey-form .utlt-check-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; }
+.utlt-check-row input { width: 18px; height: 18px; accent-color: var(--utlt-blue); }
+.utlt-survey-form .utlt-primary-button, .utlt-review-form .utlt-primary-button { width: 100%; }
+.utlt-review-row { padding: 16px; border: 1px solid var(--utlt-border); border-radius: 16px; background: var(--utlt-panel); }
+.utlt-review-row strong { font-size: 15px; }
+.utlt-review-row small { color: var(--utlt-muted); font-size: 12px; font-weight: 500; }
 .utlt-device-help { margin-top: 18px; }
 .utlt-demo-setting { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: 18px; padding: 18px; border: 1px solid var(--utlt-border); border-radius: 20px; background: var(--utlt-card); }
 .utlt-demo-setting strong { display: block; font-size: 15px; }

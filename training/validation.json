@@ -1,0 +1,15 @@
+{
+  "trainHouseholds": 160,
+  "testHouseholds": 40,
+  "trainSessions": 21221,
+  "testSessions": 5810,
+  "holdoutAccuracy": 0.9649,
+  "holdoutMacroF1": 0.9416,
+  "classes": [
+    "Bath",
+    "Food/Drink",
+    "Housework",
+    "Misc"
+  ],
+  "limitation": "Synthetic holdout only; real-world accuracy is unknown. Never treat an activity suggestion as verified."
+}

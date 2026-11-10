@@ -27,6 +27,7 @@
   };
 
   const amounts = [
+    [50, 132, 72, 28],
     [55, 140, 75, 30],
     [48, 120, 65, 27],
     [62, 150, 82, 36],
@@ -69,8 +70,8 @@
       !Number.isNaN(Date.parse(reading.recordedAt)) &&
       Number.isFinite(reading.litres) && reading.litres >= 0
     );
-    const dates = Array.from({ length: 6 }, (_, index) =>
-      new Date(Date.UTC(year, month - 1, date - (5 - index), 12)).toISOString().slice(0, 10)
+    const dates = Array.from({ length: 7 }, (_, index) =>
+      new Date(Date.UTC(year, month - 1, date - (6 - index), 12)).toISOString().slice(0, 10)
     );
     const currentDay = dates[dates.length - 1];
     const daily = dates.map((day) => {

@@ -12,7 +12,7 @@ The GitHub Pages app is the phone interface. The ESP32 runs `esp32/main.py` and 
 
 Chrome camera and Bluetooth permissions must be allowed. The scanned device ID is remembered on that phone. A new device requires one tap after scanning to open Chrome's Bluetooth chooser; scanning the QR alone cannot summon an Android OS pairing prompt from a website. Previously granted devices reconnect automatically when the app is visible and Chrome still has permission. Keep the page open for live readings. The dashboard starts empty until a device connects. For a sample dashboard, use **Devices → Explore with demo data** while disconnected; live data turns demo mode off automatically. Google account, Friends, and Family features require internet; the meter and water charts do not need them after the page loads. The QR contains the ESP32's public ID, **not** a Wi-Fi password. It identifies the device in the browser but does not provide secure ownership authentication; that is future product work.
 
-The mini flow sensor is specified for 0.5–5 L/min. The app ignores intervals above 6 L/min and shows a sensor warning instead of adding impossible litres. If readings rose falsely during a demo, use **Devices → Clear this phone's demo readings**, then reconnect. If the warning appears only while the pump is on, test the pump on a separate charger or power bank while keeping the ESP32 on its own 5 V USB supply. Check the sensor red/black/yellow wiring, converter HV/LV rails, and common ground; an app filter does not repair a noisy electrical signal.
+The mini flow sensor is specified for 0.5–5 L/min. The app ignores intervals above 6 L/min and shows a sensor warning instead of adding impossible litres. If readings rose falsely during a demo, use **Devices → Pair a device → Clear saved water readings**, then reconnect. If the warning appears only while the pump is on, test the pump on a separate charger or power bank while keeping the ESP32 on its own 5 V USB supply. Check the sensor red/black/yellow wiring, converter HV/LV rails, and common ground; an app filter does not repair a noisy electrical signal.
 
 The Devices screen also shows the raw pulse count and pulses per second. A display of hundreds of pulses/s would point to false pulses or a very different sensor calibration, not a decimal place in the app.
 
@@ -32,14 +32,15 @@ The browser-independent QR fallback uses [jsQR](https://github.com/cozmo/jsQR). 
 
 ## ESP32 setup
 
-The board is already flashed with MicroPython. `esp32/main.py` is the BLE firmware that should be stored as `main.py` on the ESP32. To upload an update, find your serial port with `mpremote connect list`, then run these as separate commands from this folder:
+The board already has MicroPython, but **the new seven-day-history firmware has not been uploaded because the ESP32 is currently disconnected**. Upload both files when the board is connected. Find the serial port with `mpremote connect list`, then run these as separate commands from this folder:
 
 ```sh
+mpremote connect /dev/cu.usbserial-0001 fs cp esp32/history_store.py :history_store.py
 mpremote connect /dev/cu.usbserial-0001 fs cp esp32/main.py :main.py
 mpremote connect /dev/cu.usbserial-0001 reset
 ```
 
-Replace the sample port if yours differs. The board prints its 12-digit hex device ID at boot. Generate a sticker for a different board with `python -m pip install 'qrcode[pil]'` and `python tools/generate_device_sticker.py DEVICE_ID`. Print the PNG and attach it to the enclosure.
+Replace the sample port if yours differs. Upload `history_store.py` before resetting; the new `main.py` imports it. The board prints its 12-digit hex device ID at boot. Generate a sticker for a different board with `python -m pip install 'qrcode[pil]'` and `python tools/generate_device_sticker.py DEVICE_ID`. Print the PNG and attach it to the enclosure.
 
 ## Flow sensor wiring
 
@@ -57,9 +58,13 @@ Confirm VIN/5V is 5 V when USB powered. Use a matching adapter for the sensor's 
 
 ## Meter protocol and data
 
-BLE service UUID: `930a7d60-8489-4b31-9cc6-64ee5e809100`.
-Read/notify characteristic UUID: `930a7d60-8489-4b31-9cc6-64ee5e809101`.
-Each 16-byte packet is eight session bytes, a little-endian uint32 sequence, and a little-endian uint32 **cumulative pulse count**. The browser stores dated water increments in local storage so missed notifications do not double-count on reconnect. Readings are local to that phone. A flow sensor cannot identify whether water was used for a bath, food, or cleaning, so readings initially appear under **Misc**.
+BLE service UUID: `930a7d60-8489-4b31-9cc6-64ee5e809100`. Live read/notify: `...9101`; control write: `...9102`; history notify: `...9103`.
+
+The 16-byte live packet is eight session bytes, a little-endian uint32 sequence, and a little-endian uint32 cumulative pulse count. On connection, the phone writes `T` plus four-byte Unix seconds, then `H` to request history. History notifications are `S` plus snapshot pulse count, `R` plus Unix bucket start and bucket pulses, `E` plus snapshot count, then `U` plus pulses that had no known time. All integers are little-endian. The app merges five-minute buckets by timestamp and replaces overlapping local live estimates, avoiding double counting.
+
+The ESP32 saves nonempty five-minute pulse buckets to flash, retains the last seven days, and transfers them over BLE when the phone reconnects. The board must **remain powered** after the phone first sets its clock. It has no battery-backed real-time clock: after a power loss, any pulses before the next phone time sync can be saved only as an undated total and cannot be put on the correct day. Up to five minutes of the active bucket can be lost if power fails before a flash write. An external RTC and backup power would be required to guarantee accurate dates across outages. This new firmware and seven-day transfer have been tested in software only; a physical ESP32 and Android phone test is still required.
+
+Readings and survey answers are local to the phone. A single flow sensor cannot identify bath, food, or cleaning: unconfirmed use appears under **Misc**. The free local model in `training/` suggests labels from amount, time, duration and survey answers. It was trained on 200 **synthetic** seven-day households, with separate labeled and unlabeled files; synthetic holdout results are in `training/validation.json`. Real-world accuracy is unknown. After the household survey, the app starts a seven-day observation. It asks about uncertain periods after **9 PM on the same day** during those first seven days, and again on the first three days of each month. It never asks about a previous day. Confirmed labels stay on that phone and adapt similar suggestions.
 
 ## Other modes and cloud features
 
