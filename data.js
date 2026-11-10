@@ -4,16 +4,16 @@
   "use strict";
 
   const categories = [
-    { label: "Food/Drink", color: "#0a6fb3", emoji: "🍽️" },
-    { label: "Bath", color: "#19b5e8", emoji: "🚿" },
-    { label: "Housework", color: "#7c5cfc", emoji: "🧺" },
-    { label: "Misc", color: "#12c2a5", emoji: "🔧" }
+    { label: "Food/Drink", color: "#0a6fb3" },
+    { label: "Bath", color: "#19b5e8" },
+    { label: "Housework", color: "#7c5cfc" },
+    { label: "Misc", color: "#12c2a5" }
   ];
   const times = [
-    { label: "Morning", color: "#f6b73c", emoji: "🌅" },
-    { label: "Afternoon", color: "#19b5e8", emoji: "☀️" },
-    { label: "Evening", color: "#7c5cfc", emoji: "🌆" },
-    { label: "Night", color: "#0a4f8f", emoji: "🌙" }
+    { label: "Morning", color: "#f6b73c" },
+    { label: "Afternoon", color: "#19b5e8" },
+    { label: "Evening", color: "#7c5cfc" },
+    { label: "Night", color: "#0a4f8f" }
   ];
 
   /* Water-saving tips shown on the dashboard, matched to the category used most today.
