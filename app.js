@@ -76,6 +76,7 @@
     corrections,
     historyStatus: "",
     unknownPulses: 0,
+    llmReady: false, llmBusy: false, llmStatus: "", llmQuestion: "", llmAnswer: "",
     syncStatus: "starting",
     syncError: "",
     uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
@@ -524,13 +525,13 @@
   }
 
   function header() {
-    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "survey" ? "Your Household" : state.screen === "review" ? "Review Water Use" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
+    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "survey" ? "Your Household" : state.screen === "review" ? "Review Water Use" : state.screen === "assistant" ? "UTLT AI" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
     const last = state.screen === "home" && !state.device.connected && state.device.lastConnectedAt ? `<span class="utlt-header-last">Last connected ${escapeHtml(new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(state.device.lastConnectedAt)))}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
     if (state.screen === "friends") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
-    if (["account", "device", "survey", "review"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
+    if (["account", "device", "survey", "review", "assistant"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     return `<header class="utlt-header"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${last}${actions}</header>`;
   }
 
@@ -656,6 +657,19 @@
     return `${review ? `<section class="utlt-learning-card"><p class="utlt-eyebrow">END-OF-DAY CHECK</p><h2>Help identify ${review} uncertain water period${review === 1 ? "" : "s"}</h2><p>Confirm only today's unclear readings. This check appears during your first seven days and on the first three days of each month.</p><button class="utlt-primary-button" data-action="review">Review today's use</button></section>` : ""}${insight?.average !== undefined ? `<section class="utlt-learning-card"><p class="utlt-eyebrow">YOUR SEVEN-DAY PATTERN</p><h2>${insight.average} L per day on average</h2><p>About ${insight.perPerson} L per person. A gentle goal based on your own week is ${insight.suggestedGoal} L/day. These are estimates from your meter, not a diagnosis of specific activities.</p></section>` : `<section class="utlt-learning-card"><p class="utlt-eyebrow">LEARNING YOUR ROUTINE</p><h2>${insight?.trackedDays || 0} of 7 days measured</h2><p>After seven days, UTLT will show your own average and suggest a daily goal.</p></section>`}`;
   }
 
+  function assistantPage() {
+    const available = window.UTLTLocalLLM.supported();
+    return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">ON-PHONE AI</p><h1>Ask about your water</h1><p>The 0.5B-parameter Qwen model explains your meter data on this phone. The numerical activity model was trained on 200 simulated households; its labels are suggestions.</p><div class="utlt-learning-card"><strong>${state.llmReady ? "AI ready on this phone" : available ? "One-time model download" : "On-phone model unavailable here"}</strong><p>${state.llmReady ? "Your questions and meter facts stay in this browser during generation." : available ? "Tap below to download about 483 MB of model weights. Use Wi-Fi and keep this page open. Model storage depends on your browser." : "This browser does not expose WebGPU. The dashboard and numerical activity suggestions still work."}</p>${available && !state.llmReady ? `<button class="utlt-primary-button" data-action="load-local-llm" ${state.llmBusy ? "disabled" : ""}>${state.llmBusy ? "Loading model…" : "Download on-phone AI"}</button>` : ""}</div>${state.llmStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.llmStatus)}</p>` : ""}${state.llmReady ? `<form id="utlt-assistant-form" class="utlt-assistant-form"><label for="utlt-assistant-question">Your question</label><textarea id="utlt-assistant-question" name="question" rows="3" maxlength="300" placeholder="What changed in my water use this week?" required>${escapeHtml(state.llmQuestion)}</textarea><button class="utlt-primary-button" type="submit" ${state.llmBusy ? "disabled" : ""}>${state.llmBusy ? "Thinking on your phone…" : "Ask UTLT AI"}</button></form>` : ""}${state.llmAnswer ? `<div class="utlt-learning-card utlt-assistant-answer"><strong>UTLT AI says</strong><p>${escapeHtml(state.llmAnswer)}</p></div>` : ""}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
+  }
+
+  function assistantFacts() {
+    const summary = window.UTLTData.summarize(state.readings);
+    const days = summary.daily.map(item => `${item.date}: ${item.hasData ? item.litres.toFixed(2) + " L measured" : "no measurement recorded"}`).join("; ");
+    const insight = window.UTLTAI.numericInsight(state.readings, state.survey);
+    const uncertain = state.survey ? window.UTLTAI.sessions(state.readings, state.survey, window.UTLTAI.indiaDate(new Date()), state.corrections).slice(0, 4).map(item => `${item.recordedAt}: ${item.litres.toFixed(2)} L, possible ${item.suggestion.category} (${Math.round(item.suggestion.confidence * 100)}% model confidence, unverified)`).join("; ") : "survey not completed";
+    return [`Source: ${state.demoEnabled ? "SIMULATED DEMO READINGS, not a real device" : state.readings.length ? "ESP32 flow meter readings" : "no device readings yet"}.`, `Household: ${state.survey ? state.survey.people + " people; usual shower around " + state.survey.usualShowerHour + ":00; " + state.survey.showerStyle + " bathing" : "survey not completed"}.`, `Daily goal: ${state.goal} L. Today measured: ${summary.used.toFixed(2)} L.`, `Last seven dates: ${days}.`, `Seven-day measured-day average: ${insight?.average === undefined ? "not yet available" : insight.average + " L/day"}.`, `Today's categories: ${summary.byUse.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}. Unconfirmed activity is Misc.`, `Numerical model suggestions from 200 simulated households: ${uncertain || "none"}. These are not verified activities.`].join("\n");
+  }
+
   function surveyPage() {
     const survey = state.survey || {};
     const options = (values, selected) => values.map(([value, label]) => `<option value="${value}" ${String(selected) === String(value) ? "selected" : ""}>${label}</option>`).join("");
@@ -715,10 +729,10 @@
   }
   function dashboard() {
     if (!state.device.connected && !state.demoEnabled && state.readings.length === 0) {
-      return `<div class="utlt-dashboard">${greetingMarkup()}<section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">WATER MONITOR</p><h2>Your water data starts here</h2><p>Connect your UTLT device to see today's usage, the breakdown, and your daily trend.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><span>Want to explore first? Enable demo data in Device Settings.</span></section><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></div>`;
+      return `<div class="utlt-dashboard">${greetingMarkup()}<section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">WATER MONITOR</p><h2>Your water data starts here</h2><p>Connect your UTLT device to see today's usage, the breakdown, and your daily trend.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><button type="button" class="utlt-secondary-button" data-action="assistant">Ask on-phone AI</button><span>Want to explore first? Enable demo data in Device Settings.</span></section><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></div>`;
     }
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${usage(summary)}${status(summary)}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${usage(summary)}${status(summary)}${quickStats(summary)}${learningCards()}<section class="utlt-learning-card"><p class="utlt-eyebrow">ON-PHONE AI</p><h2>Ask UTLT about your water</h2><p>Get a short explanation grounded in your meter and survey.</p><button class="utlt-primary-button" data-action="assistant">Open AI assistant</button></section>${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
   }
 
   function devicePage() {
@@ -892,6 +906,7 @@
       : state.screen === "account" ? accountPage()
       : state.screen === "survey" ? surveyPage()
       : state.screen === "review" ? reviewPage()
+      : state.screen === "assistant" ? assistantPage()
       : state.screen === "family" ? await familyPage()
       : pairPage();
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${enterMotion ? "utlt-enter" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>`;
@@ -1275,6 +1290,15 @@
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
     if (action === "connect-ble") { connectBluetooth(); return; }
     if (action === "download-history") { requestHistory(); return; }
+    if (action === "load-local-llm") {
+      if (state.llmBusy) return;
+      state.llmBusy = true; state.llmStatus = "Downloading and starting the on-phone model…"; render(true);
+      window.UTLTLocalLLM.load(percent => { state.llmStatus = `Downloading model: ${percent}%`; if (state.screen === "assistant") render(true); })
+        .then(() => { state.llmReady = true; state.llmStatus = "Ready. Generation runs on this phone."; })
+        .catch(error => { state.llmStatus = `Could not start on-phone AI: ${error.message}`; })
+        .finally(() => { state.llmBusy = false; render(true); });
+      return;
+    }
     if (action === "toggle-demo") {
       if (state.device.connected) return;
       state.demoEnabled = !state.demoEnabled;
@@ -1340,7 +1364,7 @@
       state.familyBusy=true; firebaseStore.getFamilyInvite(state.pendingFamilyInvite).then(async inv=>{if(!inv)throw new Error("This invite expired. Ask for a new QR code.");if(inv.ownerUid===state.uid)throw new Error("You cannot join your own family.");await firebaseStore.requestFamilyJoin(state.pendingFamilyInvite,inv);state.pendingFamilyInvite="";history.replaceState({},"",location.pathname);state.familyMessage="Request sent. The owner must approve you.";}).catch(e=>{state.familyMessage=e.message||"Could not send request.";}).finally(()=>{state.familyBusy=false;render(true);}); return;
     } else if (action === "family-approve" || action === "family-decline") {
       const req=state.familyRequests.find(x=>x.id===button.dataset.requestId);if(!req)return;firebaseStore.decideFamilyRequest(req,action==="family-approve").then(async()=>{state.familyMessage=action==="family-approve"?"Member approved.":"Request declined.";await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not update request.";}).finally(()=>render(true));return;
-    } else if (["home", "pair", "account", "device", "family", "survey", "review"].includes(action)) {
+    } else if (["home", "pair", "account", "device", "family", "survey", "review", "assistant"].includes(action)) {
       if (action !== "pair" && state.qrScanning) stopQrScanner();
       if (["account", "family"].includes(action) && !firebaseStore) {
         state.pendingAuthScreen = action;
@@ -1379,6 +1403,18 @@
     }
   });
   root.addEventListener("submit", async (event) => {
+    if (event.target.id === "utlt-assistant-form") {
+      event.preventDefault();
+      if (!state.llmReady || state.llmBusy) return;
+      const question = String(new FormData(event.target).get("question") || "").trim().slice(0, 300);
+      if (!question) return;
+      state.llmQuestion = question; state.llmAnswer = ""; state.llmBusy = true; state.llmStatus = "Generating on your phone…"; render(true);
+      window.UTLTLocalLLM.ask(question, assistantFacts())
+        .then(result => { state.llmAnswer = result.answer; state.llmStatus = ""; })
+        .catch(error => { state.llmStatus = `Could not answer: ${error.message}`; })
+        .finally(() => { state.llmBusy = false; render(true); });
+      return;
+    }
     if (event.target.id === "utlt-survey-form") {
       event.preventDefault();
       const form = new FormData(event.target);

@@ -1,6 +1,6 @@
-const CACHE = "utlt-shell-v5";
+const CACHE = "utlt-shell-v6";
 const SHELL = [
-  "./", "./index.html", "./styles.css", "./data.js", "./ai.js", "./model.json", "./app.js",
+  "./", "./index.html", "./styles.css", "./data.js", "./ai.js", "./model.json", "./local_llm.js", "./llm-worker.js", "./app.js",
   "./vendor/jsQR.js", "./manifest.webmanifest", "./assets/utlt-icon.svg",
   "./assets/utlt-icon-192.png", "./assets/utlt-icon-512.png",
   "./assets/UTLT-2C2C-pairing-qr.png"

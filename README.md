@@ -66,6 +66,12 @@ The ESP32 saves nonempty five-minute pulse buckets to flash, retains the last se
 
 Readings and survey answers are local to the phone. A single flow sensor cannot identify bath, food, or cleaning: unconfirmed use appears under **Misc**. The free local model in `training/` suggests labels from amount, time, duration and survey answers. It was trained on 200 **synthetic** seven-day households, with separate labeled and unlabeled files; synthetic holdout results are in `training/validation.json`. Real-world accuracy is unknown. After the household survey, the app starts a seven-day observation. It asks about uncertain periods after **9 PM on the same day** during those first seven days, and again on the first three days of each month. It never asks about a previous day. Confirmed labels stay on that phone and adapt similar suggestions.
 
+### Optional on-phone language assistant
+
+**Home → Open AI assistant** offers an optional 0.5-billion-parameter Qwen2.5 Instruct model through Transformers.js. The user must tap **Download on-phone AI** before any large download. The selected q4f16 ONNX weights are about **483 MB**, plus the tokenizer and runtime; phone storage and memory needs are higher. A browser with WebGPU and enough free storage is required. The first download needs internet and may take time. Later loads use the browser's model cache when available, but browser storage can be evicted. Bluetooth water tracking and the numerical activity model still work if the LLM is unsupported or not downloaded.
+
+Generation runs in a phone worker. The app supplies exact recent meter totals, survey answers and *unverified* suggestions from the smaller classifier as context; it does not send questions or water data to a hosted inference API. The language model is **pretrained**, not fine-tuned on the 200 simulated homes. Two hundred synthetic households are insufficient to claim reliable LLM fine-tuning. The LLM explains data; JavaScript computes litres, averages and goals. The assistant is an experiment and still needs testing on the target Android and iPhone browsers. The ESP32 firmware does not change for this feature.
+
 ## Other modes and cloud features
 
 `esp32/wifi_main.py` preserves the earlier ESP32-hosted Wi-Fi dashboard. `esp32/bridge_main.py`, `server.py`, `ble_bridge.py`, and `start_bridge.py` preserve the older computer bridge for development. Neither is needed for Android BLE pairing.

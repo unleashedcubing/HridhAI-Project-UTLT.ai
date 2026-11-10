@@ -557,6 +557,15 @@ img { max-width: 100%; }
 }
 
 /* 20 · ACCESSIBILITY --------------------------------------------------------- */
+.utlt-assistant-page { display: grid; gap: 16px; padding: 20px 22px 34px; }
+.utlt-assistant-page h1 { font-size: 28px; line-height: 1.12; letter-spacing: -.7px; }
+.utlt-assistant-page > p:not(.utlt-eyebrow):not(.utlt-ai-note) { color: var(--utlt-muted); }
+.utlt-assistant-page .utlt-learning-card { margin: 0; }
+.utlt-assistant-page .utlt-learning-card p { margin: 8px 0 14px; }
+.utlt-assistant-form { display: grid; gap: 10px; }
+.utlt-assistant-form label { font-weight: 700; }
+.utlt-assistant-form textarea { width: 100%; padding: 14px; border: 1px solid var(--utlt-border); border-radius: 16px; background: var(--utlt-panel); color: var(--utlt-text); font: inherit; resize: vertical; }
+.utlt-assistant-answer p { white-space: pre-wrap; overflow-wrap: anywhere; }
 .utlt-app button:focus-visible, .utlt-app a:focus-visible, .utlt-app input:focus-visible { outline: 3px solid var(--utlt-blue); outline-offset: 3px; }
 .utlt-app button:disabled { opacity: .55; cursor: not-allowed; }
 @media (hover: hover) {
