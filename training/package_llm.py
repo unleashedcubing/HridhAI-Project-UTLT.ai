@@ -5,6 +5,7 @@ normally serve a single `onnx/model_q4f16.onnx`, so embed that sidecar here.
 """
 
 import argparse
+import json
 import shutil
 from pathlib import Path
 
@@ -30,6 +31,12 @@ def main():
         file = args.input / name
         if file.exists():
             shutil.copy2(file, args.output / name)
+    # Recent Transformers exports keep this in chat_template.jinja, while
+    # Transformers.js expects it inside tokenizer_config.json.
+    config_path = args.output / "tokenizer_config.json"
+    config = json.loads(config_path.read_text())
+    config["chat_template"] = (args.output / "chat_template.jinja").read_text()
+    config_path.write_text(json.dumps(config, ensure_ascii=False, indent=2) + "\n")
     print(f"Packaged {target} ({target.stat().st_size / 1_000_000:.1f} MB)")
 
 

@@ -13,7 +13,7 @@ mlx_lm.lora --model mlx-community/Qwen3-0.6B-4bit --train --data training/llm --
 mlx_lm.lora --model mlx-community/Qwen3-0.6B-4bit --data training/llm --adapter-path training/llm/checkpoint2 --test --test-batches 100 --batch-size 1 --max-seq-length 512 --mask-prompt
 ```
 
-The adapter alone is an MLX training artifact. The merged and quantized model was built locally and passed ONNX validation and a direct CPU inference check. The packaged model is at `models/utlt-qwen3-0.6b-onnx/` on this computer; its 564 MB ONNX weight file is deliberately Git-ignored because GitHub rejects files over 100 MB. It still needs to be uploaded to a model host and tested in Chrome/Bluefy before the live app can load it. The current site therefore still uses the original pretrained ONNX model.
+The adapter alone is an MLX training artifact. The merged and quantized model was built locally and passed ONNX validation, a direct CPU inference check, and a desktop browser WebGPU download and answer test. The packaged model is at `models/utlt-qwen3-0.6b-onnx/` on this computer; its 564 MB ONNX weight file is deliberately Git-ignored because GitHub rejects files over 100 MB. It has been uploaded to the public model repo `HrishiBuilds/UTLT-Qwen3-0.6B-ONNX`, and `llm-worker.js` now loads it. Android Chrome and iPhone Bluefy still need end-to-end tests.
 
 To rebuild the browser package in a **separate** Python environment with `torch`, `peft`, `optimum-onnx`, `onnxruntime==1.22.1`, and `onnx`:
 
@@ -25,4 +25,4 @@ python training/package_llm.py
 python training/check_onnx.py
 ```
 
-The FP16 ONNX export reported output differences at an extremely strict `1e-5` tolerance. The direct quantized inference check produced a water-use answer, but neither that check nor synthetic test loss is a phone performance test. Upload the package with its `onnx/` subfolder intact; Transformers.js expects `onnx/model_q4f16.onnx` under the model ID. Once hosted, update the model ID in `llm-worker.js`, then test the download and answer quality on the actual phone.
+The FP16 ONNX export reported output differences at an extremely strict `1e-5` tolerance. The direct quantized inference check produced a water-use answer, but neither that check nor synthetic test loss is a phone performance test. Upload the package with its `onnx/` subfolder intact; Transformers.js expects `onnx/model_q4f16.onnx` under the model ID. The model ID in `llm-worker.js` now points to this export. Test the download and answer quality on the actual phone.
