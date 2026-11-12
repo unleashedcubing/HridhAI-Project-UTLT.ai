@@ -63,17 +63,18 @@
     for (const item of items) {
       const epoch = Date.parse(item.recordedAt);
       const previous = groups.at(-1);
-      if (!previous || epoch - previous.lastEpoch > 10 * 60000) {
+      if (!previous || epoch - previous.lastEpoch > 5.5 * 60000) {
         groups.push({ recordedAt: item.recordedAt, lastEpoch: epoch, litres: item.litres,
-          durationMinutes: 5, keys: [String(item.bucketEpoch || item.recordedAt)] });
+          durationMinutes: 0, keys: [String(item.bucketEpoch || item.recordedAt)] });
       } else {
         previous.lastEpoch = epoch;
         previous.litres += item.litres;
-        previous.durationMinutes = Math.max(5, Math.round((epoch - Date.parse(previous.recordedAt)) / 60000) + 5);
+        previous.durationMinutes = (epoch - Date.parse(previous.recordedAt)) / 60000;
         previous.keys.push(String(item.bucketEpoch || item.recordedAt));
       }
     }
-    return groups.map(group => ({ ...group, suggestion: predict(group, survey, corrections) }))
+    return groups.filter(group => group.durationMinutes >= 16)
+      .map(group => ({ ...group, suggestion: predict(group, survey, corrections) }))
       .filter(group => group.suggestion.confidence < 0.82 || indiaHour(new Date(group.recordedAt)) < 5);
   }
 
@@ -102,9 +103,39 @@
       suggestedGoal: Math.max(25, Math.round(average * 0.9 / 5) * 5) };
   }
 
+  // Compare like with like: today's use so far against previous measured days
+  // at this same local time. A median prevents one unusually high day from
+  // dominating the reference. Missing days are never treated as zero usage.
+  function paceInsight(readings, now = new Date()) {
+    const today = indiaDate(now);
+    const clock = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+    }).format(now);
+    const days = new Map();
+    for (const item of readings) {
+      if (!item?.recordedAt || !Number.isFinite(item.litres) || item.litres < 0) continue;
+      const day = item.recordedAt.slice(0, 10);
+      if (day > today || day < indiaDate(new Date(now.getTime() - 7 * 86400000))) continue;
+      const entry = days.get(day) || { total: 0, soFar: 0, samples: 0 };
+      entry.total += item.litres;
+      if (item.recordedAt.slice(11, 16) <= clock) entry.soFar += item.litres;
+      entry.samples += 1;
+      days.set(day, entry);
+    }
+    const current = days.get(today);
+    const previous = [...days.entries()].filter(([day, entry]) => day < today && entry.samples).map(([, entry]) => entry.soFar).sort((a, b) => a - b);
+    if (!current || previous.length < 3) return { ready: false, measuredDays: previous.length, neededDays: 3 };
+    const middle = Math.floor(previous.length / 2);
+    const baseline = previous.length % 2 ? previous[middle] : (previous[middle - 1] + previous[middle]) / 2;
+    const difference = current.soFar - baseline;
+    const percent = baseline > 0 ? Math.round(Math.abs(difference) / baseline * 100) : null;
+    const tone = Math.abs(difference) < 5 || percent === null || percent < 15 ? "usual" : difference > 0 ? "higher" : "lower";
+    return { ready: true, today: current.soFar, baseline, difference, percent, tone, measuredDays: previous.length, clock };
+  }
+
   const ready = fetch("./model.json").then(response => {
     if (!response.ok) throw new Error("Activity model unavailable");
     return response.json();
   }).then(value => { model = value; return value; }).catch(() => null);
-  window.UTLTAI = Object.freeze({ ready, features, predict, sessions, reviewEligible, numericInsight, indiaDate });
+  window.UTLTAI = Object.freeze({ ready, features, predict, sessions, reviewEligible, numericInsight, paceInsight, indiaDate });
 })();

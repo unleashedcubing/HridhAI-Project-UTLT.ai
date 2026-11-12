@@ -46,6 +46,9 @@
     timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit"
   }).format(new Date());
   const [year, month, date] = today.split("-").map(Number);
+  const nowClock = new Intl.DateTimeFormat("en-GB", {
+    timeZone: "Asia/Kolkata", hour: "2-digit", minute: "2-digit", hourCycle: "h23"
+  }).format(new Date());
   const demoReadings = amounts.flatMap((dayAmounts, dayIndex) => {
     const day = new Date(Date.UTC(year, month - 1, date - (amounts.length - 1 - dayIndex), 12))
       .toISOString().slice(0, 10);
@@ -53,7 +56,7 @@
       recordedAt: `${day}T${String(hour).padStart(2, "0")}:${String(categoryIndex * 5).padStart(2, "0")}:00+05:30`,
       litres: amount * splits[categoryIndex][hourIndex],
       category: categories[categoryIndex].label
-    })));
+    }))).filter(reading => day !== today || reading.recordedAt.slice(11, 16) <= nowClock);
   });
 
   function timeIndex(timestamp) {
