@@ -544,12 +544,14 @@
 
   function usage(summary) {
     const goal = Math.max(1, Number(state.goal) || 350);
+    const hasToday = summary.daily.at(-1)?.hasData;
     const percent = Math.round(summary.used / goal * 100);
     const dash = Math.min(summary.used / goal, 1) * circumference;
-    return `<section class="utlt-usage"><div class="utlt-donut${summary.used > goal ? " is-over" : summary.used / goal >= 0.8 ? " is-warn" : ""}"><svg viewBox="0 0 193 193" role="img" aria-label="${percent} percent of daily water goal used"><defs><linearGradient id="utlt-water-gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="var(--utlt-ring-start)"/><stop offset="100%" stop-color="var(--utlt-ring-end)"/></linearGradient></defs><circle class="utlt-donut-track" cx="96.5" cy="96.5" r="84"/><circle class="utlt-donut-value" cx="96.5" cy="96.5" r="84" style="stroke-dasharray:${dash} ${circumference}"/></svg><div class="utlt-donut-label"><strong>${percent}%</strong><span>Used</span></div></div><div class="utlt-usage-summary"><strong>${number(summary.used)}</strong><span>/ ${goal} Litres</span></div></section>`;
+    return `<section class="utlt-usage"><div class="utlt-donut${summary.used > goal ? " is-over" : summary.used / goal >= 0.8 ? " is-warn" : ""}"><svg viewBox="0 0 193 193" role="img" aria-label="${hasToday ? percent + " percent of daily water goal used" : "No water reading today"}"><defs><linearGradient id="utlt-water-gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="var(--utlt-ring-start)"/><stop offset="100%" stop-color="var(--utlt-ring-end)"/></linearGradient></defs><circle class="utlt-donut-track" cx="96.5" cy="96.5" r="84"/><circle class="utlt-donut-value" cx="96.5" cy="96.5" r="84" style="stroke-dasharray:${dash} ${circumference}"/></svg><div class="utlt-donut-label"><strong>${hasToday ? percent + "%" : "—"}</strong><span>${hasToday ? "Used" : "No reading"}</span></div></div><div class="utlt-usage-summary"><strong>${hasToday ? number(summary.used) : "—"}</strong><span>/ ${goal} Litres</span></div></section>`;
   }
 
   function status(summary) {
+    if (!summary.daily.at(-1)?.hasData) return `<section class="utlt-status-card" aria-live="polite"><span class="utlt-status-check">${icon("droplet", 22)}</span><div><strong>Waiting for today’s first reading</strong><p>Your water goal is ready. UTLT will show today’s use when the meter detects flow.</p></div></section>`;
     const goal = Math.max(1, Number(state.goal) || 350);
     const used = summary.used;
     const left = Math.max(0, goal - used);
@@ -557,10 +559,10 @@
     let text = `You still have ${number(left)} L available today. Keep up your usual routine.`;
     if (used > goal) {
       tone = "over-goal"; iconName = "alert"; title = "Above today’s goal";
-      text = `You’ve used ${number(used - goal)} L more than your daily goal. Try to avoid extra water use for the rest of the day.`;
+      text = `${number(used - goal)} L above the goal you chose. Check what changed today; your water supply is never limited by UTLT.`;
     } else if (used / goal >= 0.8) {
-      tone = "warning"; iconName = "alert"; title = "Almost at today’s limit";
-      text = `Only ${number(left)} L left today. Please use water carefully for the rest of the day.`;
+      tone = "warning"; iconName = "alert"; title = "Close to your daily goal";
+      text = `${number(left)} L remain against the goal you chose. UTLT will keep measuring as usual.`;
     }
     return `<section class="utlt-status-card is-${tone}" aria-live="polite"><span class="utlt-status-check">${icon(iconName, 22)}</span><div><strong>${title}</strong><p>${text}</p></div></section>`;
   }
@@ -581,13 +583,14 @@
     const trackedDays = summary.daily.slice(0, -1).filter(day => day.hasData);
     const within = trackedDays.filter(day => day.litres <= goal).length;
     const withinClass = trackedDays.length && within >= trackedDays.length / 2 ? " is-good" : "";
-    return `<section class="utlt-quickstats" aria-label="Today at a glance"><div class="utlt-stat${summary.used > goal ? " is-bad" : ""}"><span class="utlt-stat-label">Left today</span><strong>${number(left)} L</strong></div><div class="utlt-stat"><span class="utlt-stat-label">vs usual by now</span>${comparison}</div><div class="utlt-stat${withinClass}"><span class="utlt-stat-label">Prior days on goal</span><strong>${within}/${trackedDays.length}</strong></div></section>`;
+    return `<section class="utlt-quickstats" aria-label="Today at a glance"><div class="utlt-stat${summary.used > goal ? " is-bad" : ""}"><span class="utlt-stat-label">Left today</span><strong>${summary.daily.at(-1)?.hasData ? number(left) + " L" : "—"}</strong></div><div class="utlt-stat"><span class="utlt-stat-label">vs usual by now</span>${comparison}</div><div class="utlt-stat${withinClass}"><span class="utlt-stat-label">Prior days on goal</span><strong>${within}/${trackedDays.length}</strong></div></section>`;
   }
 
   function tipCard(summary) {
     const total = summary.byUse.reduce((sum, item) => sum + item.litres, 0);
     if (!total) return "";
     const top = summary.byUse.reduce((best, item) => item.litres > best.litres ? item : best, summary.byUse[0]);
+    if (top.label === "Misc" && !state.demoEnabled) return `<section class="utlt-tip-card"><span class="utlt-tip-icon" aria-hidden="true">${icon("droplet", 20)}</span><div><strong>The activity is still unknown</strong><p>Your meter knows how much water passed through, but not which tap used it. If flow seems unexpected, check taps and the pump.</p></div></section>`;
     const tips = window.UTLTData.tips || {};
     const tip = tips[top.label] || tips.default;
     if (!tip) return "";
@@ -655,7 +658,7 @@
   function patternCard() {
     const insight = window.UTLTAI.paceInsight(state.readings);
     const source = state.demoEnabled ? "Sample readings" : "Your meter";
-    if (!insight.ready) return `<section class="utlt-pattern-card"><div class="utlt-pattern-top"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><span class="utlt-pattern-source">${source}</span></div><h2>Finding your rhythm</h2><p>Compare today with the same time on three earlier measured days. ${insight.measuredDays} of 3 days ready.</p><div class="utlt-pattern-foot"><span>Based only on measured water flow</span><button type="button" data-action="assistant">Ask UTLT ${icon("chevron", 16)}</button></div></section>`;
+    if (!insight.ready) return `<section class="utlt-pattern-card"><div class="utlt-pattern-top"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><span class="utlt-pattern-source">${source}</span></div><h2>Finding your rhythm</h2><p>${insight.reason === "today" ? "Waiting for today's first water reading before comparing with earlier days." : `Compare today with the same time on three earlier measured days. ${insight.measuredDays} of 3 days ready.`}</p><div class="utlt-pattern-foot"><span>Based only on measured water flow</span><button type="button" data-action="assistant">Ask UTLT ${icon("chevron", 16)}</button></div></section>`;
     const headline = insight.tone === "higher" ? "Using more than usual" : insight.tone === "lower" ? "Using less than usual" : "Close to your usual pace";
     const message = insight.tone === "usual" ? "Your water use is near your recent pattern at this time of day." : `${number(Math.abs(insight.difference))} L ${insight.tone === "higher" ? "above" : "below"} your recent same-time pattern. Check your routine before drawing conclusions.`;
     const max = Math.max(insight.today, insight.baseline, 1);
@@ -681,7 +684,7 @@
   function assistantPage() {
     const available = window.UTLTLocalLLM.supported();
     const insight = window.UTLTAI.paceInsight(state.readings);
-    const evidence = insight.ready ? `Today is ${insight.tone === "usual" ? "near" : insight.tone} your usual pace by ${insight.clock}.` : `${insight.measuredDays} of 3 earlier measured days available for a same-time comparison.`;
+    const evidence = insight.ready ? `Today is ${insight.tone === "usual" ? "near" : insight.tone} your usual pace by ${insight.clock}.` : insight.reason === "today" ? "Waiting for today's first water reading." : `${insight.measuredDays} of 3 earlier measured days available for a same-time comparison.`;
     const modes = `<div class="utlt-assistant-modes" role="tablist" aria-label="AI view"><button role="tab" aria-selected="${state.assistantMode === "recent"}" class="${state.assistantMode === "recent" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="recent">Recent use</button><button role="tab" aria-selected="${state.assistantMode === "ask"}" class="${state.assistantMode === "ask" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="ask">Ask UTLT.ai</button></div>`;
     if (state.assistantMode === "recent") return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><h1>Your water story</h1><p>A clear look at recent measured days, with gaps shown honestly.</p>${modes}${recentUseCard()}<div class="utlt-assistant-evidence"><span>TODAY BY THIS TIME</span><strong>${escapeHtml(evidence)}</strong><small>${state.demoEnabled ? "Sample readings · not a real household" : "Based on readings stored on this phone"}</small></div><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
     return `<section class="utlt-assistant-page">
@@ -704,7 +707,7 @@
     const summary = window.UTLTData.summarize(state.readings);
     const pace = window.UTLTAI.paceInsight(state.readings);
     if (/compar|usual|normal|pace|pattern/.test(q)) {
-      if (!pace.ready) return `A same-time comparison needs three earlier measured days. This phone has ${pace.measuredDays} so far; missing days are not counted as zero water use.`;
+      if (!pace.ready) return pace.reason === "today" ? "There is no water reading from today yet. A same-time comparison starts after the first reading." : `A same-time comparison needs three earlier measured days. This phone has ${pace.measuredDays} so far; missing days are not counted as zero water use.`;
       return `${source} ${number(pace.today)} L by ${pace.clock}, versus a ${number(pace.baseline)} L median at the same time on ${pace.measuredDays} earlier measured days. That is ${number(Math.abs(pace.difference))} L ${pace.difference >= 0 ? "above" : "below"} your recent pattern. This comparison cannot identify the activity or prove a leak.`;
     }
     if (/leak|running|flowing/.test(q)) return state.flowRunningMinutes >= 16 ? `The meter has detected about ${Math.floor(state.flowRunningMinutes)} minutes of continuous flow. Check taps and the pump; this alone cannot prove a leak.` : "There is no sustained-flow alert right now. The meter measures flow but cannot locate or prove a leak.";
@@ -718,7 +721,7 @@
       return days.length ? `${source} ${number(days.reduce((sum, day) => sum + day.litres, 0) / days.length)} L per measured day across ${days.length} day${days.length === 1 ? "" : "s"}. Days with no reading are excluded.` : "No measured-day average is available yet.";
     }
     if (/save|one action|what should i do/.test(q)) return "Turn off running water while soaping or scrubbing. Your flow meter cannot tell which activity used the water, so check what is happening at home first.";
-    if (/(how much|total|used|usage).*(today)|(today).*(how much|total|used|usage)/.test(q)) return `${source} ${number(summary.used)} L used today against your ${state.goal} L goal.`;
+    if (/(how much|total|used|usage).*(today)|(today).*(how much|total|used|usage)/.test(q)) return summary.daily.at(-1)?.hasData ? `${source} ${number(summary.used)} L used today against your ${state.goal} L goal.` : "There is no water reading from today yet.";
     return null;
   }
 
@@ -731,7 +734,7 @@
     const insight = window.UTLTAI.numericInsight(state.readings, state.survey);
     const pace = window.UTLTAI.paceInsight(state.readings);
     const uncertain = state.survey ? window.UTLTAI.sessions(state.readings, state.survey, window.UTLTAI.indiaDate(new Date()), state.corrections).slice(0, 4).map(item => `${item.recordedAt}: ${item.litres.toFixed(2)} L, possible ${item.suggestion.category} (${Math.round(item.suggestion.confidence * 100)}% model confidence, unverified)`).join("; ") : "survey not completed";
-    return [`Source: ${state.demoEnabled ? "SIMULATED DEMO READINGS, not a real device" : "ESP32 flow meter readings"}.`, `Household: ${state.survey ? state.survey.people + " people; usual shower around " + state.survey.usualShowerHour + ":00; " + state.survey.showerStyle + " bathing" : "survey not completed"}.`, `Daily goal: ${state.goal} L. Today measured: ${summary.used.toFixed(2)} L.`, `Same-time recent median: ${pace.ready ? pace.baseline.toFixed(2) + " L by " + pace.clock + " from " + pace.measuredDays + " prior measured days; today by then " + pace.today.toFixed(2) + " L; pace " + pace.tone : "not available; only " + pace.measuredDays + " of 3 prior measured days"}.`, `Continuous flow: ${state.device.connected && state.flowRunningMinutes >= 15 ? Math.floor(state.flowRunningMinutes) + " minutes detected; inspect taps, cause unknown" : "no sustained-flow alert"}.`, `Last seven dates: ${days}.`, `Seven-day measured-day average: ${insight?.average === undefined ? "not yet available" : insight.average + " L/day"}.`, `Per-person measured-day average: ${insight?.perPerson === undefined ? "not yet available" : insight.perPerson + " L/day"}.`, `Today's water by time: ${summary.byTime.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}.`, `Today's categories: ${summary.byUse.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}. Unconfirmed activity is Misc. A whole-home meter cannot identify the activity.`, `Numerical model suggestions from 200 simulated households: ${uncertain || "none"}. These are not verified activities.`, `Allowed water-saving action: ${allowedAction}`].join("\n");
+    return [`Source: ${state.demoEnabled ? "SIMULATED DEMO READINGS, not a real device" : "ESP32 flow meter readings"}.`, `Household: ${state.survey ? state.survey.people + " people; usual shower around " + state.survey.usualShowerHour + ":00; " + state.survey.showerStyle + " bathing" : "survey not completed"}.`, `Daily goal: ${state.goal} L. Today measured: ${summary.daily.at(-1)?.hasData ? summary.used.toFixed(2) + " L" : "no reading yet"}.`, `Same-time recent median: ${pace.ready ? pace.baseline.toFixed(2) + " L by " + pace.clock + " from " + pace.measuredDays + " prior measured days; today by then " + pace.today.toFixed(2) + " L; pace " + pace.tone : pace.reason === "today" ? "not available; no reading today yet" : "not available; only " + pace.measuredDays + " of 3 prior measured days"}.`, `Continuous flow: ${state.device.connected && state.flowRunningMinutes >= 16 ? Math.floor(state.flowRunningMinutes) + " minutes detected; inspect taps, cause unknown" : "no sustained-flow alert"}.`, `Last seven dates: ${days}.`, `Seven-day measured-day average: ${insight?.average === undefined ? "not yet available" : insight.average + " L/day"}.`, `Per-person measured-day average: ${insight?.perPerson === undefined ? "not yet available" : insight.perPerson + " L/day"}.`, `Today's water by time: ${summary.byTime.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}.`, `Today's categories: ${summary.byUse.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}. Unconfirmed activity is Misc. A whole-home meter cannot identify the activity.`, `Numerical model suggestions from 200 simulated households: ${uncertain || "none"}. These are not verified activities.`, `Allowed water-saving action: ${allowedAction}`].join("\n");
   }
 
   function surveyPage() {

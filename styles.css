@@ -177,8 +177,8 @@ img { max-width: 100%; }
 }
 .utlt-status-card strong { display: block; font-size: 16px; font-weight: 800; line-height: 1.25; letter-spacing: -.3px; }
 .utlt-status-card p { margin-top: 3px; font-size: 13px; line-height: 1.45; color: inherit; opacity: .9; }
-.utlt-status-card.is-warning { border-color: var(--utlt-warn); background: var(--utlt-warn-bg); color: var(--utlt-warn-ink); }
-.utlt-status-card.is-warning .utlt-status-check { background: var(--utlt-warn); }
+.utlt-status-card.is-warning { border-color: var(--utlt-border); background: var(--utlt-panel); color: var(--utlt-text); }
+.utlt-status-card.is-warning .utlt-status-check { background: var(--utlt-warn-bg); color: var(--utlt-warn-ink); }
 .utlt-status-card.is-over-goal, .utlt-status-card.is-possible-leak { border-color: var(--utlt-bad); background: var(--utlt-bad-bg); color: var(--utlt-bad-ink); }
 .utlt-status-card.is-over-goal .utlt-status-check, .utlt-status-card.is-possible-leak .utlt-status-check { background: var(--utlt-bad); }
 .utlt-running-card { display: flex; gap: 13px; margin: 16px 0; padding: 17px; border: 1.5px solid var(--utlt-warn); border-radius: 20px; background: var(--utlt-warn-bg); color: var(--utlt-warn-ink); }
@@ -225,6 +225,7 @@ img { max-width: 100%; }
   display: grid; width: 40px; height: 40px; flex: 0 0 40px; place-items: center; border-radius: 13px;
   background: var(--utlt-panel); font-size: 21px;
 }
+.utlt-tip-icon svg { color: var(--utlt-accent); }
 .utlt-tip-card strong, .utlt-community-optin strong { display: block; font-size: 14px; line-height: 1.35; }
 .utlt-tip-card p, .utlt-community-optin p { margin-top: 4px; color: var(--utlt-muted); font-size: 12.5px; line-height: 1.5; }
 .utlt-community-optin { align-items: center; }

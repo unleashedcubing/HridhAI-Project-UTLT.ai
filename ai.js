@@ -124,7 +124,7 @@
     }
     const current = days.get(today);
     const previous = [...days.entries()].filter(([day, entry]) => day < today && entry.samples).map(([, entry]) => entry.soFar).sort((a, b) => a - b);
-    if (!current || previous.length < 3) return { ready: false, measuredDays: previous.length, neededDays: 3 };
+    if (!current || previous.length < 3) return { ready: false, reason: current ? "history" : "today", measuredDays: previous.length, neededDays: 3 };
     const middle = Math.floor(previous.length / 2);
     const baseline = previous.length % 2 ? previous[middle] : (previous[middle - 1] + previous[middle]) / 2;
     const difference = current.soFar - baseline;
