@@ -133,9 +133,37 @@
     return { ready: true, today: current.soFar, baseline, difference, percent, tone, measuredDays: previous.length, clock };
   }
 
+  // A transparent pace estimate, not a prediction of a household's activities.
+  // Start the six-hour feedback window at the first positive flow of each day.
+  function dailyForecast(readings, goal, now = new Date()) {
+    const day = indiaDate(now);
+    const nowMs = now.getTime();
+    const eveningMs = Date.parse(`${day}T20:00:00+05:30`);
+    const today = readings.filter(item => item?.recordedAt?.startsWith(day) &&
+      Number.isFinite(item.litres) && item.litres > 0 &&
+      Number.isFinite(Date.parse(item.recordedAt)) && Date.parse(item.recordedAt) <= nowMs)
+      .sort((a, b) => Date.parse(a.recordedAt) - Date.parse(b.recordedAt));
+    if (!today.length) return { stage: "waiting" };
+    const firstMs = Date.parse(today[0].recordedAt);
+    const measured = today.reduce((sum, item) => sum + item.litres, 0);
+    const elapsedHours = Math.max(0, (nowMs - firstMs) / 3600000);
+    const feedbackAt = new Date(firstMs + 6 * 3600000);
+    const feedbackReady = elapsedHours >= 6;
+    const validGoal = Math.max(1, Number(goal) || 350);
+    if (nowMs >= eveningMs) return { stage: feedbackReady ? "feedback" : "tracking", measured,
+      feedbackAt, elapsedHours, goal: validGoal, eveningPassed: true,
+      byEvening: firstMs > eveningMs ? null : today.filter(item => Date.parse(item.recordedAt) <= eveningMs)
+        .reduce((sum, item) => sum + item.litres, 0) };
+    if (elapsedHours < 0.5) return { stage: "tracking", measured, feedbackAt, elapsedHours, goal: validGoal };
+    const projected = measured + measured / elapsedHours * ((eveningMs - nowMs) / 3600000);
+    return { stage: feedbackReady ? "feedback" : "tracking", measured, projected,
+      feedbackAt, elapsedHours, goal: validGoal, eveningPassed: false,
+      tone: projected > validGoal ? "over" : "within" };
+  }
+
   const ready = fetch("./model.json").then(response => {
     if (!response.ok) throw new Error("Activity model unavailable");
     return response.json();
   }).then(value => { model = value; return value; }).catch(() => null);
-  window.UTLTAI = Object.freeze({ ready, features, predict, sessions, reviewEligible, numericInsight, paceInsight, indiaDate });
+  window.UTLTAI = Object.freeze({ ready, features, predict, sessions, reviewEligible, numericInsight, paceInsight, dailyForecast, indiaDate });
 })();

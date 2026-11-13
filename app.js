@@ -78,7 +78,7 @@
     corrections,
     historyStatus: "",
     unknownPulses: 0,
-    llmReady: false, llmBusy: false, llmStatus: "", llmQuestion: "", llmAnswer: "", llmAnswerType: "checked", assistantMode: "recent",
+    llmReady: false, llmBusy: false, llmStatus: "", llmQuestion: "", llmAnswer: "", llmAnswerType: "checked", assistantMode: "today",
     syncStatus: "starting",
     syncError: "",
     uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
@@ -681,18 +681,36 @@
     return `<div class="utlt-recent-card"><p class="utlt-eyebrow">YOUR RECENT WATER</p><h2>${number(average)} L on a measured day</h2><p>Across ${days.length} completed days, ${within} stayed within your ${state.goal} L daily goal. ${trend}</p><div class="utlt-recent-stats"><div><strong>${days.length}</strong><span>days compared</span></div><div><strong>${within}/${days.length}</strong><span>within goal</span></div></div><small>${state.demoEnabled ? "Sample data · not measured in your home" : "Based on stored readings; disconnected hours may be missing"}</small></div>`;
   }
 
+  function dailyFeedbackCard() {
+    const forecast = window.UTLTAI.dailyForecast(state.readings, state.goal);
+    const source = state.demoEnabled ? "Sample data · not your household" : "Stored meter readings · disconnected hours may be missing";
+    if (forecast.stage === "waiting") return `<div class="utlt-daily-feedback"><p class="utlt-eyebrow">TODAY'S OUTLOOK</p><h2>Waiting for the first use</h2><p>UTLT starts tracking when the meter records water flow. Your daily feedback appears six hours after that first reading.</p><small>${source}</small></div>`;
+    const feedbackTime = forecast.feedbackAt.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" });
+    const sixHours = forecast.stage === "feedback";
+    let outlook = "Give the meter at least 30 minutes of readings before showing an evening estimate.";
+    if (forecast.eveningPassed && forecast.byEvening === null) outlook = "The first water reading came after 8 pm, so there is no evening forecast for today.";
+    else if (forecast.eveningPassed) outlook = forecast.byEvening > forecast.goal
+      ? `By 8 pm, ${number(forecast.byEvening)} L was recorded, above your ${forecast.goal} L goal.`
+      : `By 8 pm, ${number(forecast.byEvening)} L was recorded against your ${forecast.goal} L goal.`;
+    else if (forecast.projected !== undefined) outlook = `At today's measured pace, about ${number(forecast.projected)} L could be used by 8 pm. That ${forecast.tone === "over" ? "could exceed" : "could stay within"} your ${forecast.goal} L goal.`;
+    const heading = sixHours ? forecast.projected !== undefined && forecast.tone === "over" ? "Your pace may pass the goal" : "Your daily water check-in" : "Watching today's water pace";
+    const lead = sixHours ? `Six hours have passed since the first flow. ${number(forecast.measured)} L is recorded so far.` : `${number(forecast.measured)} L recorded so far. Your full daily check-in starts at ${feedbackTime}.`;
+    return `<div class="utlt-daily-feedback"><p class="utlt-eyebrow">${sixHours ? "SIX-HOUR CHECK-IN" : "TODAY'S OUTLOOK"}</p><h2>${heading}</h2><p>${lead}</p><div class="utlt-daily-projection"><span>${forecast.eveningPassed ? "Recorded by 8 pm" : "Estimated by 8 pm"}</span><strong>${forecast.eveningPassed ? forecast.byEvening === null ? "No reading" : number(forecast.byEvening) + " L" : forecast.projected === undefined ? "Gathering data" : number(forecast.projected) + " L"}</strong></div><p>${outlook}</p><small>${source}. Forecasts are rough and never limit your supply.</small><button type="button" data-action="forecast-follow-up">Ask about this ${icon("chevron", 16)}</button></div>`;
+  }
+
   function assistantPage() {
     const available = window.UTLTLocalLLM.supported();
     const insight = window.UTLTAI.paceInsight(state.readings);
     const evidence = insight.ready ? `Today is ${insight.tone === "usual" ? "near" : insight.tone} your usual pace by ${insight.clock}.` : insight.reason === "today" ? "Waiting for today's first water reading." : `${insight.measuredDays} of 3 earlier measured days available for a same-time comparison.`;
-    const modes = `<div class="utlt-assistant-modes" role="tablist" aria-label="AI view"><button role="tab" aria-selected="${state.assistantMode === "recent"}" class="${state.assistantMode === "recent" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="recent">Recent use</button><button role="tab" aria-selected="${state.assistantMode === "ask"}" class="${state.assistantMode === "ask" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="ask">Ask UTLT.ai</button></div>`;
+    const modes = `<div class="utlt-assistant-modes" role="tablist" aria-label="AI view"><button role="tab" aria-selected="${state.assistantMode === "today"}" class="${state.assistantMode === "today" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="today">Today</button><button role="tab" aria-selected="${state.assistantMode === "recent"}" class="${state.assistantMode === "recent" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="recent">Recent use</button><button role="tab" aria-selected="${state.assistantMode === "ask"}" class="${state.assistantMode === "ask" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="ask">Ask</button></div>`;
+    if (state.assistantMode === "today") return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><h1>Today's water</h1><p>A live outlook from the first recorded flow, with a fuller check-in after six hours.</p>${modes}${dailyFeedbackCard()}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
     if (state.assistantMode === "recent") return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><h1>Your water story</h1><p>A clear look at recent measured days, with gaps shown honestly.</p>${modes}${recentUseCard()}<div class="utlt-assistant-evidence"><span>TODAY BY THIS TIME</span><strong>${escapeHtml(evidence)}</strong><small>${state.demoEnabled ? "Sample readings · not a real household" : "Based on readings stored on this phone"}</small></div><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
     return `<section class="utlt-assistant-page">
       <p class="utlt-eyebrow">YOUR WATER, EXPLAINED</p><h1>Ask UTLT.ai</h1>
       <p>Start with your meter facts, then explore your routine. Water-use labels are suggestions until you confirm them.</p>
       ${modes}
       <div class="utlt-assistant-evidence"><span>WHAT THE DATA CAN SAY</span><strong>${escapeHtml(evidence)}</strong><small>${state.demoEnabled ? "Sample readings · not a real household" : "Based on readings stored on this phone"}</small></div>
-      <div class="utlt-question-prompts" aria-label="Example questions"><button type="button" data-action="assistant-prompt" data-question="How does today's water use compare with my usual pace?">Compare today</button><button type="button" data-action="assistant-prompt" data-question="What can I do to save water today?">Find one action</button><button type="button" data-action="assistant-prompt" data-question="What do you know and what are you unsure about?">Check certainty</button></div>
+      <div class="utlt-question-prompts" aria-label="Example questions"><button type="button" data-action="assistant-prompt" data-question="Will I stay within my water goal by 8 pm?">Evening outlook</button><button type="button" data-action="assistant-prompt" data-question="How does today's water use compare with my usual pace?">Compare today</button><button type="button" data-action="assistant-prompt" data-question="What can I do to save water today?">Find one action</button><button type="button" data-action="assistant-prompt" data-question="What do you know and what are you unsure about?">Check certainty</button></div>
       <form id="utlt-assistant-form" class="utlt-assistant-form"><label for="utlt-assistant-question">Your question</label><textarea id="utlt-assistant-question" name="question" rows="3" maxlength="300" placeholder="What changed in my water use this week?" required>${escapeHtml(state.llmQuestion)}</textarea><button class="utlt-primary-button" type="submit" ${state.llmBusy ? "disabled" : ""}>${state.llmBusy ? "Thinking on your phone…" : "Ask UTLT.ai"}</button></form>
       ${state.llmAnswer ? `<div class="utlt-learning-card utlt-assistant-answer"><strong>${state.llmAnswerType === "checked" ? "Checked from your readings" : "UTLT.ai"}</strong><p>${escapeHtml(state.llmAnswer)}</p></div>` : ""}
       <div class="utlt-learning-card"><strong>${state.llmReady ? "On-phone model ready" : available ? "For more open-ended questions" : "On-phone model unavailable here"}</strong><p>${state.llmReady ? "Your questions and meter facts stay in this browser during generation." : available ? "Download the optional 580 MB model on Wi-Fi. Checked answers above work without it." : "This browser does not expose WebGPU. Checked answers and pattern checks still work."}</p>${available && !state.llmReady ? `<button class="utlt-primary-button" data-action="load-local-llm" ${state.llmBusy ? "disabled" : ""}>${state.llmBusy ? "Loading model…" : "Download on-phone AI"}</button>` : ""}</div>
@@ -706,6 +724,13 @@
     const source = state.demoEnabled ? "The sample readings show" : "Your meter shows";
     const summary = window.UTLTData.summarize(state.readings);
     const pace = window.UTLTAI.paceInsight(state.readings);
+    if (/forecast|predict|projection|by evening|8 ?pm|goal|target/.test(q)) {
+      const forecast = window.UTLTAI.dailyForecast(state.readings, state.goal);
+      if (forecast.stage === "waiting") return "There is no positive water reading today yet. The evening estimate begins after the first use.";
+      if (forecast.eveningPassed) return forecast.byEvening === null ? "The first water reading came after 8 pm, so there is no evening forecast for today." : `By 8 pm, ${number(forecast.byEvening)} L was recorded against your ${forecast.goal} L goal. Missing device readings could change that picture.`;
+      if (forecast.projected === undefined) return `Today's meter has recorded ${number(forecast.measured)} L. Wait for at least 30 minutes after first use before estimating 8 pm.`;
+      return `At the measured pace so far, about ${number(forecast.projected)} L could be used by 8 pm, ${forecast.tone === "over" ? "above" : "within"} your ${forecast.goal} L goal. ${forecast.stage === "feedback" ? "Your six-hour check-in is ready." : "The fuller check-in appears six hours after the first use."} This is a rough estimate; disconnected hours may be missing and UTLT never limits supply.`;
+    }
     if (/compar|usual|normal|pace|pattern/.test(q)) {
       if (!pace.ready) return pace.reason === "today" ? "There is no water reading from today yet. A same-time comparison starts after the first reading." : `A same-time comparison needs three earlier measured days. This phone has ${pace.measuredDays} so far; missing days are not counted as zero water use.`;
       return `${source} ${number(pace.today)} L by ${pace.clock}, versus a ${number(pace.baseline)} L median at the same time on ${pace.measuredDays} earlier measured days. That is ${number(Math.abs(pace.difference))} L ${pace.difference >= 0 ? "above" : "below"} your recent pattern. This comparison cannot identify the activity or prove a leak.`;
@@ -733,8 +758,9 @@
     const days = summary.daily.map(item => `${item.date}: ${item.hasData ? item.litres.toFixed(2) + " L measured" : "no measurement recorded"}`).join("; ");
     const insight = window.UTLTAI.numericInsight(state.readings, state.survey);
     const pace = window.UTLTAI.paceInsight(state.readings);
+    const forecast = window.UTLTAI.dailyForecast(state.readings, state.goal);
     const uncertain = state.survey ? window.UTLTAI.sessions(state.readings, state.survey, window.UTLTAI.indiaDate(new Date()), state.corrections).slice(0, 4).map(item => `${item.recordedAt}: ${item.litres.toFixed(2)} L, possible ${item.suggestion.category} (${Math.round(item.suggestion.confidence * 100)}% model confidence, unverified)`).join("; ") : "survey not completed";
-    return [`Source: ${state.demoEnabled ? "SIMULATED DEMO READINGS, not a real device" : "ESP32 flow meter readings"}.`, `Household: ${state.survey ? state.survey.people + " people; usual shower around " + state.survey.usualShowerHour + ":00; " + state.survey.showerStyle + " bathing" : "survey not completed"}.`, `Daily goal: ${state.goal} L. Today measured: ${summary.daily.at(-1)?.hasData ? summary.used.toFixed(2) + " L" : "no reading yet"}.`, `Same-time recent median: ${pace.ready ? pace.baseline.toFixed(2) + " L by " + pace.clock + " from " + pace.measuredDays + " prior measured days; today by then " + pace.today.toFixed(2) + " L; pace " + pace.tone : pace.reason === "today" ? "not available; no reading today yet" : "not available; only " + pace.measuredDays + " of 3 prior measured days"}.`, `Continuous flow: ${state.device.connected && state.flowRunningMinutes >= 16 ? Math.floor(state.flowRunningMinutes) + " minutes detected; inspect taps, cause unknown" : "no sustained-flow alert"}.`, `Last seven dates: ${days}.`, `Seven-day measured-day average: ${insight?.average === undefined ? "not yet available" : insight.average + " L/day"}.`, `Per-person measured-day average: ${insight?.perPerson === undefined ? "not yet available" : insight.perPerson + " L/day"}.`, `Today's water by time: ${summary.byTime.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}.`, `Today's categories: ${summary.byUse.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}. Unconfirmed activity is Misc. A whole-home meter cannot identify the activity.`, `Numerical model suggestions from 200 simulated households: ${uncertain || "none"}. These are not verified activities.`, `Allowed water-saving action: ${allowedAction}`].join("\n");
+    return [`Source: ${state.demoEnabled ? "SIMULATED DEMO READINGS, not a real device" : "ESP32 flow meter readings"}.`, `Household: ${state.survey ? state.survey.people + " people; usual shower around " + state.survey.usualShowerHour + ":00; " + state.survey.showerStyle + " bathing" : "survey not completed"}.`, `Daily goal: ${state.goal} L. Today measured: ${summary.daily.at(-1)?.hasData ? summary.used.toFixed(2) + " L" : "no reading yet"}.`, `Evening forecast: ${forecast.projected === undefined ? "not available yet" : forecast.projected.toFixed(2) + " L by 20:00; " + (forecast.tone === "over" ? "could exceed" : "could stay within") + " daily goal"}. Six-hour feedback: ${forecast.stage === "feedback" ? "ready" : "not yet ready"}. This is a rough measured-pace estimate; disconnected hours may be missing.`, `Same-time recent median: ${pace.ready ? pace.baseline.toFixed(2) + " L by " + pace.clock + " from " + pace.measuredDays + " prior measured days; today by then " + pace.today.toFixed(2) + " L; pace " + pace.tone : pace.reason === "today" ? "not available; no reading today yet" : "not available; only " + pace.measuredDays + " of 3 prior measured days"}.`, `Continuous flow: ${state.device.connected && state.flowRunningMinutes >= 16 ? Math.floor(state.flowRunningMinutes) + " minutes detected; inspect taps, cause unknown" : "no sustained-flow alert"}.`, `Last seven dates: ${days}.`, `Seven-day measured-day average: ${insight?.average === undefined ? "not yet available" : insight.average + " L/day"}.`, `Per-person measured-day average: ${insight?.perPerson === undefined ? "not yet available" : insight.perPerson + " L/day"}.`, `Today's water by time: ${summary.byTime.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}.`, `Today's categories: ${summary.byUse.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}. Unconfirmed activity is Misc. A whole-home meter cannot identify the activity.`, `Numerical model suggestions from 200 simulated households: ${uncertain || "none"}. These are not verified activities.`, `Allowed water-saving action: ${allowedAction}`].join("\n");
   }
 
   function surveyPage() {
@@ -1362,7 +1388,8 @@
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
     if (action === "connect-ble") { connectBluetooth(); return; }
     if (action === "download-history") { requestHistory(); return; }
-    if (action === "assistant-mode") { state.assistantMode = button.dataset.mode === "ask" ? "ask" : "recent"; render(true); return; }
+    if (action === "assistant-mode") { state.assistantMode = ["today", "recent", "ask"].includes(button.dataset.mode) ? button.dataset.mode : "today"; render(true); return; }
+    if (action === "forecast-follow-up") { state.assistantMode = "ask"; state.llmQuestion = "Will I stay within my water goal by 8 pm?"; render(true); root.querySelector("#utlt-assistant-question")?.focus(); return; }
     if (action === "assistant-prompt") {
       const field = root.querySelector("#utlt-assistant-question");
       if (field) { field.value = button.dataset.question || ""; field.focus(); }
@@ -1698,11 +1725,17 @@
   }
   tryAutoConnectBluetooth();
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") tryAutoConnectBluetooth();
+    if (document.visibilityState === "visible") {
+      tryAutoConnectBluetooth();
+      if (state.screen === "assistant" && state.assistantMode === "today") render(true);
+    }
   });
   setInterval(() => {
     if (document.visibilityState === "visible") tryAutoConnectBluetooth();
   }, 15000);
+  setInterval(() => {
+    if (document.visibilityState === "visible" && state.screen === "assistant" && state.assistantMode === "today") render(true);
+  }, 60000);
   refreshWaterBridge();
   setInterval(refreshWaterBridge, 5000);
 })();

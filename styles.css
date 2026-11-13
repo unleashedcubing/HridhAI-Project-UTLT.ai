@@ -584,9 +584,17 @@ img { max-width: 100%; }
 .utlt-assistant-page > p:not(.utlt-eyebrow):not(.utlt-ai-note) { color: var(--utlt-muted); }
 .utlt-assistant-page .utlt-learning-card { margin: 0; }
 .utlt-assistant-page .utlt-learning-card p { margin: 8px 0 14px; }
-.utlt-assistant-modes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: 14px; background: var(--utlt-panel); }
+.utlt-assistant-modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; border-radius: 14px; background: var(--utlt-panel); }
 .utlt-assistant-modes button { min-height: 40px; border: 0; border-radius: 11px; background: transparent; color: var(--utlt-muted); font-size: 13px; font-weight: 700; cursor: pointer; }
 .utlt-assistant-modes button.is-selected { background: var(--utlt-card); color: var(--utlt-accent); }
+.utlt-daily-feedback { display: grid; gap: 14px; padding: 22px; border: 1px solid var(--utlt-border); border-radius: 22px; background: var(--utlt-card); }
+.utlt-daily-feedback h2 { max-width: 18ch; font-size: 27px; line-height: 1.15; letter-spacing: -.8px; }
+.utlt-daily-feedback > p:not(.utlt-eyebrow) { color: var(--utlt-muted); font-size: 13px; line-height: 1.5; }
+.utlt-daily-feedback small { color: var(--utlt-muted); font-size: 11px; line-height: 1.45; }
+.utlt-daily-projection { display: grid; gap: 3px; padding: 14px 0; border-block: 1px solid var(--utlt-border); }
+.utlt-daily-projection span { color: var(--utlt-muted); font-size: 11px; font-weight: 700; }
+.utlt-daily-projection strong { color: var(--utlt-accent); font-size: 30px; line-height: 1.1; font-variant-numeric: tabular-nums; }
+.utlt-daily-feedback > button { display: inline-flex; align-items: center; justify-self: start; gap: 4px; padding: 8px 0; border: 0; background: transparent; color: var(--utlt-accent); font: inherit; font-size: 13px; font-weight: 750; cursor: pointer; }
 .utlt-recent-card { padding: 22px; border: 1px solid var(--utlt-border); border-radius: 22px; background: var(--utlt-card); }
 .utlt-recent-card h2 { max-width: 15ch; font-size: 27px; line-height: 1.15; letter-spacing: -.8px; }
 .utlt-recent-card > p:not(.utlt-eyebrow) { margin-top: 11px; color: var(--utlt-muted); font-size: 13px; line-height: 1.55; }
