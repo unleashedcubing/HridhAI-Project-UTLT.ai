@@ -26,9 +26,11 @@ The optional `USE_MOSFET` setting in this script is **False** until the pump swi
 
 The current ~0.2–0.3 L/min demo flow is below the sensor's rated minimum, so 4,075 pulses/L is only a practical demo estimate, not a guarantee across other flows.
 
-Both boards run MicroPython v1.29.0. The older `UTLT-2C2C` has the earlier BLE meter firmware; `UTLT-A014` has the seven-day history firmware. On 12 November, both advertised and returned valid 16-byte live packets; A014 also completed the time-sync/history handshake. Both live pulse counts were zero while the pump was unavailable. If A014 connects on the phone but stays at zero **with water flowing**, inspect its sensor signal path to GPIO27 and compare the raw pulse counter in Device Settings. This cannot be diagnosed from a pump-off test. Both boards were placed in deep sleep after inspection; unplug USB for complete power-off and press EN after repowering.
+Both boards run MicroPython v1.29.0. The older `UTLT-2C2C` has the earlier BLE meter firmware; `UTLT-A014` has the seven-day history firmware. On 12 November, both advertised and returned valid 16-byte live packets; A014 also completed the time-sync/history handshake. On 15 November, both paired on iPhone Bluefy from the same power source, but the user reported 2C2C working and A014 still not reporting water. Pairing therefore does not establish that A014's GPIO27 is receiving sensor pulses. For the next diagnosis, power **one board at a time** with the same sensor and level converter wiring, run water for 15 seconds, and watch **Devices → Total pulses**. If 2C2C rises but A014 stays at zero, check the A014 GPIO27 jumper, ground, converter HV/LV connections, and sensor plug; then test the board input. Do not connect the sensor signal to both boards at once. This needs a live-flow test; no firmware change is justified by pairing alone. Both boards were placed in deep sleep after the earlier inspection; unplug USB for complete power-off and press EN after repowering.
 
 The browser-independent QR fallback uses [jsQR](https://github.com/cozmo/jsQR). Its bundled code and Apache 2.0 license are in `vendor/`.
+
+The supplied wordmark is preserved in `assets/utlt-logo-original.png`. `assets/utlt-logo-styles.png` compares monochrome, water-blue, and light-background treatments. The small U-and-orbit mark is used for the favicon, loading screen, and installable app icon.
 
 ## ESP32 setup
 
