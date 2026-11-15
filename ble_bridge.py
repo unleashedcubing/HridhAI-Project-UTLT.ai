@@ -1,9 +1,3 @@
-"""Optional BLE receiver for the UTLT local Python bridge.
-
-The ESP32 sends the same session/sequence/pulse packet over BLE and Wi-Fi.
-The server's existing duplicate check ensures that each packet counts once.
-"""
-
 import asyncio
 import struct
 
