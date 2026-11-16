@@ -81,7 +81,7 @@ def main():
                 raise RuntimeError("ESP32 pulse reader ended before detecting flow. Check the USB port.")
         print("First pulse detected. Timer started.", flush=True)
         stopped_at = wait_for_u()
-        # The pump should already be off. Allow one final serial reading to arrive.
+
         time.sleep(0.25)
         seconds = stopped_at - first_pulse_at
         pulses = latest_pulses

@@ -16,11 +16,11 @@ for prefix, uri in [("", CORE), ("m", "http://schemas.microsoft.com/3dmanufactur
                     ("sc", "http://schemas.microsoft.com/3dmanufacturing/securecontent/2019/04")]:
     ET.register_namespace(prefix, uri)
 
-# Existing pocket centres are used only to select their vertices. Exact centres
-# are recomputed from the 14-sided rings before changing the radius.
+
+
 SEATS = {"1": [(-318.33, 97.07), (-161.33, 97.07), (-318.33, 174.07), (-161.33, 174.07)],
          "7": [(-100.1, -5.05)], "9": [(-407.25, 10.65)]}
-RADIUS = 4.2  # 8.4-mm nominal pocket, approximately 8.35 mm across the 28-gon flats
+RADIUS = 4.2
 
 
 def update_object(obj):
