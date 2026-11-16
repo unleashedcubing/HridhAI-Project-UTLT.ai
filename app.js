@@ -11,6 +11,7 @@
   clearLegacyAppData();
   const standaloneDevice = location.hostname === "192.168.4.1";
   const pagesPreview = location.hostname.endsWith(".github.io");
+  const bluefyPhone = /iPhone|iPad|iPod/i.test(navigator.userAgent) && Boolean(navigator.bluetooth?.requestDevice);
   const bleServiceUuid = "930a7d60-8489-4b31-9cc6-64ee5e809100";
   const bleReadingUuid = "930a7d60-8489-4b31-9cc6-64ee5e809101";
   const bleControlUuid = "930a7d60-8489-4b31-9cc6-64ee5e809102";
@@ -24,11 +25,12 @@
   const labelsKey = "waterConfirmedLabelsV1";
   const correctionsKey = "waterModelCorrectionsV1";
   const lastConnectedKey = "waterLastConnectedV1";
+  const localProfileKey = "waterLocalProfileV1";
   let savedPairing = "";
   try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) {  }
   const pulsesPerLitre = 4075;
   let demoEnabled = false;
-  let savedSurvey = null, reviewedDays = [], confirmedLabels = {}, corrections = [], lastConnected = null;
+  let savedSurvey = null, reviewedDays = [], confirmedLabels = {}, corrections = [], lastConnected = null, savedLocalProfile = null;
   try {
     const stored = Number(localStorage.getItem(calibrationKey));
     if (stored !== pulsesPerLitre) {
@@ -42,16 +44,17 @@
     corrections = JSON.parse(localStorage.getItem(correctionsKey) || "[]");
     const savedConnection = JSON.parse(localStorage.getItem(lastConnectedKey) || "null");
     if (savedConnection?.qrId === savedPairing) lastConnected = savedConnection.at;
+    savedLocalProfile = JSON.parse(localStorage.getItem(localProfileKey) || "null");
   } catch (_error) {  }
   const state = {
     screen: "home",
     utility: "Water",
     breakdown: "use",
     dark: true,
-    name: "",
+    name: typeof savedLocalProfile?.name === "string" ? savedLocalProfile.name : "",
     email: "",
-    homeName: "My home",
-    goal: 350,
+    homeName: typeof savedLocalProfile?.homeName === "string" ? savedLocalProfile.homeName : "My home",
+    goal: Number(savedLocalProfile?.goal) > 0 ? Number(savedLocalProfile.goal) : 350,
     saved: false,
     device: { connected: false, lastConnectedAt: lastConnected },
     pairedDeviceId: /^[0-9a-f]{12}$/.test(savedPairing) ? savedPairing : "",
@@ -76,15 +79,16 @@
     historyStatus: "",
     unknownPulses: 0,
     llmReady: false, llmBusy: false, llmStatus: "", llmQuestion: "", llmAnswer: "", llmAnswerType: "checked", assistantMode: "today",
-    syncStatus: "starting",
+    syncStatus: savedLocalProfile ? "local" : "starting",
     syncError: "",
     uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
     leaderboardVisible: false, communitySharing: false,
     communityPercentile: null, communityParticipants: 0, communityStatus: "off", friendMessage: "", friendBusy: false,
     family: null, familyInviteUrl: "", familyRequests: [], familyMessage: "", familyBusy: false, pendingFamilyInvite: "",
-    authProvider: "signed-out", authBusy: false, authMessage: "", pendingAuthScreen: ""
+    authProvider: savedLocalProfile ? "local" : "signed-out", authBusy: false, authMessage: "", pendingAuthScreen: ""
   };
   const firebaseReady = (async () => {
+    if (bluefyPhone) return null;
     if (standaloneDevice) throw new Error("Cloud account features need internet; water tracking works offline.");
     const version = "13.2.0";
     const [appSdk, authSdk, firestoreSdk] = await Promise.all([
@@ -337,6 +341,7 @@
 
   let firebaseStore = null;
   let firebaseContext = null;
+  let authAttempt = 0;
   let saveQueue = Promise.resolve();
   function profileSnapshot() {
     return {
@@ -357,7 +362,11 @@
           render(true);
         });
     } else {
-      state.syncStatus = "guest";
+      if (state.authProvider === "local") {
+        try { localStorage.setItem(localProfileKey, JSON.stringify({ name: state.name, homeName: state.homeName, goal: state.goal })); }
+        catch (error) { console.warn("Could not save this phone's profile.", error); }
+      }
+      state.syncStatus = state.authProvider === "local" ? "local" : "guest";
       state.syncError = "";
     }
   }
@@ -376,9 +385,10 @@
   // Sign-in follows device pairing.
   function renderAuthGate(errorMessage = "") {
     state.screen = "auth";
+    const localAvailable = bluefyPhone && Boolean(state.pairedDeviceId);
     const destination = state.pendingAuthScreen || "this feature";
     const featureName = destination === "family" ? "Family Connect" : destination === "account" ? "your account" : "device setup";
-    const message = errorMessage || state.authMessage || `Sign in with Google to continue ${featureName}.`;
+    const message = errorMessage || state.authMessage || (bluefyPhone ? "Pair your device to start setup on this iPhone." : `Sign in with Google to continue ${featureName}.`);
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><main class="utlt-auth-screen">
       <section class="utlt-auth-card">
         <div class="utlt-auth-top"><strong>UTLT.ai</strong><button type="button" data-action="auth-theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon", 22)}</button></div>
@@ -386,24 +396,53 @@
         <p class="utlt-eyebrow">UTLT.AI · SMART WATER</p>
         <h1>Welcome to UTLT.ai</h1>
         <p class="utlt-auth-intro">Your water, clearly understood.</p>
-        <div class="utlt-auth-feature">${icon("shield", 20)}<span>Sign in to set up your household and save its readings.</span></div>
-        <button class="utlt-primary-button utlt-auth-google" type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "Connecting…" : "Continue with Google"}</button>
+        <div class="utlt-auth-feature">${icon("shield", 20)}<span>${bluefyPhone ? "Your household setup and readings stay in Bluefy on this iPhone." : "Sign in to set up your household and save its readings."}</span></div>
+        ${bluefyPhone ? `<button class="utlt-primary-button utlt-auth-google" type="button" data-action="${localAvailable ? "continue-local" : "pair"}">${localAvailable ? "Continue on this phone" : "Pair your device"}</button><p class="utlt-auth-note">No Google sign-in or cloud account is needed in Bluefy. Family sharing is unavailable in this mode.</p>` : `<button class="utlt-primary-button utlt-auth-google" type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "Connecting…" : "Continue with Google"}</button>`}
         <p class="utlt-auth-message" role="status">${escapeHtml(message)}</p>
         <p class="utlt-auth-note">After pairing, your household setup starts automatically.</p>
       </section></main></div>`;
   }
 
+  function continueLocally() {
+    authAttempt += 1;
+    if (firebaseContext?.auth.currentUser) firebaseContext.authSdk.signOut(firebaseContext.auth).catch(error => console.warn("Could not close the Google session.", error));
+    firebaseStore = null;
+    state.uid = "";
+    state.authProvider = "local";
+    state.authBusy = false;
+    state.name = state.name || "My household";
+    state.email = "";
+    state.pendingAuthScreen = "";
+    state.screen = state.pairedDeviceId && !state.survey ? "survey" : "home";
+    persistProfile();
+    render();
+  }
+
   async function completeGoogleLogin(user) {
+    const attempt = authAttempt;
     firebaseStore = createFirebaseStore(user, firebaseContext);
     state.uid = firebaseStore.uid;
     state.authProvider = "google";
     state.email = user.email || "";
     state.name = user.displayName || "";
-    const remoteProfile = await firebaseStore.loadProfile();
-    if (remoteProfile) applySavedProfile(remoteProfile);
+    let remoteProfile = null;
+    let profileSynced = true;
+    try {
+      remoteProfile = await Promise.race([
+        firebaseStore.loadProfile(),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Cloud profile timed out")), 8000))
+      ]);
+      if (attempt !== authAttempt) return;
+      if (remoteProfile) applySavedProfile(remoteProfile);
+      else firebaseStore.saveProfile(profileSnapshot()).catch(error => console.warn("Could not save the new cloud profile yet.", error));
+    } catch (error) {
+      profileSynced = false;
+      console.warn("Google signed in, but the cloud profile is unavailable.", error);
+    }
+    if (attempt !== authAttempt) return;
     if (user.email) state.email = user.email;
     if (!state.name && user.displayName) state.name = user.displayName;
-    if (!remoteProfile) await firebaseStore.saveProfile(profileSnapshot());
+    try { localStorage.removeItem(localProfileKey); } catch (_error) {  }
     state.pendingFamilyInvite = new URLSearchParams(location.search).get("familyInvite") || state.pendingFamilyInvite || "";
     const destination = state.pairedDeviceId && !state.survey ? "survey" : state.pendingAuthScreen || (state.screen === "auth" ? "home" : state.screen);
     state.pendingAuthScreen = "";
@@ -413,9 +452,9 @@
       await refreshFamilyData();
       await syncFamilyUsage();
     }
-    await syncCommunityInsight();
-    state.syncStatus = "cloud";
-    state.syncError = "";
+    syncCommunityInsight().catch(error => console.warn("Community sync is unavailable.", error));
+    state.syncStatus = profileSynced ? "cloud" : "error";
+    state.syncError = profileSynced ? "" : "Google is connected; cloud profile sync can be retried later.";
     render();
   }
 
@@ -429,7 +468,9 @@
     try{await firebaseStore.publishFamilyUsage(state.family.id,date,used);}catch(e){console.warn("Family usage sync failed.",e);}
   }
   async function signInWithGoogle() {
+    if (bluefyPhone) { continueLocally(); return; }
     if (state.authBusy) return;
+    const attempt = ++authAttempt;
     state.authBusy = true; state.authMessage = "Connecting to Google…"; renderAuthGate();
     try {
       firebaseContext = firebaseContext || await firebaseReady;
@@ -447,9 +488,11 @@
           user = (await authSdk.signInWithPopup(auth, provider)).user;
         }
       } else user = (await authSdk.signInWithPopup(auth, provider)).user;
+      if (attempt !== authAttempt) return;
       state.authBusy = false;
       await completeGoogleLogin(user);
     } catch (error) {
+      if (attempt !== authAttempt) return;
       state.authMessage = error?.message || "Google sign-in could not be completed.";
       state.authBusy = false; renderAuthGate(state.authMessage); return;
     }
@@ -458,16 +501,17 @@
 
   async function initializePersistence() {
     render();
+    if (bluefyPhone) return;
     try {
       firebaseContext = await firebaseReady;
       const user = firebaseContext.auth.currentUser;
-      if (user && user.providerData?.some(item => item.providerId === "google.com")) await completeGoogleLogin(user);
+      if (!bluefyPhone && state.authProvider !== "local" && user && user.providerData?.some(item => item.providerId === "google.com")) await completeGoogleLogin(user);
       else {
         state.pendingFamilyInvite = new URLSearchParams(location.search).get("familyInvite") || "";
         if (state.screen !== "auth") render();
       }
     } catch (error) {
-      state.syncStatus = "guest";
+      state.syncStatus = state.authProvider === "local" ? "local" : "guest";
       state.syncError = "";
       console.error("UTLT Firebase is unavailable; guest dashboard remains usable.", error);
       if (state.screen !== "auth") render();
@@ -475,8 +519,11 @@
   }
 
   async function signOutOfApp() {
-    if (!firebaseContext) return;
-    await firebaseContext.authSdk.signOut(firebaseContext.auth);
+    if (state.authProvider === "local") {
+      try { localStorage.removeItem(localProfileKey); } catch (_error) {  }
+    } else if (firebaseContext) {
+      await firebaseContext.authSdk.signOut(firebaseContext.auth);
+    }
     firebaseStore = null; state.uid = ""; state.name = ""; state.email = ""; state.friendCode = "";
     state.family = null; state.familyRequests = []; state.familyInviteUrl = ""; state.pendingAuthScreen = "";
     state.friends = []; state.friendRequests = []; state.friendStats = []; state.authProvider = "signed-out";
@@ -859,7 +906,8 @@
   }
 
   function accountPage() {
-    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>Google account connected</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><p class="utlt-data-source" role="status">✓ Signed in with Google. Your profile is stored in Firebase.</p><button class="utlt-settings-row" type="button" data-action="sign-out"><span>Sign out</span>${icon("chevron",18)}</button></section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label><label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label><label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
+    const local = state.authProvider === "local";
+    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong>${escapeHtml(state.name || "Your account")}</strong><span>${local ? "This phone only" : "Google account connected"}</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><p class="utlt-data-source" role="status">${local ? "Setup is saved in Bluefy on this phone. There is no cloud sync or family sharing." : "✓ Signed in with Google. Your profile is stored in Firebase."}</p>${local ? "" : `<button class="utlt-settings-row" type="button" data-action="sign-out"><span>Sign out</span>${icon("chevron",18)}</button>`}</section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label>${local ? "" : `<label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label>`}<label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
   }
 
   function nav() {
@@ -934,6 +982,7 @@
     return html + '</section>';
   }
   async function familyPage() {
+    if (!firebaseStore) return '<section class="utlt-family-page"><h1>Family Connect</h1><p>Family sharing needs a cloud account. Water tracking and your household setup work on this iPhone without one.</p></section>';
     if(!state.family)return '<section class="utlt-family-page"><h1>Family Connect</h1><p>Loading…</p></section>';
     let rows=[]; try{rows=await firebaseStore.loadFamilyUsage(state.family.id,todayKey());}catch(e){state.familyMessage=e.message||"Could not load family usage.";}
     const total=rows.reduce((s,x)=>s+(Number(x.litres)||0),0);
@@ -982,7 +1031,8 @@
 
   let lastMotionView = "";
   async function render(preserveScroll = false) {
-    if (state.pairedDeviceId && !firebaseStore && state.screen !== "pair") { renderAuthGate(); return; }
+    if (bluefyPhone && state.pairedDeviceId && state.device.connected && !firebaseStore && state.authProvider !== "local") { continueLocally(); return; }
+    if (state.pairedDeviceId && !firebaseStore && state.authProvider !== "local" && state.screen !== "pair") { renderAuthGate(); return; }
     if (state.device.connected && state.pairedDeviceId && !state.survey && state.screen !== "survey" && state.screen !== "pair") state.screen = "survey";
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
     const motionView = `${state.screen}:${state.utility}:${state.breakdown}`;
@@ -1332,7 +1382,9 @@
       if (hasHistory) historyLoading = true;
       onBlePacket({ target: { value: await characteristic.readValue() } });
       if (hasHistory) { historyLoading = false; await requestHistory(); }
-      if (state.pairedDeviceId && !firebaseStore) {
+      if (bluefyPhone && state.pairedDeviceId && !firebaseStore && state.authProvider !== "local") {
+        continueLocally();
+      } else if (state.pairedDeviceId && !firebaseStore && state.authProvider !== "local") {
         state.pendingAuthScreen = "survey";
         renderAuthGate();
       } else if (!state.survey) {
@@ -1434,6 +1486,7 @@
     }
     if (action === "auth-theme") { state.dark = !state.dark; renderAuthGate(); return; }
     if (action === "login-google") { signInWithGoogle(); return; }
+    if (action === "continue-local") { continueLocally(); return; }
     else if (action === "sign-out") { signOutOfApp().catch(error => renderAuthGate(error.message)); return; }
     else if (action === "theme") { state.dark = !state.dark; persistProfile(); }
     else if (action === "refresh-device") { refreshWaterBridge(); return; }
@@ -1470,7 +1523,7 @@
       const req=state.familyRequests.find(x=>x.id===button.dataset.requestId);if(!req)return;firebaseStore.decideFamilyRequest(req,action==="family-approve").then(async()=>{state.familyMessage=action==="family-approve"?"Member approved.":"Request declined.";await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not update request.";}).finally(()=>render(true));return;
     } else if (["home", "pair", "account", "device", "family", "survey", "review", "assistant"].includes(action)) {
       if (action !== "pair" && state.qrScanning) stopQrScanner();
-      if (["account", "family"].includes(action) && !firebaseStore) {
+      if ((action === "family" && !firebaseStore && !bluefyPhone) || (action === "account" && !firebaseStore && state.authProvider !== "local")) {
         state.pendingAuthScreen = action;
         state.authMessage = "";
         renderAuthGate();
