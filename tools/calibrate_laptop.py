@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """Time a physical 160 mL collection from first ESP32 pulse to the u key.
 
 Run in a normal VS Code terminal, not the MicroPython REPL:

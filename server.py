@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """Local UTLT water bridge: ESP32 pulse packets -> SQLite -> browser dashboard."""
 
 from __future__ import annotations

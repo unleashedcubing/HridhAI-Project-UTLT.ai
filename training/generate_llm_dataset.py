@@ -1,3 +1,4 @@
+# AI-assisted dataset generator.
 """Build household-disjoint, synthetic chat examples for Qwen3 LoRA training.
 
 The answers come from exact arithmetic and simulator labels. A flow meter cannot

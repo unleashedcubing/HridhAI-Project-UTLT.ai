@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """Merge the trained MLX QLoRA adapter into the original Qwen3 HF weights.
 
 Run on a computer with enough memory before exporting the merged model to ONNX.

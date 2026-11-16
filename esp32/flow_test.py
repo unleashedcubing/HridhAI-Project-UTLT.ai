@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """Read the mini water flow sensor on ESP32 GPIO27; leave the pump disconnected."""
 
 from machine import Pin, disable_irq, enable_irq

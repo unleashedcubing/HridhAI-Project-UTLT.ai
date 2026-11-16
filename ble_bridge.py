@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 import asyncio
 import struct
 

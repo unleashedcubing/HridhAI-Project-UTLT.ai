@@ -1,3 +1,4 @@
+# AI-assisted simulation code.
 """Deterministic, illustrative seven-day water sessions for 1000 households.
 
 Run: python training/generate_households.py

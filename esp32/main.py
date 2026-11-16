@@ -1,3 +1,4 @@
+# AI-assisted BLE meter code.
 """UTLT.ai ESP32 BLE meter with seven-day flash history.
 
 Flow signal: GPIO27 through the 5 V/3.3 V converter. Power the pump separately.

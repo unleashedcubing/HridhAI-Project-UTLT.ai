@@ -1,3 +1,4 @@
+/* Team app code with AI-assisted development and debugging. */
 
 (function () {
   "use strict";

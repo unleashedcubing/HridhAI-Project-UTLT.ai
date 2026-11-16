@@ -1,3 +1,4 @@
+# AI-assisted history storage.
 """Seven-day, five-minute pulse history for the ESP32 flash filesystem.
 
 Each nonempty bucket is one 8-byte (Unix bucket start, pulses) record. Records

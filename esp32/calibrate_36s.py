@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """No-input 36-second, 160 mL flow calibration for ESP32 MicroPython.
 
 Run from the Mac terminal with:

@@ -1,3 +1,4 @@
+/* AI-assisted phone-model worker. */
 
 let generator;
 
@@ -22,7 +23,7 @@ async function loadModel() {
   if (generator) return generator;
   const { pipeline, env } = await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.3.2");
   env.useBrowserCache = true;
-  generator = await pipeline("text-generation", "HrishiBuilds/UTLT-Qwen3-0.6B-ONNX", {
+  generator = await pipeline("text-generation", "HrishiBuilds/UTLT-Qwen3-0.6B-ONNX-v2", {
     revision: "9b8fcccb773ed6ca69ccdd9e6c00a1f7d9df6b3c",
     device: "webgpu",
     dtype: "q4f16",

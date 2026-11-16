@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """Start the local dashboard and BLE receiver using the ESP32's device token."""
 
 import os

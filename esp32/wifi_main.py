@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """Standalone UTLT.ai: ESP32 access point, flow sensor and phone web app.
 
 Power the board from USB or a power bank. Connect the phone to AP_SSID from

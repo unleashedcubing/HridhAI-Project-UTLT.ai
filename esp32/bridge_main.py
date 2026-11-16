@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """UTLT.ai flow sensor: BLE to the computer, with Wi-Fi packet backup.
 
 ESP32 MicroPython. Flow signal enters GPIO27 through a 5 V to 3.3 V converter.

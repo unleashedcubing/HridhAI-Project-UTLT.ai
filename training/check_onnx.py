@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """Small direct ONNX smoke test with Qwen3's explicit 128-wide KV cache."""
 
 import argparse

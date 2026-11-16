@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """Temporary USB pulse stream for the laptop's 160 mL calibration tool."""
 
 import machine

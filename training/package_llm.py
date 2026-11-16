@@ -1,3 +1,4 @@
+# AI-assisted development and debugging.
 """Package the quantized ONNX export as a Transformers.js model repository.
 
 The ORT quantizer writes an external data sidecar. Transformers.js model repos

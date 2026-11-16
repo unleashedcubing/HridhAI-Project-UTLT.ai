@@ -1,3 +1,4 @@
+/* AI-assisted phone-model loader. */
 
 (function () {
   "use strict";
@@ -12,7 +13,7 @@
 
   function ensureWorker() {
     if (worker) return worker;
-    worker = new Worker("./llm-worker.js", { type: "module" });
+    worker = new Worker("./llm-worker.js?v=qwen3-1000-v2", { type: "module" });
     worker.onmessage = event => {
       const message = event.data || {};
       if (message.type === "progress") {

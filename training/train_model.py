@@ -1,3 +1,4 @@
+# AI-assisted classifier training.
 """Train a free, local numerical activity classifier and export it for the browser.
 
 Run: .venv/bin/python training/train_model.py

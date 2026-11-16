@@ -4,3 +4,4 @@ __pycache__/
 *.pyc
 .venv/
 models/utlt-qwen3-0.6b-onnx/
+models/utlt-qwen3-0.6b-onnx-v2/

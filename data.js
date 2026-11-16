@@ -1,3 +1,4 @@
+/* AI-assisted data handling. */
 
 (function () {
   "use strict";

@@ -1,3 +1,4 @@
+/* AI-assisted activity-model code. */
 
 (function () {
   "use strict";

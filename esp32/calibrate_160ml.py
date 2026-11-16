@@ -1,3 +1,4 @@
+# AI-assisted calibration utility.
 """Temporary ESP32 / MicroPython 160 mL timing check over USB serial.
 
 Upload as calibrate_160ml.py, open an interactive MicroPython REPL, stop main.py
