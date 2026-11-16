@@ -18,7 +18,7 @@ from zoneinfo import ZoneInfo
 ROOT = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("UTLT_DB_PATH", ROOT / "water.sqlite3"))
 DEVICE_TOKEN = os.environ.get("UTLT_DEVICE_TOKEN", "")
-PULSES_PER_LITRE = float(os.environ.get("UTLT_PULSES_PER_LITRE", "450"))
+PULSES_PER_LITRE = float(os.environ.get("UTLT_PULSES_PER_LITRE", "3000"))
 DEVICE_TIMEOUT_SECONDS = 30
 DB_LOCK = Lock()
 FILES = {"/": "index.html", "/index.html": "index.html", "/styles.css": "styles.css",

@@ -18,7 +18,7 @@ import time
 import config
 
 FLOW_PIN = 27
-PULSES_PER_LITRE = 450.0
+PULSES_PER_LITRE = 3000.0
 FILES = {
     "/": ("index.html", "text/html"),
     "/index.html": ("index.html", "text/html"),

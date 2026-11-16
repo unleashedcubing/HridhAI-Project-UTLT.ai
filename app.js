@@ -28,13 +28,20 @@
   const localProfileKey = "waterLocalProfileV1";
   let savedPairing = "";
   try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) {  }
-  const pulsesPerLitre = 4075;
+  const pulsesPerLitre = 3000;
   let demoEnabled = false;
   let savedSurvey = null, reviewedDays = [], confirmedLabels = {}, corrections = [], lastConnected = null, savedLocalProfile = null;
   try {
     const stored = Number(localStorage.getItem(calibrationKey));
-    if (stored !== pulsesPerLitre) {
-      localStorage.removeItem("waterMeterReadingsV1");
+    if (stored > 0 && stored !== pulsesPerLitre) {
+      try {
+        const previous = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "null");
+        if (previous && Array.isArray(previous.readings)) {
+          previous.readings = previous.readings.map(item => Number.isFinite(item?.litres)
+            ? { ...item, litres: item.litres * stored / pulsesPerLitre } : item);
+          localStorage.setItem("waterMeterReadingsV1", JSON.stringify(previous));
+        }
+      } catch (error) { console.warn("Could not update older water readings to the new calibration.", error); }
     }
     localStorage.setItem(calibrationKey, String(pulsesPerLitre));
     demoEnabled = localStorage.getItem(demoKey) === "true";
@@ -891,7 +898,7 @@
       ${state.device.connected && !state.survey ? '<button class="utlt-secondary-button" type="button" data-action="survey">Set up your household (optional)</button>' : ''}
       <button class="utlt-primary-button ${ready ? "utlt-scan-again" : ""}" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : ready ? "Scan another device QR" : "Scan device QR"}</button>
       ${!ready || state.qrScanning ? '<label class="utlt-qr-photo">Or use a camera photo<input type="file" id="utlt-qr-photo" accept="image/*" capture="environment" aria-label="Take a photo of the device QR code"></label>' : ''}
-      <div class="utlt-meter-diagnostics"><strong>Water conversion</strong><span>4,075 pulses = 1 litre</span>${state.rawPulseCount !== null ? `<span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span>` : ""}<small>Based on your 160 mL timing test; this is an estimate.</small></div>
+      <div class="utlt-meter-diagnostics"><strong>Water conversion</strong><span>3,000 pulses ≈ 1 litre</span>${state.rawPulseCount !== null ? `<span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span>` : ""}<small>Provisional 160 mL estimate; the observed range could be about 21% low to 20% high at this flow.</small></div>
       ${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : state.flowRateLpm !== null ? `<p class="utlt-pair-feedback">Measured flow: ${state.flowRateLpm.toFixed(2)} L/min</p>` : ''}
       ${state.pairStatus && !state.pairStatus.startsWith("QR verified") ? `<p class="utlt-pair-feedback" role="status">${escapeHtml(state.pairStatus)}</p>` : ''}
       <button class="utlt-reset-readings" type="button" data-action="reset-meter-readings">Clear saved water readings</button>
@@ -1234,7 +1241,7 @@
     }
     const cutoff = Date.now() - 7 * 86400000;
     const recovered = [...historyRows.entries()]
-      .filter(([epoch, count]) => epoch * 1000 >= cutoff && count > 0 && count <= 6 * 5 * 4075)
+      .filter(([epoch, count]) => epoch * 1000 >= cutoff && count > 0 && count <= 6 * 5 * pulsesPerLitre)
       .sort((a, b) => a[0] - b[0])
       .map(([epoch, count]) => {
         const category = state.confirmedLabels[String(epoch)];

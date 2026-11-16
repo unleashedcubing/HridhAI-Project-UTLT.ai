@@ -144,7 +144,7 @@ def run():
                     print("Wi-Fi backup queue full; oldest backup packet dropped")
                 queue.append((sequence, count))
             print("Flow: %d pulses | %.2f L/min | BLE %s" %
-                  (count, count * 60000 / (450 * elapsed),
+                  (count, count * 60000 / (3000 * elapsed),
                    "connected" if ble.connection is not None else "advertising"))
             sequence += 1
 
