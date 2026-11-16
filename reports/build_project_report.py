@@ -120,7 +120,7 @@ add_paragraph(doc, "The interface began in Figma as light and dark mobile screen
 doc.add_paragraph("How the work developed", style="Heading 1")
 rows = [
     ("4 November", "Hrishi, Armaan and Vibhav discussed the hackathon themes and chose water conservation as the starting point."),
-    ("5–7 November", "Hrishi’s Figma screens became a web app as Armaan and Abhinav worked on its app and backend; navigation, Firebase profiles and sign-in followed."),
+    ("5–7 November", "Hrishi’s Figma screens became a web app. Armaan worked on navigation and account features; Abhinav worked on interface code, visual styling and usability."),
     ("8–9 November", "Hrishi, Vibhav and Saketh met around the physical model. The team wired the ESP32 and sensor, added QR/Bluetooth pairing and checked a 160 mL fill."),
     ("10–11 November", "Seven-day synthetic records, a local activity model, Qwen training and seven-day BLE history were added."),
     ("12–16 November", "Hrishi and Saketh refined the enclosure; the app gained water feedback, a larger survey and 1,000 simulated household records."),
@@ -161,7 +161,7 @@ add_section(doc, "Armaan  ·  web app and accounts", "Armaan’s portfolio recor
 
 add_section(doc, "Vibhav  ·  demo operations and team support", "Vibhav describes his role as operating the physical model, coordinating with teammates and helping test and troubleshoot it. His report is marked ongoing. That matters for a live demonstration: someone must keep the water loop, phone and power sources working while the rest of the team explains the result. Specific test outcomes will be added as that work is completed.")
 
-add_section(doc, "Abhinav  ·  app work in progress", "The current team account places Abhinav in UI and backend work alongside Armaan. A more detailed record of his own contribution will be added when his report is available. Until then, the team should avoid assigning him features that have not been verified with him.")
+add_section(doc, "Abhinav  ·  interface and usability", "Abhinav’s own four-day summary records extensive work in styles.css and app.js, with smaller changes in data.js and index.html. He restyled the dashboard, ring, charts, utility pills, status cards, pairing and account screens in light and dark modes. He also describes practical fixes: readable contrast, 44 px controls, keyboard focus, reduced-motion support, 200% zoom layouts, iPhone form text that avoids unwanted zoom, and a form that keeps focus during redraws. In app code he added goal controls, daily tips and clearer on-track or over-goal feedback. Some early community cards and visual choices were later revised, so this is a record of his contribution to the build rather than a claim that every feature remains in today’s app. His summary does not document backend implementation, and planned presentation slides are not counted as completed work.")
 
 doc.add_page_break()
 doc.add_paragraph("Evidence, limits and next build", style="Heading 1")
@@ -249,7 +249,7 @@ add_two_column_table(doc, [
     ("Pilot", "Compare with trusted volumes in consenting homes before making accuracy claims."),
 ])
 
-sources = add_paragraph(doc, "Sources and team records: CGWB, Dynamic Ground Water Resources of Telangana 2024, chapter 8 (cgwb.gov.in); UTLT.ai repository history through 16 November 2026; Saketh’s case-design report; Armaan’s contribution portfolio; Vibhav’s operator report. Extension references: Itron Cyble gas-meter pulse documentation (apac.itron.com) and Landis+Gyr E220 optical-pulse technical data (landisgyr.com). Model and library licenses are linked in the project README.")
+sources = add_paragraph(doc, "Sources and team records: CGWB, Dynamic Ground Water Resources of Telangana 2024, chapter 8 (cgwb.gov.in); UTLT.ai repository history through 16 November 2026; Saketh’s case-design report; Armaan’s contribution portfolio; Vibhav’s operator report; Abhinav’s four-day contribution summary. Extension references: Itron Cyble gas-meter pulse documentation (apac.itron.com) and Landis+Gyr E220 optical-pulse technical data (landisgyr.com). Model and library licenses are linked in the project README.")
 sources.runs[0].font.size = Pt(7.8)
 sources.runs[0].font.color.rgb = RGBColor(100, 110, 120)
 

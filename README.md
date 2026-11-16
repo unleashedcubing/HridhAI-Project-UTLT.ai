@@ -10,7 +10,7 @@ UTLT.ai is a HridhAI 2026 team project. The current build measures water in a re
 | Saketh | Joint enclosure design with Hrishi, from early SketchUp trials to the Shapr3D case and fit checks. |
 | Armaan | HTML and JavaScript navigation, Firebase profiles, Google sign-in, and the Friends idea that led to discussion of family monitoring. |
 | S. Vibhav Ram | Physical demo operation, team coordination and testing support. His contribution report describes this as ongoing work. |
-| Abhinav | App UI and backend work with Armaan; a fuller record will be added when his own report is available. |
+| Abhinav | Four rounds of app interface and accessibility work across `styles.css`, `app.js`, `data.js` and `index.html`: light/dark layouts, dashboard and charts, status and tip cards, phone-size fixes, keyboard focus, reduced-motion support, and form improvements. His supplied summary does not claim backend implementation. |
 
 The team used Figma, Shapr3D, VS Code, MLX and AI-assisted coding tools during development. The hardware readings and AI suggestions still need independent physical validation.
 
