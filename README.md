@@ -1,6 +1,6 @@
 # UTLT.ai water demo
 
-UTLT.ai is a HridhAI 2026 team project. The current build measures water in a recirculating demo and shows the readings in a phone web app. Gas and electricity are planned extensions, not working measurements yet. The three-page [project report](reports/UTLT_Project_Report_16_Nov_2026.docx) records the build and each member's contribution through 16 November.
+UTLT.ai is a HridhAI 2026 team project. The current build measures water in a recirculating demo and shows the readings in a phone web app. Gas and electricity are planned extensions, not working measurements yet. The six-page [project report](reports/UTLT_Project_Report_16_Nov_2026.docx) records the build and each member's contribution through 16 November.
 
 ## Team and credits
 
