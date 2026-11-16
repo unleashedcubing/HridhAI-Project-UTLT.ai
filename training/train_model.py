@@ -17,7 +17,7 @@ ROOT = Path(__file__).resolve().parent
 FEATURES = (
     "log_litres", "log_duration", "hour_sin", "hour_cos", "people",
     "shower_hour_sin", "shower_hour_cos", "shower_minutes", "shower_style",
-    "laundry_days", "dishwasher", "meals", "weekend",
+    "laundry_days", "dishwasher", "meals", "washing_machine", "garden", "weekend",
 )
 
 
@@ -30,7 +30,8 @@ def features(event, survey):
         math.sin(hour * math.pi / 12), math.cos(hour * math.pi / 12),
         survey["people"], math.sin(shower * math.pi / 12), math.cos(shower * math.pi / 12),
         survey["typicalShowerMinutes"], {"bucket": 0, "mixed": 1, "shower": 2}[survey["showerStyle"]],
-        survey["laundryDaysPerWeek"], int(survey["dishwasher"]), survey["cookingMealsPerDay"], int(weekday >= 5),
+        survey["laundryDaysPerWeek"], int(survey["dishwasher"]), survey["cookingMealsPerDay"],
+        int(survey["washingMachine"]), int(survey["garden"]), int(weekday >= 5),
     ]
 
 
@@ -57,10 +58,10 @@ def export_tree(estimator):
 
 def main():
     homes = [json.loads(line) for line in (ROOT / "households_labeled.jsonl").read_text().splitlines()]
-    if len(homes) != 200 or any(len(home["days"]) != 7 for home in homes):
-        raise ValueError("Expected 200 complete seven-day households")
-    x_train, y_train = flatten(homes[:160])
-    x_test, y_test = flatten(homes[160:])
+    if len(homes) != 1000 or any(len(home["days"]) != 7 for home in homes):
+        raise ValueError("Expected 1000 complete seven-day households")
+    x_train, y_train = flatten(homes[:800])
+    x_test, y_test = flatten(homes[800:])
     model = RandomForestClassifier(
         n_estimators=36, max_depth=9, min_samples_leaf=8,
         max_features="sqrt", class_weight="balanced_subsample", random_state=20261110, n_jobs=1,
@@ -68,7 +69,7 @@ def main():
     model.fit(x_train, y_train)
     predicted = model.predict(x_test)
     report = {
-        "trainHouseholds": 160, "testHouseholds": 40,
+        "trainHouseholds": 800, "testHouseholds": 200,
         "trainSessions": len(y_train), "testSessions": len(y_test),
         "holdoutAccuracy": round(accuracy_score(y_test, predicted), 4),
         "holdoutMacroF1": round(f1_score(y_test, predicted, average="macro"), 4),

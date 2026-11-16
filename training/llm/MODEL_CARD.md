@@ -16,4 +16,4 @@ Training examples cover seven-day averages, daily goals, cautious descriptions o
 
 **Limitations:** The model made an arithmetic error on an independent seven-day average question. Compute all litres, averages, and goal comparisons in application code. A single whole-home flow sensor cannot identify the activity behind a flow event. Treat every activity suggestion as unverified and ask the user to confirm ambiguous periods. The ONNX export reported precision differences from the PyTorch reference at a strict 1e-5 tolerance; local quantized inference worked, but phone WebGPU performance and accuracy still require testing.
 
-Base model: [Qwen/Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B), Apache 2.0. Training scripts and adapter: [UTLT.ai project](https://github.com/unleashedcubing/HridhAI-Project-UTLT.ai/tree/codex/esp32-water-bridge/training).
+Base model: [Qwen/Qwen3-0.6B](https://huggingface.co/Qwen/Qwen3-0.6B), Apache 2.0. Training scripts and adapter: [UTLT.ai project](https://github.com/unleashedcubing/HridhAI-Project-UTLT.ai/tree/ble-enabled/training).

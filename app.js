@@ -1,9 +1,6 @@
-/* Standalone UTLT.ai UI with Firebase Authentication and Cloud Firestore profile sync.
-   Icon paths: Tabler Icons v3.44.0, MIT. */
+
 (function () {
   "use strict";
-
-  // Remove only legacy UTLT app data. Firebase's own auth persistence is kept.
   function clearLegacyAppData() {
     try {
       for (const key of Object.keys(localStorage)) if (key.startsWith("utlt-") || key.startsWith("UTLT")) localStorage.removeItem(key);
@@ -27,8 +24,7 @@
   const correctionsKey = "waterModelCorrectionsV1";
   const lastConnectedKey = "waterLastConnectedV1";
   let savedPairing = "";
-  try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) { /* Pairing still works in this tab. */ }
-  // Fixed demo conversion from the measured 160 mL timing range.
+  try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) {  }
   const pulsesPerLitre = 4075;
   let demoEnabled = false;
   let savedSurvey = null, reviewedDays = [], confirmedLabels = {}, corrections = [], lastConnected = null;
@@ -45,7 +41,7 @@
     corrections = JSON.parse(localStorage.getItem(correctionsKey) || "[]");
     const savedConnection = JSON.parse(localStorage.getItem(lastConnectedKey) || "null");
     if (savedConnection?.qrId === savedPairing) lastConnected = savedConnection.at;
-  } catch (_error) { /* The fixed conversion remains available. */ }
+  } catch (_error) {  }
   const state = {
     screen: "home",
     utility: "Water",
@@ -87,8 +83,6 @@
     family: null, familyInviteUrl: "", familyRequests: [], familyMessage: "", familyBusy: false, pendingFamilyInvite: "",
     authProvider: "signed-out", authBusy: false, authMessage: "", pendingAuthScreen: ""
   };
-
-  // Firebase initializes in the background; the dashboard is available without signing in.
   const firebaseReady = (async () => {
     if (standaloneDevice) throw new Error("Cloud account features need internet; water tracking works offline.");
     const version = "13.2.0";
@@ -362,7 +356,6 @@
           render(true);
         });
     } else {
-      // Guest mode keeps settings in memory; Google sign-in is only needed for cloud features.
       state.syncStatus = "guest";
       state.syncError = "";
     }
@@ -379,11 +372,12 @@
     state.leaderboardVisible = profile.leaderboardVisible === true;
     state.communitySharing = profile.communitySharing === true;
   }
+  // Sign-in follows device pairing.
   function renderAuthGate(errorMessage = "") {
     state.screen = "auth";
     const destination = state.pendingAuthScreen || "this feature";
     const featureName = destination === "family" ? "Family Connect" : destination === "account" ? "your account" : "device setup";
-    const message = errorMessage || state.authMessage || `Sign in with Google to use ${featureName}. Your dashboard remains available without signing in.`;
+    const message = errorMessage || state.authMessage || `Sign in with Google to continue ${featureName}.`;
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""}"><main class="utlt-auth-screen">
       <section class="utlt-auth-card">
         <div class="utlt-auth-top"><strong>UTLT.ai</strong><button type="button" data-action="auth-theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon", 22)}</button></div>
@@ -391,11 +385,10 @@
         <p class="utlt-eyebrow">UTLT.AI · SMART WATER</p>
         <h1>Welcome to UTLT.ai</h1>
         <p class="utlt-auth-intro">Your water, clearly understood.</p>
-        <div class="utlt-auth-feature">${icon("shield", 20)}<span>Sign in to save your family profile and settings.</span></div>
+        <div class="utlt-auth-feature">${icon("shield", 20)}<span>Sign in to set up your household and save its readings.</span></div>
         <button class="utlt-primary-button utlt-auth-google" type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "Connecting…" : "Continue with Google"}</button>
-        <button class="utlt-auth-secondary" type="button" data-action="auth-cancel">Continue without an account</button>
         <p class="utlt-auth-message" role="status">${escapeHtml(message)}</p>
-        <p class="utlt-auth-note">Google is needed for Family and cloud account features. Your water dashboard and local device work as a guest.</p>
+        <p class="utlt-auth-note">After pairing, your household setup starts automatically.</p>
       </section></main></div>`;
   }
 
@@ -411,7 +404,7 @@
     if (!state.name && user.displayName) state.name = user.displayName;
     if (!remoteProfile) await firebaseStore.saveProfile(profileSnapshot());
     state.pendingFamilyInvite = new URLSearchParams(location.search).get("familyInvite") || state.pendingFamilyInvite || "";
-    const destination = state.pendingAuthScreen || (state.screen === "auth" ? "home" : state.screen);
+    const destination = state.pairedDeviceId && !state.survey ? "survey" : state.pendingAuthScreen || (state.screen === "auth" ? "home" : state.screen);
     state.pendingAuthScreen = "";
     state.screen = destination;
     if (destination === "family") {
@@ -463,7 +456,6 @@
   }
 
   async function initializePersistence() {
-    // Show the device-ready dashboard immediately. Firebase is only needed for protected features.
     render();
     try {
       firebaseContext = await firebaseReady;
@@ -710,10 +702,10 @@
       <p>Start with your meter facts, then explore your routine. Water-use labels are suggestions until you confirm them.</p>
       ${modes}
       <div class="utlt-assistant-evidence"><span>WHAT THE DATA CAN SAY</span><strong>${escapeHtml(evidence)}</strong><small>${state.demoEnabled ? "Sample readings · not a real household" : "Based on readings stored on this phone"}</small></div>
-      <div class="utlt-question-prompts" aria-label="Example questions"><button type="button" data-action="assistant-prompt" data-question="Will I stay within my water goal by 8 pm?">Evening outlook</button><button type="button" data-action="assistant-prompt" data-question="How does today's water use compare with my usual pace?">Compare today</button><button type="button" data-action="assistant-prompt" data-question="What can I do to save water today?">Find one action</button><button type="button" data-action="assistant-prompt" data-question="What do you know and what are you unsure about?">Check certainty</button></div>
-      <form id="utlt-assistant-form" class="utlt-assistant-form"><label for="utlt-assistant-question">Your question</label><textarea id="utlt-assistant-question" name="question" rows="3" maxlength="300" placeholder="What changed in my water use this week?" required>${escapeHtml(state.llmQuestion)}</textarea><button class="utlt-primary-button" type="submit" ${state.llmBusy ? "disabled" : ""}>${state.llmBusy ? "Thinking on your phone…" : "Ask UTLT.ai"}</button></form>
+      ${state.llmReady ? `<div class="utlt-question-prompts" aria-label="Example questions"><button type="button" data-action="assistant-prompt" data-question="Will I stay within my water goal by 8 pm?">Evening outlook</button><button type="button" data-action="assistant-prompt" data-question="How does today's water use compare with my usual pace?">Compare today</button><button type="button" data-action="assistant-prompt" data-question="What can I do to save water today?">Find one action</button><button type="button" data-action="assistant-prompt" data-question="What do you know and what are you unsure about?">Check certainty</button></div>
+      <form id="utlt-assistant-form" class="utlt-assistant-form"><label for="utlt-assistant-question">Your question</label><textarea id="utlt-assistant-question" name="question" rows="3" maxlength="300" placeholder="What changed in my water use this week?" required>${escapeHtml(state.llmQuestion)}</textarea><button class="utlt-primary-button" type="submit" ${state.llmBusy ? "disabled" : ""}>${state.llmBusy ? "Thinking on your phone…" : "Ask UTLT.ai"}</button></form>` : ""}
       ${state.llmAnswer ? `<div class="utlt-learning-card utlt-assistant-answer"><strong>${state.llmAnswerType === "checked" ? "Checked from your readings" : "UTLT.ai"}</strong><p>${escapeHtml(state.llmAnswer)}</p></div>` : ""}
-      <div class="utlt-learning-card"><strong>${state.llmReady ? "On-phone model ready" : available ? "For more open-ended questions" : "On-phone model unavailable here"}</strong><p>${state.llmReady ? "Your questions and meter facts stay in this browser during generation." : available ? "Download the optional 580 MB model on Wi-Fi. Checked answers above work without it." : "This browser does not expose WebGPU. Checked answers and pattern checks still work."}</p>${available && !state.llmReady ? `<button class="utlt-primary-button" data-action="load-local-llm" ${state.llmBusy ? "disabled" : ""}>${state.llmBusy ? "Loading model…" : "Download on-phone AI"}</button>` : ""}</div>
+      <div class="utlt-learning-card"><strong>${state.llmReady ? "On-phone model ready" : available ? "Download AI to ask questions" : "On-phone model unavailable here"}</strong><p>${state.llmReady ? "Your questions and meter facts stay in this browser during generation." : available ? "Download the 580 MB model on Wi-Fi before asking questions." : "This browser does not expose WebGPU. Use a compatible browser to download the model and ask questions."}</p>${available && !state.llmReady ? `<button class="utlt-primary-button" data-action="load-local-llm" ${state.llmBusy ? "disabled" : ""}>${state.llmBusy ? "Loading model…" : "Download on-phone AI"}</button>` : ""}</div>
       ${state.llmStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.llmStatus)}</p>` : ""}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p>
     </section>`;
   }
@@ -760,13 +752,13 @@
     const pace = window.UTLTAI.paceInsight(state.readings);
     const forecast = window.UTLTAI.dailyForecast(state.readings, state.goal);
     const uncertain = state.survey ? window.UTLTAI.sessions(state.readings, state.survey, window.UTLTAI.indiaDate(new Date()), state.corrections).slice(0, 4).map(item => `${item.recordedAt}: ${item.litres.toFixed(2)} L, possible ${item.suggestion.category} (${Math.round(item.suggestion.confidence * 100)}% model confidence, unverified)`).join("; ") : "survey not completed";
-    return [`Source: ${state.demoEnabled ? "SIMULATED DEMO READINGS, not a real device" : "ESP32 flow meter readings"}.`, `Household: ${state.survey ? state.survey.people + " people; usual shower around " + state.survey.usualShowerHour + ":00; " + state.survey.showerStyle + " bathing" : "survey not completed"}.`, `Daily goal: ${state.goal} L. Today measured: ${summary.daily.at(-1)?.hasData ? summary.used.toFixed(2) + " L" : "no reading yet"}.`, `Evening forecast: ${forecast.projected === undefined ? "not available yet" : forecast.projected.toFixed(2) + " L by 20:00; " + (forecast.tone === "over" ? "could exceed" : "could stay within") + " daily goal"}. Six-hour feedback: ${forecast.stage === "feedback" ? "ready" : "not yet ready"}. This is a rough measured-pace estimate; disconnected hours may be missing.`, `Same-time recent median: ${pace.ready ? pace.baseline.toFixed(2) + " L by " + pace.clock + " from " + pace.measuredDays + " prior measured days; today by then " + pace.today.toFixed(2) + " L; pace " + pace.tone : pace.reason === "today" ? "not available; no reading today yet" : "not available; only " + pace.measuredDays + " of 3 prior measured days"}.`, `Continuous flow: ${state.device.connected && state.flowRunningMinutes >= 16 ? Math.floor(state.flowRunningMinutes) + " minutes detected; inspect taps, cause unknown" : "no sustained-flow alert"}.`, `Last seven dates: ${days}.`, `Seven-day measured-day average: ${insight?.average === undefined ? "not yet available" : insight.average + " L/day"}.`, `Per-person measured-day average: ${insight?.perPerson === undefined ? "not yet available" : insight.perPerson + " L/day"}.`, `Today's water by time: ${summary.byTime.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}.`, `Today's categories: ${summary.byUse.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}. Unconfirmed activity is Misc. A whole-home meter cannot identify the activity.`, `Numerical model suggestions from 200 simulated households: ${uncertain || "none"}. These are not verified activities.`, `Allowed water-saving action: ${allowedAction}`].join("\n");
+    return [`Source: ${state.demoEnabled ? "SIMULATED DEMO READINGS, not a real device" : "ESP32 flow meter readings"}.`, `Household: ${state.survey ? state.survey.people + " people; " + (state.survey.bathrooms || 1) + " bathrooms; water source " + (state.survey.waterSource || "unspecified") + "; usual shower around " + state.survey.usualShowerHour + ":00; " + state.survey.showerStyle + " bathing; washing machine " + (state.survey.washingMachine ? "yes" : "no") + "; plants/garden " + (state.survey.garden ? "yes" : "no") : "survey not completed"}.`, `Daily goal: ${state.goal} L. Today measured: ${summary.daily.at(-1)?.hasData ? summary.used.toFixed(2) + " L" : "no reading yet"}.`, `Evening forecast: ${forecast.projected === undefined ? "not available yet" : forecast.projected.toFixed(2) + " L by 20:00; " + (forecast.tone === "over" ? "could exceed" : "could stay within") + " daily goal"}. Six-hour feedback: ${forecast.stage === "feedback" ? "ready" : "not yet ready"}. This is a rough measured-pace estimate; disconnected hours may be missing.`, `Same-time recent median: ${pace.ready ? pace.baseline.toFixed(2) + " L by " + pace.clock + " from " + pace.measuredDays + " prior measured days; today by then " + pace.today.toFixed(2) + " L; pace " + pace.tone : pace.reason === "today" ? "not available; no reading today yet" : "not available; only " + pace.measuredDays + " of 3 prior measured days"}.`, `Continuous flow: ${state.device.connected && state.flowRunningMinutes >= 16 ? Math.floor(state.flowRunningMinutes) + " minutes detected; inspect taps, cause unknown" : "no sustained-flow alert"}.`, `Last seven dates: ${days}.`, `Seven-day measured-day average: ${insight?.average === undefined ? "not yet available" : insight.average + " L/day"}.`, `Per-person measured-day average: ${insight?.perPerson === undefined ? "not yet available" : insight.perPerson + " L/day"}.`, `Today's water by time: ${summary.byTime.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}.`, `Today's categories: ${summary.byUse.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}. Unconfirmed activity is Misc. A whole-home meter cannot identify the activity.`, `Numerical model suggestions from 1000 simulated households: ${uncertain || "none"}. These are not verified activities.`, `Allowed water-saving action: ${allowedAction}`].join("\n");
   }
 
   function surveyPage() {
     const survey = state.survey || {};
     const options = (values, selected) => values.map(([value, label]) => `<option value="${value}" ${String(selected) === String(value) ? "selected" : ""}>${label}</option>`).join("");
-    return `<section class="utlt-survey-page"><p class="utlt-eyebrow">HOUSEHOLD SURVEY</p><h1>Help UTLT learn your routine</h1><p>These answers guide activity suggestions. Your meter still measures only total flow.</p><form id="utlt-survey-form" class="utlt-survey-form"><label>People at home<input name="people" type="number" min="1" max="12" required value="${survey.people ?? 3}"></label><label>Usual shower time<select name="usualShowerHour">${options(Array.from({ length: 24 }, (_, hour) => [hour, `${String(hour).padStart(2, "0")}:00`]), survey.usualShowerHour ?? 7)}</select></label><label>Bathing style<select name="showerStyle">${options([["bucket", "Bucket"], ["shower", "Shower"], ["mixed", "Both"]], survey.showerStyle || "mixed")}</select></label><label>Typical shower minutes<input name="typicalShowerMinutes" type="number" min="1" max="60" value="${survey.typicalShowerMinutes ?? 8}" required></label><label>Laundry days per week<input name="laundryDaysPerWeek" type="number" min="0" max="7" value="${survey.laundryDaysPerWeek ?? 2}" required></label><label>Meals cooked per day<input name="cookingMealsPerDay" type="number" min="0" max="3" value="${survey.cookingMealsPerDay ?? 2}" required></label><label>Usual bedtime<select name="usualBedtimeHour">${options(Array.from({ length: 24 }, (_, hour) => [hour, `${String(hour).padStart(2, "0")}:00`]), survey.usualBedtimeHour ?? 22)}</select></label><label class="utlt-check-row"><input name="dishwasher" type="checkbox" ${survey.dishwasher ? "checked" : ""}>We use a dishwasher</label><button class="utlt-primary-button" type="submit">Save household routine</button></form><p class="utlt-device-help">Your survey stays on this phone. The first seven-day observation begins when you save it.</p></section>`;
+    return `<section class="utlt-survey-page"><p class="utlt-eyebrow">HOUSEHOLD SURVEY</p><h1>Help UTLT learn your routine</h1><p>These answers guide activity suggestions. Your meter still measures only total flow.</p><form id="utlt-survey-form" class="utlt-survey-form"><label>People at home<input name="people" type="number" min="1" max="12" required value="${survey.people ?? 3}"></label><label>Bathrooms<input name="bathrooms" type="number" min="1" max="8" required value="${survey.bathrooms ?? 2}"></label><label>Water source<select name="waterSource">${options([["municipal", "Municipal supply"], ["tanker", "Tanker"], ["borewell", "Borewell"], ["mixed", "More than one"]], survey.waterSource || "municipal")}</select></label><label>Usual shower time<select name="usualShowerHour">${options(Array.from({ length: 24 }, (_, hour) => [hour, `${String(hour).padStart(2, "0")}:00`]), survey.usualShowerHour ?? 7)}</select></label><label>Bathing style<select name="showerStyle">${options([["bucket", "Bucket"], ["shower", "Shower"], ["mixed", "Both"]], survey.showerStyle || "mixed")}</select></label><label>Typical shower minutes<input name="typicalShowerMinutes" type="number" min="1" max="60" value="${survey.typicalShowerMinutes ?? 8}" required></label><label>Laundry days per week<input name="laundryDaysPerWeek" type="number" min="0" max="7" value="${survey.laundryDaysPerWeek ?? 2}" required></label><label>Meals cooked per day<input name="cookingMealsPerDay" type="number" min="0" max="3" value="${survey.cookingMealsPerDay ?? 2}" required></label><label>Usual bedtime<select name="usualBedtimeHour">${options(Array.from({ length: 24 }, (_, hour) => [hour, `${String(hour).padStart(2, "0")}:00`]), survey.usualBedtimeHour ?? 22)}</select></label><label class="utlt-check-row"><input name="dishwasher" type="checkbox" ${survey.dishwasher ? "checked" : ""}>We use a dishwasher</label><label class="utlt-check-row"><input name="washingMachine" type="checkbox" ${survey.washingMachine ? "checked" : ""}>We use a washing machine</label><label class="utlt-check-row"><input name="garden" type="checkbox" ${survey.garden ? "checked" : ""}>We water plants or a garden</label><button class="utlt-primary-button" type="submit">Save household routine</button></form><p class="utlt-device-help">Your survey stays on this phone. The first seven-day observation begins when you save it.</p></section>`;
   }
 
   function reviewPage() {
@@ -989,6 +981,8 @@
 
   let lastMotionView = "";
   async function render(preserveScroll = false) {
+    if (state.pairedDeviceId && !firebaseStore && state.screen !== "pair") { renderAuthGate(); return; }
+    if (state.device.connected && state.pairedDeviceId && !state.survey && state.screen !== "survey" && state.screen !== "pair") state.screen = "survey";
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
     const motionView = `${state.screen}:${state.utility}:${state.breakdown}`;
     const enterMotion = motionView !== lastMotionView;
@@ -1011,7 +1005,6 @@
   }
 
   function renderMeterUpdate() {
-    // Replacing an active form every two seconds discards unfinished typing.
     if (["survey", "review", "account", "assistant"].includes(state.screen)) return;
     if (!root.querySelector(".utlt-auth-screen")) render(true);
   }
@@ -1073,7 +1066,7 @@
       state.device.lastConnectedAt = null;
     }
     state.pairedDeviceId = scannedId;
-    try { localStorage.setItem(pairingKey, state.pairedDeviceId); } catch (_error) { /* Session pairing still works. */ }
+    try { localStorage.setItem(pairingKey, state.pairedDeviceId); } catch (_error) {  }
     state.pairStatus = `QR verified for UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}. Reconnecting if already allowed; otherwise tap Allow Bluetooth.`;
     stopQrScanner();
     render(true);
@@ -1119,7 +1112,7 @@
             if (result) codes = [{ rawValue: result.data }];
           }
           for (const code of codes) if (acceptDeviceQr(code.rawValue)) return;
-        } catch (_error) { /* Ignore a frame that was not ready. */ }
+        } catch (_error) {  }
         qrTimer = setTimeout(scanFrame, 220);
       };
       scanFrame();
@@ -1163,7 +1156,7 @@
     state.device = { connected: true, lastConnectedAt: new Date(now).toISOString() };
     if (now - lastConnectionPersisted >= 60000) {
       lastConnectionPersisted = now;
-      try { localStorage.setItem(lastConnectedKey, JSON.stringify({ qrId: state.pairedDeviceId, at: state.device.lastConnectedAt })); } catch (_error) { /* The current connection still works. */ }
+      try { localStorage.setItem(lastConnectedKey, JSON.stringify({ qrId: state.pairedDeviceId, at: state.device.lastConnectedAt })); } catch (_error) {  }
     }
   }
 
@@ -1178,12 +1171,12 @@
     const latest = latestBlePacket;
     if (!latest) return;
     let saved = {};
-    try { saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}"); } catch (_error) { /* Continue with device history. */ }
+    try { saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}"); } catch (_error) {  }
     if (!complete) {
       saved.session = latest.session;
       saved.lastPulses = latest.total;
       saved.lastObservedAt = Date.now();
-      try { localStorage.setItem("waterMeterReadingsV1", JSON.stringify(saved)); } catch (_error) { /* Keep live meter. */ }
+      try { localStorage.setItem("waterMeterReadingsV1", JSON.stringify(saved)); } catch (_error) {  }
       state.historyStatus = "History transfer did not finish. Reconnect or tap Download history to retry.";
       render(true);
       return;
@@ -1204,11 +1197,11 @@
     const afterSnapshot = historySnapshot !== null && latest.total >= historySnapshot ? latest.total - historySnapshot : 0;
     if (afterSnapshot) recovered.push({ recordedAt: indiaIso(Math.floor(Date.now() / 1000)), litres: afterSnapshot / pulsesPerLitre, category: "Misc" });
     const readings = recovered.length ? [...earlier, ...recovered] : Array.isArray(saved.readings) ? saved.readings : [];
-    try { localStorage.setItem("waterMeterReadingsV1", JSON.stringify({ session: latest.session, lastPulses: Math.max(latest.total, historySnapshot || 0), lastObservedAt: Date.now(), readings })); } catch (_error) { /* Readings remain in this tab. */ }
+    try { localStorage.setItem("waterMeterReadingsV1", JSON.stringify({ session: latest.session, lastPulses: Math.max(latest.total, historySnapshot || 0), lastObservedAt: Date.now(), readings })); } catch (_error) {  }
     state.readings = readings;
     state.usingDemo = false;
     state.demoEnabled = false;
-    try { localStorage.setItem(demoKey, "false"); } catch (_error) { /* Device readings still take precedence. */ }
+    try { localStorage.setItem(demoKey, "false"); } catch (_error) {  }
     state.historyStatus = `Recovered ${historyRows.size} five-minute water period${historyRows.size === 1 ? "" : "s"} from the ESP32.`;
     rememberConnected();
     syncFamilyUsage();
@@ -1288,6 +1281,7 @@
     renderMeterUpdate();
   }
 
+  // Live readings come from Bluetooth.
   async function connectSelectedBluetoothDevice(device) {
     if (bleConnecting || bleDevice?.gatt?.connected) return;
     bleConnecting = true;
@@ -1306,10 +1300,10 @@
       }
       bleDevice = device;
       bleCharacteristic = characteristic;
-      try { localStorage.setItem(grantedDeviceKey, JSON.stringify({ qrId: state.pairedDeviceId, bluetoothId: device.id })); } catch (_error) { /* Reconnection can still match by name. */ }
+      try { localStorage.setItem(grantedDeviceKey, JSON.stringify({ qrId: state.pairedDeviceId, bluetoothId: device.id })); } catch (_error) {  }
       device.ongattserverdisconnected = () => {
         if (bleDevice !== device) return;
-        try { localStorage.setItem(lastConnectedKey, JSON.stringify({ qrId: state.pairedDeviceId, at: state.device.lastConnectedAt })); } catch (_error) { /* The tag still shows in this tab. */ }
+        try { localStorage.setItem(lastConnectedKey, JSON.stringify({ qrId: state.pairedDeviceId, at: state.device.lastConnectedAt })); } catch (_error) {  }
         bleCharacteristic = null;
         historyCharacteristic = null;
         controlCharacteristic = null;
@@ -1337,6 +1331,13 @@
       if (hasHistory) historyLoading = true;
       onBlePacket({ target: { value: await characteristic.readValue() } });
       if (hasHistory) { historyLoading = false; await requestHistory(); }
+      if (state.pairedDeviceId && !firebaseStore) {
+        state.pendingAuthScreen = "survey";
+        renderAuthGate();
+      } else if (!state.survey) {
+        state.screen = "survey";
+        render();
+      }
     } catch (error) {
       if (device.gatt?.connected) device.gatt.disconnect();
       state.pairStatus = `Bluetooth connection failed: ${error.message || error.name}`;
@@ -1351,7 +1352,7 @@
     try {
       const granted = await navigator.bluetooth.getDevices();
       let remembered = {};
-      try { remembered = JSON.parse(localStorage.getItem(grantedDeviceKey) || "{}"); } catch (_error) { /* Fall back to advertised name. */ }
+      try { remembered = JSON.parse(localStorage.getItem(grantedDeviceKey) || "{}"); } catch (_error) {  }
       if (remembered.qrId === state.pairedDeviceId) {
         const match = granted.find(device => device.id === remembered.bluetoothId);
         if (match) { await connectSelectedBluetoothDevice(match); return; }
@@ -1359,7 +1360,7 @@
       const suffix = state.pairedDeviceId.slice(-4).toUpperCase();
       const matches = granted.filter(device => device.name === `UTLT-${suffix}`);
       if (matches.length === 1) await connectSelectedBluetoothDevice(matches[0]);
-    } catch (_error) { /* The manual chooser remains available. */ }
+    } catch (_error) {  }
   }
 
   function connectBluetooth() {
@@ -1369,8 +1370,6 @@
       render(true);
       return;
     }
-    // The chooser must open directly from this button tap; camera decoding is
-    // asynchronous and cannot carry the browser's required user activation.
     const expectedName = `UTLT-${state.pairedDeviceId.slice(-4).toUpperCase()}`;
     navigator.bluetooth.requestDevice({ filters: [{ name: expectedName }], optionalServices: [bleServiceUuid] })
       .then(connectSelectedBluetoothDevice)
@@ -1412,16 +1411,16 @@
         state.usingDemo = true;
       } else {
         let saved = {};
-        try { saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}"); } catch (_error) { /* Empty dashboard is still available. */ }
+        try { saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}"); } catch (_error) {  }
         state.readings = Array.isArray(saved.readings) ? saved.readings : [];
         state.usingDemo = state.readings.length === 0;
       }
-      try { localStorage.setItem(demoKey, String(state.demoEnabled)); } catch (_error) { /* Session toggle still works. */ }
+      try { localStorage.setItem(demoKey, String(state.demoEnabled)); } catch (_error) {  }
       render(true);
       return;
     }
     if (action === "reset-meter-readings") {
-      try { localStorage.removeItem("waterMeterReadingsV1"); } catch (_error) { /* This tab can still reset. */ }
+      try { localStorage.removeItem("waterMeterReadingsV1"); } catch (_error) {  }
       state.readings = [];
       state.usingDemo = false;
       state.flowWarning = "";
@@ -1434,7 +1433,6 @@
     }
     if (action === "auth-theme") { state.dark = !state.dark; renderAuthGate(); return; }
     if (action === "login-google") { signInWithGoogle(); return; }
-    else if (action === "auth-cancel") { state.pendingAuthScreen = ""; state.screen = "home"; render(); return; }
     else if (action === "sign-out") { signOutOfApp().catch(error => renderAuthGate(error.message)); return; }
     else if (action === "theme") { state.dark = !state.dark; persistProfile(); }
     else if (action === "refresh-device") { refreshWaterBridge(); return; }
@@ -1510,7 +1508,7 @@
   root.addEventListener("submit", async (event) => {
     if (event.target.id === "utlt-assistant-form") {
       event.preventDefault();
-      if (state.llmBusy) return;
+      if (state.llmBusy || !state.llmReady) return;
       const question = String(new FormData(event.target).get("question") || "").trim().slice(0, 300);
       if (!question) return;
       state.llmQuestion = question;
@@ -1535,6 +1533,10 @@
       state.survey = {
         startedAt: state.survey?.startedAt || window.UTLTAI.indiaDate(new Date()),
         people: Math.max(1, Math.min(12, Number(form.get("people")) || 1)),
+        bathrooms: Math.max(1, Math.min(8, Number(form.get("bathrooms")) || 1)),
+        waterSource: ["municipal", "tanker", "borewell", "mixed"].includes(form.get("waterSource")) ? String(form.get("waterSource")) : "municipal",
+        washingMachine: form.has("washingMachine"),
+        garden: form.has("garden"),
         usualShowerHour: Number(form.get("usualShowerHour")) || 0,
         showerStyle: String(form.get("showerStyle") || "mixed"),
         typicalShowerMinutes: Math.max(1, Math.min(60, Number(form.get("typicalShowerMinutes")) || 8)),
@@ -1543,7 +1545,7 @@
         usualBedtimeHour: Number(form.get("usualBedtimeHour")) || 0,
         dishwasher: form.has("dishwasher")
       };
-      try { localStorage.setItem(surveyKey, JSON.stringify(state.survey)); } catch (_error) { /* This tab still uses the survey. */ }
+      try { localStorage.setItem(surveyKey, JSON.stringify(state.survey)); } catch (_error) {  }
       state.screen = "home";
       render();
       return;
@@ -1574,7 +1576,7 @@
         const saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}");
         saved.readings = state.readings;
         localStorage.setItem("waterMeterReadingsV1", JSON.stringify(saved));
-      } catch (_error) { /* Confirmations remain for this session. */ }
+      } catch (_error) {  }
       state.screen = "home";
       render();
       return;
@@ -1607,9 +1609,6 @@
     state.saved = true;
     render(true);
   });
-
-  // Integration surface for the future device bridge. Call these from your
-  // Bluetooth/Wi-Fi adapter after receiving readings or connection updates.
   window.UTLT = Object.freeze({
     setReadings(readings) {
       if (!Array.isArray(readings)) throw new TypeError("Readings must be an array");
@@ -1637,7 +1636,7 @@
     const total = Number(payload.totalPulses);
     if (!Number.isSafeInteger(total) || total < 0 || typeof payload.session !== "string") throw new Error("Invalid meter reading");
     let saved = {};
-    try { saved = JSON.parse(localStorage.getItem(directReadingsKey) || "{}"); } catch (_error) { /* Private browsing may block storage. */ }
+    try { saved = JSON.parse(localStorage.getItem(directReadingsKey) || "{}"); } catch (_error) {  }
     const now = Date.now();
     const sameSession = saved.session === payload.session && Number.isSafeInteger(saved.lastPulses) && saved.lastPulses <= total;
     const previous = sameSession ? saved.lastPulses : total;
@@ -1664,13 +1663,13 @@
       const indiaTime = new Date(Date.now() + 330 * 60000).toISOString().replace("Z", "+05:30");
       readings.push({ recordedAt: indiaTime, litres: delta / pulsesPerLitre, category: "Misc" });
     }
-    try { localStorage.setItem(directReadingsKey, JSON.stringify({ session: payload.session, lastPulses: total, lastObservedAt: now, readings })); } catch (_error) { /* Live values still work without storage. */ }
+    try { localStorage.setItem(directReadingsKey, JSON.stringify({ session: payload.session, lastPulses: total, lastObservedAt: now, readings })); } catch (_error) {  }
     const changed = delta > 0 || state.usingDemo || !state.device.connected || previousWarning !== state.flowWarning || hadFlowAlert !== (state.flowRunningMinutes >= 16);
     state.readings = readings;
     state.usingDemo = false;
     if (state.demoEnabled) {
       state.demoEnabled = false;
-      try { localStorage.setItem(demoKey, "false"); } catch (_error) { /* Live readings still take precedence. */ }
+      try { localStorage.setItem(demoKey, "false"); } catch (_error) {  }
     }
     state.bridgeAvailable = true;
     rememberConnected();
@@ -1699,7 +1698,7 @@
         state.usingDemo = false;
         if (state.demoEnabled) {
           state.demoEnabled = false;
-          try { localStorage.setItem(demoKey, "false"); } catch (_error) { /* Live data still takes precedence. */ }
+          try { localStorage.setItem(demoKey, "false"); } catch (_error) {  }
         }
         if (readingsSignature !== bridgeReadingsSignature) {
           bridgeReadingsSignature = readingsSignature;
@@ -1721,7 +1720,7 @@
   initializePersistence();
   window.UTLTAI.ready.then(() => { if (["home", "review"].includes(state.screen)) render(true); });
   if ("serviceWorker" in navigator && location.protocol === "https:") {
-    navigator.serviceWorker.register("./sw.js").catch(() => { /* The dashboard still works in the browser. */ });
+    navigator.serviceWorker.register("./sw.js").catch(() => {  });
   }
   tryAutoConnectBluetooth();
   document.addEventListener("visibilitychange", () => {

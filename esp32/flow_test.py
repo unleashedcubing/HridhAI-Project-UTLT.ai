@@ -7,7 +7,7 @@ import micropython
 micropython.alloc_emergency_exception_buf(100)
 
 FLOW_PIN = 27
-PULSES_PER_LITRE = 450.0  # Seller's starting value; calibrate with measured water.
+PULSES_PER_LITRE = 450.0
 pulses = 0
 
 

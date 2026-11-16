@@ -1,4 +1,4 @@
-/* Local, free numerical model. Suggestions are never treated as verified uses. */
+
 (function () {
   "use strict";
   let model = null;
@@ -28,7 +28,8 @@
       Number(survey.typicalShowerMinutes) || 8,
       { bucket: 0, mixed: 1, shower: 2 }[survey.showerStyle] ?? 1,
       Number(survey.laundryDaysPerWeek ?? 2), survey.dishwasher ? 1 : 0,
-      Number(survey.cookingMealsPerDay ?? 2), weekday === 0 || weekday === 6 ? 1 : 0
+      Number(survey.cookingMealsPerDay ?? 2), survey.washingMachine ? 1 : 0,
+      survey.garden ? 1 : 0, weekday === 0 || weekday === 6 ? 1 : 0
     ];
   }
 
@@ -41,7 +42,6 @@
       while (tree.feature[node] >= 0) node = x[tree.feature[node]] <= tree.threshold[node] ? tree.left[node] : tree.right[node];
       tree.probability[node].forEach((value, index) => { scores[index] += value / model.trees.length; });
     }
-    // Recent household confirmations gently personalize the pretrained model.
     for (const correction of corrections.slice(-40)) {
       if (!categories.includes(correction.category) || !Array.isArray(correction.features)) continue;
       const distance = Math.sqrt(x.reduce((sum, value, index) => {
@@ -102,10 +102,6 @@
       perPerson: Math.round(average / Math.max(1, Number(survey.people))),
       suggestedGoal: Math.max(25, Math.round(average * 0.9 / 5) * 5) };
   }
-
-  // Compare like with like: today's use so far against previous measured days
-  // at this same local time. A median prevents one unusually high day from
-  // dominating the reference. Missing days are never treated as zero usage.
   function paceInsight(readings, now = new Date()) {
     const today = indiaDate(now);
     const clock = new Intl.DateTimeFormat("en-GB", {
@@ -132,9 +128,6 @@
     const tone = Math.abs(difference) < 5 || percent === null || percent < 15 ? "usual" : difference > 0 ? "higher" : "lower";
     return { ready: true, today: current.soFar, baseline, difference, percent, tone, measuredDays: previous.length, clock };
   }
-
-  // A transparent pace estimate, not a prediction of a household's activities.
-  // Start the six-hour feedback window at the first positive flow of each day.
   function dailyForecast(readings, goal, now = new Date()) {
     const day = indiaDate(now);
     const nowMs = now.getTime();

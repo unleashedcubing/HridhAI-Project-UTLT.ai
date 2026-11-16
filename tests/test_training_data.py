@@ -11,8 +11,8 @@ class TrainingDataTests(unittest.TestCase):
     def test_two_variants_have_identical_sessions_and_only_one_has_labels(self):
         labeled = [json.loads(line) for line in (ROOT / "households_labeled.jsonl").read_text().splitlines()]
         unlabeled = [json.loads(line) for line in (ROOT / "households_unlabeled.jsonl").read_text().splitlines()]
-        self.assertEqual(200, len(labeled))
-        self.assertEqual(200, len(unlabeled))
+        self.assertEqual(1000, len(labeled))
+        self.assertEqual(1000, len(unlabeled))
         for known, unknown in zip(labeled, unlabeled):
             self.assertEqual(known["id"], unknown["id"])
             self.assertEqual(known["survey"], unknown["survey"])

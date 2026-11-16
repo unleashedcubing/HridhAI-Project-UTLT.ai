@@ -1,6 +1,6 @@
 # UTLT.ai synthetic activity model
 
-`households_labeled.jsonl` and `households_unlabeled.jsonl` contain the same 200 simulated homes, seven days each, with and without activity labels. Every home also has a household survey. The generator uses a fixed seed; these are illustrative patterns, not measured Hyderabad households or claims about typical water use.
+`households_labeled.jsonl` and `households_unlabeled.jsonl` contain the same 1000 simulated homes, seven days each, with and without activity labels. Every home also has a household survey. The generator uses a fixed seed; these are illustrative patterns, not measured Hyderabad households or claims about typical water use.
 
 Regenerate and train locally:
 

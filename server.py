@@ -165,7 +165,7 @@ def main():
     init_db()
     if args.ble:
         try:
-            import bleak  # noqa: F401 - check optional dependency before starting the server
+            import bleak
         except ImportError:
             parser.error("Bluetooth requires bleak: python3 -m pip install bleak")
         import ble_bridge

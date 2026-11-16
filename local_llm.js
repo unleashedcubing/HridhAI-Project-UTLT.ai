@@ -1,4 +1,4 @@
-/* Opt-in, phone-side language model. The model is downloaded only on a tap. */
+
 (function () {
   "use strict";
   let worker = null;

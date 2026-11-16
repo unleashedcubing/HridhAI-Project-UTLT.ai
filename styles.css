@@ -1,14 +1,7 @@
-/* ==========================================================================
-   UTLT.ai — styles.css  (v2 design system)
-   Sections:
-   01 Reset            02 Design tokens      03 App shell        04 Header
-   05 Utility pills    06 Dashboard hero     07 Water ring       08 Status card
-   09 Quick stats      10 Tip + community    11 Charts           12 Empty states
-   13 Device / pair    14 Account / forms    15 Bottom tab bar   16 Family
-   17 Friends          18 Motion             19 Responsive       20 Accessibility
-   ========================================================================== */
+/* App layout and colors. */
 
-/* 01 · RESET ---------------------------------------------------------------- */
+
+
 *, *::before, *::after { box-sizing: border-box; }
 html, body { min-height: 100%; margin: 0; line-height: 1.5; -webkit-text-size-adjust: 100%; }
 h1, h2, h3, p, ul, ol { margin: 0; }
@@ -17,28 +10,28 @@ button, input { font: inherit; color: inherit; }
 button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 img { max-width: 100%; }
 
-/* 02 · DESIGN TOKENS ------------------------------------------------------- */
+
 .utlt-app {
-  /* surfaces */
+
   --utlt-bg: #ffffff;
   --utlt-card: #ffffff;
   --utlt-panel: #f3f3f3;
   --utlt-border: #dddddd;
   --utlt-page: #f2f2f2;
-  /* text */
+
   --utlt-text: #101010;
   --utlt-muted: #666666;
   --utlt-accent: #0879d3;
   --utlt-blue: #1688f8;
-  /* ring */
+
   --utlt-ring-start: #1c5fb0;
   --utlt-ring-end: #35a0ff;
   --utlt-ring-track: #e9e9e9;
-  /* status */
+
   --utlt-good: #12a150;  --utlt-good-bg: #e6f7ee;  --utlt-good-ink: #0b6b35;
   --utlt-warn: #d98a00;  --utlt-warn-bg: #fff4dc;  --utlt-warn-ink: #8a5a00;
   --utlt-bad:  #e5484d;  --utlt-bad-bg:  #ffe9ea;  --utlt-bad-ink:  #a3171c;
-  /* shape + depth */
+
   --utlt-radius: 22px;
   --utlt-shadow: none;
   --utlt-nav-bg: #ffffff;
@@ -70,7 +63,7 @@ img { max-width: 100%; }
   --utlt-nav-bg: #292929;
 }
 
-/* 03 · APP SHELL ------------------------------------------------------------ */
+
 .utlt-phone {
   position: relative;
   display: flex;
@@ -96,7 +89,7 @@ img { max-width: 100%; }
 .utlt-content::-webkit-scrollbar { width: 6px; }
 .utlt-content::-webkit-scrollbar-thumb { border-radius: 99px; background: rgb(120 135 150 / .4); }
 
-/* 04 · HEADER --------------------------------------------------------------- */
+
 .utlt-header {
   display: flex;
   min-height: 60px;
@@ -124,7 +117,7 @@ img { max-width: 100%; }
 .utlt-icon-button svg { width: 24px; height: 24px; }
 .utlt-icon-button:active { background: var(--utlt-panel); transform: scale(.94); }
 
-/* 05 · UTILITY PILLS -------------------------------------------------------- */
+
 .utlt-pills { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 16px 6px; }
 .utlt-pill {
   display: inline-flex; height: 38px; flex: 1 1 0; max-width: 128px; align-items: center; justify-content: center; gap: 7px;
@@ -140,13 +133,13 @@ img { max-width: 100%; }
 .utlt-pill.is-active[data-value="Electricity"]::before { background: #2b2500; }
 .utlt-pill:active { transform: scale(.96); }
 
-/* 06 · DASHBOARD ------------------------------------------------------------ */
+
 .utlt-dashboard { padding: 4px 18px 28px; }
 .utlt-hero { display: flex; flex-direction: column; gap: 2px; margin: 6px 2px 0; text-align: center; }
 .utlt-hero strong { font-size: 17px; font-weight: 750; letter-spacing: -.3px; }
 .utlt-hero span { color: var(--utlt-muted); font-size: 13px; }
 
-/* 07 · WATER RING ----------------------------------------------------------- */
+
 .utlt-usage { display: flex; flex-direction: column; align-items: center; padding-top: 8px; }
 .utlt-donut { position: relative; width: 224px; height: 224px; }
 .utlt-donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
@@ -165,7 +158,7 @@ img { max-width: 100%; }
 .utlt-usage-summary strong { color: var(--utlt-accent); font-size: 38px; font-weight: 800; line-height: 1; letter-spacing: -1.5px; font-variant-numeric: tabular-nums; }
 .utlt-usage-summary span { color: var(--utlt-muted); font-size: 18px; font-weight: 650; white-space: nowrap; }
 
-/* 08 · STATUS CARD (3 states: good / warning / over) ----------------------- */
+
 .utlt-status-card {
   display: flex; align-items: flex-start; gap: 12px; margin: 14px 0;
   padding: 16px; border: 1.5px solid var(--utlt-border); border-radius: var(--utlt-radius);
@@ -187,7 +180,7 @@ img { max-width: 100%; }
 .utlt-running-card h2 { font-size: 17px; line-height: 1.2; letter-spacing: -.3px; }
 .utlt-running-card p:last-child { margin-top: 5px; font-size: 13px; line-height: 1.45; }
 
-/* A small instrument panel: evidence first, then one next action. */
+
 .utlt-pattern-card { margin: 16px 0; padding: 19px; border: 1px solid var(--utlt-border); border-radius: 22px; background: var(--utlt-card); }
 .utlt-pattern-top, .utlt-pattern-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
 .utlt-pattern-top .utlt-eyebrow { margin: 0; }
@@ -203,7 +196,7 @@ img { max-width: 100%; }
 .utlt-pattern-foot > span { color: var(--utlt-muted); font-size: 10px; line-height: 1.3; }
 .utlt-pattern-foot button { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 3px; padding: 6px 0 6px 8px; border: 0; background: transparent; color: var(--utlt-accent); font-size: 12px; font-weight: 750; cursor: pointer; }
 
-/* 09 · QUICK STATS ---------------------------------------------------------- */
+
 .utlt-quickstats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; margin: 0 0 14px; }
 .utlt-stat {
   display: flex; min-width: 0; flex-direction: column; gap: 4px; padding: 12px 10px;
@@ -215,7 +208,7 @@ img { max-width: 100%; }
 .utlt-stat.is-good strong { color: var(--utlt-good); }
 .utlt-stat.is-bad strong { color: var(--utlt-bad); }
 
-/* 10 · TIP + COMMUNITY ------------------------------------------------------ */
+
 .utlt-tip-card, .utlt-community-optin {
   display: flex; align-items: flex-start; gap: 12px; margin: 14px 0; padding: 15px;
   border: 1px solid var(--utlt-border); border-radius: 20px; background: var(--utlt-card); box-shadow: var(--utlt-shadow);
@@ -232,7 +225,7 @@ img { max-width: 100%; }
 .utlt-community-optin > div { flex: 1; min-width: 0; }
 .utlt-community-optin small { display: block; margin-top: 6px; color: var(--utlt-muted); font-size: 11px; line-height: 1.45; }
 
-/* 11 · CHARTS --------------------------------------------------------------- */
+
 .utlt-glance h2, .utlt-week h2 { margin: 0 0 10px; font-size: 21px; font-weight: 800; letter-spacing: -.6px; line-height: 1.25; }
 .utlt-week { margin-top: 22px; }
 .utlt-breakdown-switch { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px; margin-bottom: 12px; padding: 4px; border-radius: 14px; background: var(--utlt-panel); }
@@ -275,7 +268,7 @@ img { max-width: 100%; }
 .utlt-trend-footer + .utlt-trend-footer { margin-top: 0; border-top: 0; padding-top: 6px; }
 .utlt-trend-footer strong { color: var(--utlt-text); font-size: 14px; font-variant-numeric: tabular-nums; }
 
-/* 12 · EMPTY STATES (Gas / Electricity) ------------------------------------ */
+
 .utlt-unavailable-card {
   margin: 18px 18px; padding: 24px 22px; border: 1px solid var(--utlt-border); border-radius: 26px;
   background: var(--utlt-card); box-shadow: var(--utlt-shadow); overflow-wrap: anywhere;
@@ -291,7 +284,7 @@ img { max-width: 100%; }
 .utlt-coming-list li { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 14px; background: var(--utlt-panel); font-size: 13px; font-weight: 600; }
 .utlt-coming-list li::before { content: "✓"; display: grid; width: 20px; height: 20px; flex: 0 0 20px; place-items: center; border-radius: 50%; background: var(--utlt-good); color: #fff; font-size: 11px; }
 
-/* 13 · DEVICE + PAIR -------------------------------------------------------- */
+
 .utlt-device-settings { padding: 18px 20px 26px; }
 .utlt-device-card { display: flex; align-items: flex-start; gap: 14px; padding: 20px; border: 1px solid var(--utlt-border); border-radius: 24px; background: var(--utlt-card); box-shadow: var(--utlt-shadow); }
 .utlt-device-icon { display: grid; width: 48px; height: 48px; flex: 0 0 48px; place-items: center; border-radius: 15px; background: #d3eaff; color: #0a6fd0; }
@@ -370,7 +363,7 @@ img { max-width: 100%; }
 .utlt-calibration p, .utlt-calibration small { color: var(--utlt-muted); font-size: 12px; line-height: 1.45; }
 .utlt-calibration button { min-height: 40px; border: 1px solid var(--utlt-blue); border-radius: 12px; background: var(--utlt-card); color: var(--utlt-accent); font-size: 13px; font-weight: 700; cursor: pointer; }
 
-/* Sign-in uses the same surface, type and blue accent as the dashboard. */
+
 .utlt-auth-screen { display: flex; min-height: 100dvh; align-items: center; justify-content: center; padding: 28px 22px; }
 .utlt-auth-card {
   width: min(100%, 430px); padding: 28px 12px; border: 0;
@@ -390,7 +383,7 @@ img { max-width: 100%; }
 .utlt-auth-message { min-height: 20px; margin-top: 18px; color: var(--utlt-muted); font-size: 13px; line-height: 1.4; }
 .utlt-auth-note { margin-top: 11px; color: var(--utlt-muted); font-size: 11px; line-height: 1.45; }
 
-/* 14 · ACCOUNT + FORMS + BUTTONS ------------------------------------------- */
+
 .utlt-primary-button {
   display: flex; min-height: 52px; align-items: center; justify-content: center; gap: 8px; padding: 0 20px;
   border: 0; border-radius: 16px; color: #fff; font-size: 15px; font-weight: 700; letter-spacing: -.1px; cursor: pointer;
@@ -438,7 +431,7 @@ img { max-width: 100%; }
 .utlt-settings-row small { color: var(--utlt-muted); font-size: 12px; }
 .utlt-settings-row > svg { color: var(--utlt-muted); }
 
-/* 15 · BOTTOM TAB BAR ------------------------------------------------------- */
+
 .utlt-tabbar {
   position: sticky; bottom: 0; z-index: 5; display: flex; flex: 0 0 auto; align-items: center; justify-content: space-around;
   min-height: 66px; padding: 6px 10px max(8px, env(safe-area-inset-bottom));
@@ -454,7 +447,7 @@ img { max-width: 100%; }
 .utlt-tabbar > button.is-current .utlt-nav-icon, .utlt-tabbar > button.is-current .utlt-tab-avatar { background: rgb(22 136 248 / .15); }
 .utlt-tabbar > button:active .utlt-nav-icon, .utlt-tabbar > button:active .utlt-tab-avatar { transform: scale(.92); }
 
-/* 16 · FAMILY --------------------------------------------------------------- */
+
 .utlt-family-page { padding: 18px 20px 32px; }
 .utlt-family-page h1 { font-size: 29px; font-weight: 800; letter-spacing: -.9px; }
 .utlt-family-total, .utlt-family-card { margin-top: 16px; padding: 18px; border: 1px solid var(--utlt-border); border-radius: 22px; background: var(--utlt-card); box-shadow: var(--utlt-shadow); }
@@ -472,7 +465,7 @@ img { max-width: 100%; }
 .utlt-family-member button { min-height: 36px; padding: 0 12px; border: 1px solid var(--utlt-border); border-radius: 10px; background: var(--utlt-panel); color: var(--utlt-text); font-size: 12px; font-weight: 650; cursor: pointer; }
 .utlt-family-message, .utlt-friend-message { margin: 12px 0; padding: 12px 14px; border-left: 3px solid var(--utlt-blue); border-radius: 12px; background: var(--utlt-panel); font-size: 13px; }
 
-/* 17 · FRIENDS (screen ships with app.js; fully styled for when it is enabled) */
+
 .utlt-friends-page { padding: 14px 20px 30px; }
 .utlt-friends-hero { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 8px 0 18px; }
 .utlt-friends-hero h1 { font-size: 26px; font-weight: 800; line-height: 1.15; letter-spacing: -.8px; }
@@ -523,7 +516,7 @@ img { max-width: 100%; }
 .utlt-rank-name { flex: 1; min-width: 0; overflow: hidden; font-size: 13px; text-overflow: ellipsis; white-space: nowrap; }
 .utlt-rank-row strong { font-size: 13px; font-variant-numeric: tabular-nums; }
 
-/* 18 · MOTION --------------------------------------------------------------- */
+
 @keyframes utlt-ring-draw { from { stroke-dashoffset: 528; } to { stroke-dashoffset: 0; } }
 @keyframes utlt-pie-reveal { from { opacity: 0; transform: rotate(-10deg) scale(.94); } to { opacity: 1; transform: rotate(0) scale(1); } }
 @keyframes utlt-bars-rise { from { opacity: .4; transform: scaleY(.2); } to { opacity: 1; transform: scaleY(1); } }
@@ -554,7 +547,7 @@ img { max-width: 100%; }
   .utlt-donut-value, .utlt-kokonut-pie, .utlt-trend-plot, .utlt-trend-plot g, .utlt-scroll-reveal { animation: none !important; transform: none !important; opacity: 1 !important; stroke-dashoffset: 0; }
 }
 
-/* 19 · RESPONSIVE ------------------------------------------------------------ */
+
 @media (min-width: 600px) {
   .utlt-app { min-height: 100dvh; padding: 24px; }
   .utlt-phone {
@@ -578,7 +571,7 @@ img { max-width: 100%; }
   .utlt-donut { width: 170px; height: 170px; }
 }
 
-/* 20 · ACCESSIBILITY --------------------------------------------------------- */
+
 .utlt-assistant-page { display: grid; gap: 16px; padding: 20px 22px 34px; }
 .utlt-assistant-page h1 { font-size: 28px; line-height: 1.12; letter-spacing: -.7px; }
 .utlt-assistant-page > p:not(.utlt-eyebrow):not(.utlt-ai-note) { color: var(--utlt-muted); }

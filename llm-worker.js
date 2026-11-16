@@ -1,4 +1,4 @@
-/* Runs generation on the phone in a worker. No user question is sent to a server. */
+
 let generator;
 
 function checkedAnswer(answer, question, facts) {

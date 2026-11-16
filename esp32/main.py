@@ -69,14 +69,14 @@ def advertise():
 
 def on_ble_event(event, data):
     global pending_time, history_request_connection
-    if event == 1:  # Central connected.
+    if event == 1:
         connections.add(data[0])
-    elif event == 2:  # Central disconnected.
+    elif event == 2:
         connections.discard(data[0])
         advertise()
-    elif event == 3 and data[1] == control_handle:  # GATT write.
+    elif event == 3 and data[1] == control_handle:
         command = bytes(radio.gatts_read(control_handle))
-        if len(command) == 5 and command[0] == 84:  # T + uint32 Unix seconds.
+        if len(command) == 5 and command[0] == 84:
             pending_time = struct.unpack_from("<I", command, 1)[0]
         elif command == b"H":
             history_request_connection = data[0]

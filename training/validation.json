@@ -1,10 +1,10 @@
 {
-  "trainHouseholds": 160,
-  "testHouseholds": 40,
-  "trainSessions": 21221,
-  "testSessions": 5810,
-  "holdoutAccuracy": 0.9649,
-  "holdoutMacroF1": 0.9416,
+  "trainHouseholds": 800,
+  "testHouseholds": 200,
+  "trainSessions": 104163,
+  "testSessions": 26297,
+  "holdoutAccuracy": 0.9678,
+  "holdoutMacroF1": 0.9509,
   "classes": [
     "Bath",
     "Food/Drink",

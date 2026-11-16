@@ -33,7 +33,7 @@ def main():
         for name, layer in model.named_modules():
             if not hasattr(layer, "lora_A") or "default" not in layer.lora_A:
                 continue
-            # PEFT prefix: base_model.model.model.layers.N....
+
             source = name.removeprefix("base_model.model.")
             for letter, parameter in (("a", layer.lora_A["default"].weight),
                                       ("b", layer.lora_B["default"].weight)):

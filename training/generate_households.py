@@ -1,4 +1,4 @@
-"""Deterministic, illustrative seven-day water sessions for 200 households.
+"""Deterministic, illustrative seven-day water sessions for 1000 households.
 
 Run: python training/generate_households.py
 The unlabeled file contains the same sessions without activity labels.
@@ -43,6 +43,10 @@ def household(index):
         "dishwasher": RNG.random() < 0.18,
         "cookingMealsPerDay": RNG.randint(1, 3),
         "usualBedtimeHour": RNG.choice((21, 22, 23, 0, 1)),
+        "bathrooms": RNG.randint(1, 3),
+        "waterSource": RNG.choice(("municipal", "tanker", "borewell", "mixed")),
+        "washingMachine": RNG.random() < 0.73,
+        "garden": RNG.random() < 0.28,
     }
     days = []
     for offset in range(7):
@@ -65,7 +69,10 @@ def household(index):
             litres = RNG.uniform(2, 5) if survey["dishwasher"] else RNG.uniform(8, 18)
             events.append(event(day, hour, RNG.randrange(0, 55, 5), litres, RNG.randint(5, 15), "Housework"))
         if offset < survey["laundryDaysPerWeek"]:
-            events.append(event(day, RNG.choice((10, 11, 14, 16)), RNG.randrange(0, 55, 5), RNG.uniform(38, 72), RNG.randint(25, 65), "Housework"))
+            laundry_litres = RNG.uniform(38, 72) if survey["washingMachine"] else RNG.uniform(22, 50)
+            events.append(event(day, RNG.choice((10, 11, 14, 16)), RNG.randrange(0, 55, 5), laundry_litres, RNG.randint(25, 65), "Housework"))
+        if survey["garden"] and RNG.random() < 0.65:
+            events.append(event(day, 17, RNG.randrange(0, 55, 5), RNG.uniform(8, 28), RNG.randint(5, 18), "Housework"))
         if RNG.random() < 0.48:
             events.append(event(day, 10, RNG.randrange(0, 55, 5), RNG.uniform(9, 26), RNG.randint(8, 25), "Housework"))
         for _ in range(people * RNG.randint(2, 4)):
@@ -82,7 +89,7 @@ def main():
     labeled = ROOT / "households_labeled.jsonl"
     unlabeled = ROOT / "households_unlabeled.jsonl"
     with labeled.open("w", encoding="utf-8") as labels, unlabeled.open("w", encoding="utf-8") as no_labels:
-        for index in range(1, 201):
+        for index in range(1, 1001):
             home = household(index)
             labels.write(json.dumps(home, separators=(",", ":")) + "\n")
             stripped = json.loads(json.dumps(home))
@@ -90,7 +97,7 @@ def main():
                 for item in day["events"]:
                     item.pop("category")
             no_labels.write(json.dumps(stripped, separators=(",", ":")) + "\n")
-    print("Wrote 200 seven-day households to", labeled.name, "and", unlabeled.name)
+    print("Wrote 1000 seven-day households to", labeled.name, "and", unlabeled.name)
 
 
 if __name__ == "__main__":

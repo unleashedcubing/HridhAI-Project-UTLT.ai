@@ -52,14 +52,14 @@ class WaterBLE:
         self.radio.gap_advertise(100000, adv_data=advertisement)
 
     def on_event(self, event, data):
-        if event == 1:  # Central connected.
+        if event == 1:
             self.connection = data[0]
-        elif event == 2:  # Central disconnected.
+        elif event == 2:
             self.connection = None
             self.advertise()
 
     def publish(self, session_bytes, sequence, pulses):
-        # 16 bytes fits the default BLE notification payload of 20 bytes.
+
         packet = session_bytes + struct.pack("<II", sequence, pulses)
         self.radio.gatts_write(self.handle, packet)
         if self.connection is not None:
@@ -99,7 +99,7 @@ def run():
                     config.DEVICE_TOKEN != "SAME_LONG_RANDOM_TOKEN_AS_SERVER")
 
     session_bytes = machine.unique_id()[:4] + struct.pack("<I", time.ticks_ms())
-    session = session_bytes.hex()  # Same ID on BLE and Wi-Fi for deduplication.
+    session = session_bytes.hex()
     ble = WaterBLE()
     wifi = network.WLAN(network.STA_IF) if wifi_enabled else None
     if wifi_enabled:

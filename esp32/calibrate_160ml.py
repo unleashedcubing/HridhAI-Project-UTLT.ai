@@ -13,9 +13,9 @@ import time
 
 FLOW_PIN = 27
 PUMP_PIN = 26
-USE_MOSFET = False  # Set True only after the MOSFET and flyback diode are wired.
+USE_MOSFET = False
 TARGET_ML = 160
-ESTIMATED_PULSES_PER_LITRE = 3260  # Provisional value from the earlier 160 mL run.
+ESTIMATED_PULSES_PER_LITRE = 3260
 TARGET_PULSES = round(ESTIMATED_PULSES_PER_LITRE * TARGET_ML / 1000)
 
 micropython.alloc_emergency_exception_buf(100)

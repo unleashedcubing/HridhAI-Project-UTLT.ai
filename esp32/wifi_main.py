@@ -17,7 +17,7 @@ import time
 import config
 
 FLOW_PIN = 27
-PULSES_PER_LITRE = 450.0  # Calibrate with a measured volume later.
+PULSES_PER_LITRE = 450.0
 FILES = {
     "/": ("index.html", "text/html"),
     "/index.html": ("index.html", "text/html"),

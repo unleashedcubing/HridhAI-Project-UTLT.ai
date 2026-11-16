@@ -45,8 +45,8 @@ def examples(home):
         (f"Today's measured use is {total:.1f} L, {left:.1f} L below the 350 L goal."
          if left >= 0 else f"Today's measured use is {total:.1f} L, {-left:.1f} L above the 350 L goal.")
     )
-    # Choose one event from each home, rather than flooding training with many
-    # near-identical synthetic events from the same simulator.
+
+
     candidate = sorted(today["events"], key=lambda item: item["litres"])[len(today["events"]) // 2]
     yield message(
         f"{profile}The whole-home meter observed {candidate['litres']:.1f} L "
@@ -80,11 +80,11 @@ def examples(home):
 
 def main():
     homes = [json.loads(line) for line in (ROOT / "households_labeled.jsonl").read_text().splitlines()]
-    if len(homes) != 200 or any(len(home["days"]) != 7 for home in homes):
-        raise ValueError("Expected 200 complete seven-day homes")
-    for filename, selected in (("train.jsonl", homes[:160]),
-                               ("valid.jsonl", homes[160:180]),
-                               ("test.jsonl", homes[180:])):
+    if len(homes) != 1000 or any(len(home["days"]) != 7 for home in homes):
+        raise ValueError("Expected 1000 complete seven-day homes")
+    for filename, selected in (("train.jsonl", homes[:800]),
+                               ("valid.jsonl", homes[800:900]),
+                               ("test.jsonl", homes[900:])):
         with (ROOT / "llm" / filename).open("w") as stream:
             for home in selected:
                 for item in examples(home):
