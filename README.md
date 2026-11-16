@@ -70,6 +70,8 @@ Replace the sample port if yours differs. Upload `history_store.py` before reset
 
 ## Flow sensor wiring
 
+The photo-based [wiring and troubleshooting guide](hardware/UTLT_wiring_troubleshooting.pdf) includes a pre-power checklist and a competition-day handover for Vibhav's 2C2C set and Saketh's A014 set. Its companion [full-board SVG](hardware/UTLT_full_board_map.svg) shows the intended circuit; the A014 photo lacks a level converter, so its water-meter assembly must not be powered until one is fitted and checked.
+
 Follow pin labels and sensor wire colours. On the 830-hole breadboard, check whether each power rail is split in the middle. The earlier shared chat specified pins, not numbered holes.
 
 | From | To |
