@@ -900,7 +900,7 @@
   async function translateRenderedUi(renderId) {
     const language = state.language;
     if (!language || language === "en") return;
-    const ignored = "svg,script,style,textarea,input,select,.utlt-title,.utlt-profile-card,.utlt-family-member,.utlt-friend-row,.utlt-friend-code-card,.utlt-hero";
+    const ignored = "svg,script,style,textarea,input,select,.utlt-title,.utlt-profile-card,.utlt-family-member,.utlt-friend-row,.utlt-friend-code-card,.utlt-rank-name,.utlt-hero";
     const targets = [];
     const walker = document.createTreeWalker(root, 4);
     let node;
