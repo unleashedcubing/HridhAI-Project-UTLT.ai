@@ -32,7 +32,7 @@
     leaderboardVisible: false, communitySharing: false,
     communityPercentile: null, communityParticipants: 0, communityStatus: "off", friendMessage: "", friendBusy: false,
     family: null, familyInviteUrl: "", familyRequests: [], familyMessage: "", familyBusy: false, pendingFamilyInvite: "",
-    authProvider: "signed-out", authBusy: false, authMessage: "", pendingAuthScreen: ""
+    authProvider: "signed-out", authBusy: false, authMessage: "", pendingAuthScreen: "", language: "en"
   };
 
   // Firebase initializes in the background; the dashboard is available without signing in.
@@ -294,7 +294,8 @@
     return {
       name: state.name, email: state.email, utility: state.utility,
       dark: state.dark, homeName: state.homeName, goal: state.goal,
-      breakdown: state.breakdown, leaderboardVisible: state.leaderboardVisible, communitySharing: state.communitySharing
+      breakdown: state.breakdown, leaderboardVisible: state.leaderboardVisible, communitySharing: state.communitySharing,
+      language: state.language
     };
   }
   function persistProfile() {
@@ -323,6 +324,7 @@
     if (typeof profile.homeName === "string") state.homeName = profile.homeName;
     if (Number(profile.goal) > 0) state.goal = Number(profile.goal);
     if (["use", "time"].includes(profile.breakdown)) state.breakdown = profile.breakdown;
+    if (indianLanguages.some(item => item.code === profile.language)) state.language = profile.language;
     state.leaderboardVisible = profile.leaderboardVisible === true;
     state.communitySharing = profile.communitySharing === true;
   }
@@ -470,6 +472,34 @@
     return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths[name]}</svg>`;
   }
 
+  const indianLanguages = [
+    { code: "as", label: "অসমীয়া · Assamese" },
+    { code: "bn", label: "বাংলা · Bengali" },
+    { code: "brx", label: "बड़ो · Bodo" },
+    { code: "doi", label: "डोगरी · Dogri" },
+    { code: "gu", label: "ગુજરાતી · Gujarati" },
+    { code: "hi", label: "हिन्दी · Hindi" },
+    { code: "kn", label: "ಕನ್ನಡ · Kannada" },
+    { code: "ks", label: "कॉशुर · Kashmiri" },
+    { code: "kok", label: "कोंकणी · Konkani" },
+    { code: "mai", label: "मैथिली · Maithili" },
+    { code: "ml", label: "മലയാളം · Malayalam" },
+    { code: "mni", label: "মৈতৈলোন্ · Manipuri" },
+    { code: "mr", label: "मराठी · Marathi" },
+    { code: "ne", label: "नेपाली · Nepali" },
+    { code: "or", label: "ଓଡ଼ିଆ · Odia" },
+    { code: "pa", label: "ਪੰਜਾਬੀ · Punjabi" },
+    { code: "sa", label: "संस्कृतम् · Sanskrit" },
+    { code: "sat", label: "ᱥᱟᱱᱛᱟᱲᱤ · Santali" },
+    { code: "sd", label: "سنڌي · Sindhi" },
+    { code: "ta", label: "தமிழ் · Tamil" },
+    { code: "te", label: "తెలుగు · Telugu" },
+    { code: "ur", label: "اردو · Urdu" }
+  ];
+  function languageSelector() {
+    return `<label class="utlt-language-control" title="Translate the app interface"><span aria-hidden="true">🌐</span><select data-action="language" aria-label="Choose app language"><option value="en" ${state.language === "en" ? "selected" : ""}>English</option>${indianLanguages.map(item => `<option value="${item.code}" ${state.language === item.code ? "selected" : ""}>${item.label}</option>`).join("")}</select></label>`;
+  }
+
   function header() {
     const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : (state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "Your UTLT");
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
@@ -477,7 +507,7 @@
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
     if (state.screen === "friends") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     if (state.screen === "account" || state.screen === "device") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
-    return `<header class="utlt-header"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${actions}</header>`;
+    return `<header class="utlt-header"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${languageSelector()}${actions}</header>`;
   }
 
   function utilityTabs() {
@@ -865,6 +895,70 @@
   }
 
   let renderToken = 0, lastRenderSig = "", lastDialogKey = "";
+  const translationCache = new Map();
+  const translationFailures = new Set();
+  async function translateRenderedUi(renderId) {
+    const language = state.language;
+    if (!language || language === "en") return;
+    const ignored = "svg,script,style,textarea,input,select,.utlt-title,.utlt-profile-card,.utlt-family-member,.utlt-friend-row,.utlt-friend-code-card,.utlt-hero";
+    const targets = [];
+    const walker = document.createTreeWalker(root, 4);
+    let node;
+    while ((node = walker.nextNode())) {
+      const value = node.nodeValue || "";
+      if (!value.trim() || !/[A-Za-z]/.test(value) || node.parentElement?.closest(ignored)) continue;
+      targets.push({ value, set: translated => { node.nodeValue = translated; } });
+    }
+    root.querySelectorAll("[aria-label],[placeholder],[title]").forEach(element => {
+      if (element.closest(ignored)) return;
+      ["aria-label", "placeholder", "title"].forEach(attribute => {
+        const value = element.getAttribute(attribute);
+        if (value && /[A-Za-z]/.test(value)) targets.push({ value, set: translated => element.setAttribute(attribute, translated) });
+      });
+    });
+    const pending = [];
+    targets.forEach(target => {
+      const key = language + "|" + target.value;
+      if (translationCache.has(key)) target.set(translationCache.get(key));
+      else pending.push({ ...target, key });
+    });
+    for (let offset = 0; offset < pending.length; offset += 14) {
+      if (renderId !== renderToken) return;
+      const batch = pending.slice(offset, offset + 14);
+      const marker = index => "UTLTSEG" + String(index).padStart(4, "0") + "X";
+      const payload = batch.map((item, index) => marker(index) + item.value + marker(index)).join(" ");
+      try {
+        const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=" +
+          encodeURIComponent(language) + "&dt=t&q=" + encodeURIComponent(payload);
+        const response = await fetch(url);
+        if (!response.ok) throw new Error("Translation service returned " + response.status);
+        const data = await response.json();
+        const translated = Array.isArray(data?.[0]) ? data[0].map(part => part?.[0] || "").join("") : "";
+        if (!translated) throw new Error("No translated text was returned");
+        for (let index = 0; index < batch.length; index++) {
+          const token = marker(index).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          const match = translated.match(new RegExp(token + "([\\s\\S]*?)" + token));
+          if (!match) continue;
+          const original = batch[index].value;
+          const leading = original.match(/^\\s*/)?.[0] || "";
+          const trailing = original.match(/\\s*$/)?.[0] || "";
+          const result = match[1].trim();
+          if (!result) continue;
+          translationCache.set(batch[index].key, result);
+          batch[index].set(leading + result + trailing);
+        }
+      } catch (error) {
+        console.warn("UTLT translation unavailable for " + language + ".", error);
+        if (!translationFailures.has(language)) {
+          translationFailures.add(language);
+          showToast("Translation is unavailable right now. The app is still usable in English.");
+        }
+        return;
+      }
+    }
+  }
+
+
   async function render(preserveScroll = false) {
     const token = ++renderToken;
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
@@ -888,6 +982,7 @@
     const nameDraft = root.querySelector("#utlt-welcome-name")?.value;
     const utilityDraft = root.querySelector('input[name="utility"]:checked')?.value;
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${still ? "utlt-still" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>${onboardingMarkup()}`;
+    if (state.language !== "en") translateRenderedUi(token);
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute("content", state.dark ? "#12171d" : "#ffffff"));
     const scroller = root.querySelector(".utlt-content");
     if (scroller) scroller.scrollTop = previousScroll;
@@ -1017,6 +1112,12 @@
   });
 
   root.addEventListener("change", (event) => {
+    if (event.target.matches('select[data-action="language"]')) {
+      state.language = indianLanguages.some(item => item.code === event.target.value) ? event.target.value : "en";
+      persistProfile();
+      render(true);
+      return;
+    }
     if (event.target.matches('input[data-action="community-sharing"]')) {
       state.communitySharing = event.target.checked === true;
       state.communityPercentile = null;
