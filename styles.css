@@ -702,26 +702,3 @@ img { max-width: 100%; }
 .utlt-intelligence-entry h2 { margin: .3rem 0; font-size: 1.35rem; }
 .utlt-intelligence-entry p { margin: .2rem 0 .65rem; }
 .utlt-intelligence-actions { display: grid; gap: .5rem; }
-
-/* Smart-home read-only sensor bridge */
-.utlt-smart-home-card { display:flex; flex-direction:column; gap:13px; margin-top:16px; padding:18px; border:1px solid var(--utlt-border); border-radius:20px; background:var(--utlt-card); color:var(--utlt-text); }
-.utlt-smart-home-heading { display:flex; align-items:center; gap:10px; }
-.utlt-smart-home-icon { display:grid; width:42px; height:42px; flex:0 0 42px; place-items:center; border-radius:13px; background:rgb(22 136 248 / .13); color:#1688f8; }
-.utlt-smart-home-heading > div { min-width:0; flex:1; }
-.utlt-smart-home-heading .utlt-eyebrow { margin:0 0 3px; }
-.utlt-smart-home-heading h2 { margin:0; font-size:17px; }
-.utlt-smart-home-status { padding:5px 8px; border-radius:999px; background:var(--utlt-panel); color:var(--utlt-muted); font-size:10px; font-weight:800; white-space:nowrap; }
-.utlt-smart-home-status.is-connected { background:rgb(34 197 94 / .13); color:#22a35a; }
-.utlt-smart-home-copy { margin:0; color:var(--utlt-muted); font-size:12px; line-height:1.5; }
-.utlt-smart-device-list { display:flex; flex-direction:column; gap:8px; }
-.utlt-smart-device { display:flex; align-items:center; justify-content:space-between; gap:12px; padding:11px; border:1px solid var(--utlt-border); border-radius:13px; background:var(--utlt-panel); }
-.utlt-smart-device-main { display:flex; min-width:0; flex-direction:column; gap:3px; }
-.utlt-smart-device-main strong { overflow-wrap:anywhere; font-size:12px; }
-.utlt-smart-device-main span,.utlt-smart-device-main small,.utlt-smart-device-value span { color:var(--utlt-muted); font-size:10px; }
-.utlt-smart-device-main small { overflow-wrap:anywhere; }
-.utlt-smart-device-value { display:flex; flex:0 0 auto; flex-direction:column; align-items:flex-end; gap:2px; }
-.utlt-smart-device-value strong { font-size:15px; font-variant-numeric:tabular-nums; }
-.utlt-smart-home-note { padding:12px; border-radius:12px; background:var(--utlt-panel); }
-.utlt-smart-home-note strong { font-size:11px; }
-.utlt-smart-home-note p { margin:5px 0 0; color:var(--utlt-muted); font-size:11px; line-height:1.5; }
-.utlt-smart-home-updated { color:var(--utlt-muted); font-size:10px; }
