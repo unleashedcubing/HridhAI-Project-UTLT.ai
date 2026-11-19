@@ -907,7 +907,8 @@
     while ((node = walker.nextNode())) {
       const value = node.nodeValue || "";
       if (!value.trim() || !/[A-Za-z]/.test(value) || node.parentElement?.closest(ignored)) continue;
-      targets.push({ value, set: translated => { node.nodeValue = translated; } });
+      const textNode = node;
+      targets.push({ value, set: translated => { textNode.nodeValue = translated; } });
     }
     root.querySelectorAll("[aria-label],[placeholder],[title]").forEach(element => {
       if (element.closest(ignored)) return;
@@ -940,8 +941,8 @@
           const match = translated.match(new RegExp(token + "([\\s\\S]*?)" + token));
           if (!match) continue;
           const original = batch[index].value;
-          const leading = original.match(/^\\s*/)?.[0] || "";
-          const trailing = original.match(/\\s*$/)?.[0] || "";
+          const leading = original.match(/^\s*/)?.[0] || "";
+          const trailing = original.match(/\s*$/)?.[0] || "";
           const result = match[1].trim();
           if (!result) continue;
           translationCache.set(batch[index].key, result);
