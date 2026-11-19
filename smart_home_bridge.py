@@ -13,9 +13,9 @@ from urllib.error import HTTPError, URLError
 from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
-_NUMERIC = re.compile(r"^-?\\d+(?:\\.\\d+)?$")
+_NUMERIC = re.compile(r"^-?\d+(?:\.\d+)?$")
 _ALLOWED_STATE_CLASSES = {"measurement", "total", "total_increasing"}
-_WATER_UNITS = {"l", "liter", "liters", "litre", "litres", "ml", "m³", "m3", "gal", "gallon", "gallons"}
+_WATER_UNITS = {"l", "liter", "liters", "litre", "litres", "ml", "gal", "gallon", "gallons"}
 _ENERGY_UNITS = {"wh", "kwh", "mwh"}
 _POWER_UNITS = {"w", "kw", "mw"}
 
@@ -37,10 +37,10 @@ def _classify(attrs):
     device_class = str(attrs.get("device_class") or "").lower()
     unit = str(attrs.get("unit_of_measurement") or "").strip().lower()
     state_class = str(attrs.get("state_class") or "").lower()
-    if device_class in {"water"} or unit in _WATER_UNITS:
-        return "water"
-    if device_class in {"gas"}:
+    if device_class == "gas":
         return "gas"
+    if device_class == "water" or unit in _WATER_UNITS:
+        return "water"
     if device_class in {"energy"} or unit in _ENERGY_UNITS:
         return "electricity"
     if device_class in {"power"} or unit in _POWER_UNITS:
