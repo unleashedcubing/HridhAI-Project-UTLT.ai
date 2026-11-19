@@ -615,3 +615,14 @@ img { max-width: 100%; }
   .utlt-tabbar > button:hover:not(.is-current) { background: var(--utlt-panel); }
   .utlt-family-secondary:hover, .utlt-copy-code:hover, .utlt-friend-actions button:hover, .utlt-remove-friend:hover { border-color: var(--utlt-blue); }
 }
+
+.utlt-intelligence-entry {
+  margin: 0 0 1rem;
+  padding: 1.1rem;
+  border: 1px solid var(--utlt-border, #7898bd);
+  border-radius: 1rem;
+  background: var(--utlt-panel, #ebf4fd);
+}
+.utlt-intelligence-entry h2 { margin: .3rem 0; font-size: 1.35rem; }
+.utlt-intelligence-entry p { margin: .2rem 0 .65rem; }
+.utlt-intelligence-actions { display: grid; gap: .5rem; }

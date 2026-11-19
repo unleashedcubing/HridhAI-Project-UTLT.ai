@@ -574,13 +574,13 @@
   }
 
   function header() {
-    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "survey" ? "Your Household" : state.screen === "review" ? "Review Water Use" : state.screen === "assistant" ? "UTLT.ai" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
+    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "survey" ? "Your Household" : state.screen === "review" ? "Review Water Use" : state.screen === "assistant" ? "UTLT.ai" : state.screen === "demo" ? "Explore UTLT.ai" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
     const last = state.screen === "home" && !state.device.connected && state.device.lastConnectedAt ? `<span class="utlt-header-last">Last connected ${escapeHtml(new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(state.device.lastConnectedAt)))}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
     if (state.screen === "friends") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
-    if (["account", "device", "survey", "review", "assistant"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
+    if (["account", "device", "survey", "review", "assistant", "demo"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     return `<header class="utlt-header"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${last}${actions}</header>`;
   }
 
@@ -867,12 +867,23 @@
       console.warn("UTLT community insight unavailable.", error);
     }
   }
+  function waterIntelligenceEntry() {
+    return `<section class="utlt-intelligence-entry">
+      <div><p class="utlt-eyebrow">UTLT.AI</p><h2>Your water, explained</h2>
+      <p>Check today’s outlook, compare recent days, or ask about your readings.</p></div>
+      <div class="utlt-intelligence-actions">
+        <button type="button" class="utlt-primary-button" data-action="assistant">Open water intelligence</button>
+        <button type="button" class="utlt-secondary-button" data-action="open-demo">Try 3 demos</button>
+      </div>
+    </section>`;
+  }
+
   function dashboard() {
     if (!state.device.connected && !state.demoEnabled && state.readings.length === 0) {
-      return `<div class="utlt-dashboard">${greetingMarkup()}<section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">WATER MONITOR</p><h2>Your water data starts here</h2><p>Connect your UTLT device to see today's usage, the breakdown, and your daily trend.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><button type="button" class="utlt-secondary-button" data-action="assistant">Ask on-phone AI</button><span>Want to explore first? Enable demo data in Device Settings.</span></section><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></div>`;
+      return `<div class="utlt-dashboard">${greetingMarkup()}${waterIntelligenceEntry()}<section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">WATER MONITOR</p><h2>Your water data starts here</h2><p>Connect your UTLT device to see today's usage, the breakdown, and your daily trend.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><span>Want to explore first? Enable demo data in Device Settings.</span></section><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></div>`;
     }
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${usage(summary)}${runningWaterCard()}${status(summary)}${patternCard()}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p><p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${waterIntelligenceEntry()}${usage(summary)}${status(summary)}${patternCard()}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p><p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
   }
 
   function devicePage() {
@@ -1039,8 +1050,8 @@
   let lastMotionView = "";
   async function render(preserveScroll = false) {
     if (bluefyPhone && state.pairedDeviceId && state.device.connected && !firebaseStore && state.authProvider !== "local") { continueLocally(); return; }
-    if (state.pairedDeviceId && !firebaseStore && state.authProvider !== "local" && state.screen !== "pair") { renderAuthGate(); return; }
-    if (state.device.connected && state.pairedDeviceId && !state.survey && state.screen !== "survey" && state.screen !== "pair") state.screen = "survey";
+    if (state.pairedDeviceId && !firebaseStore && state.authProvider !== "local" && !["pair", "demo"].includes(state.screen)) { renderAuthGate(); return; }
+    if (state.device.connected && state.pairedDeviceId && !state.survey && !["survey", "pair", "demo"].includes(state.screen)) state.screen = "survey";
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
     const motionView = `${state.screen}:${state.utility}:${state.breakdown}`;
     const enterMotion = motionView !== lastMotionView;
@@ -1053,6 +1064,7 @@
       : state.screen === "survey" ? surveyPage()
       : state.screen === "review" ? reviewPage()
       : state.screen === "assistant" ? assistantPage()
+      : state.screen === "demo" ? window.UTLTDemo.render()
       : state.screen === "family" ? await familyPage()
       : pairPage();
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${enterMotion ? "utlt-enter" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>`;
@@ -1063,7 +1075,7 @@
   }
 
   function renderMeterUpdate() {
-    if (["survey", "review", "account", "assistant"].includes(state.screen)) return;
+    if (["survey", "review", "account", "assistant", "demo"].includes(state.screen)) return;
     if (!root.querySelector(".utlt-auth-screen")) render(true);
   }
 
@@ -1443,6 +1455,7 @@
     const button = event.target.closest("button[data-action]");
     if (!button) return;
     const action = button.dataset.action;
+    if (action === "open-demo") { state.screen = "demo"; render(); return; }
     if (action === "scan-qr") { startQrScanner(); return; }
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
     if (action === "connect-ble") { connectBluetooth(); return; }
