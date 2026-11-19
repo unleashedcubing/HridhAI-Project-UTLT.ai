@@ -92,6 +92,7 @@
     leaderboardVisible: false, communitySharing: false,
     communityPercentile: null, communityParticipants: 0, communityStatus: "off", friendMessage: "", friendBusy: false,
     family: null, familyInviteUrl: "", familyRequests: [], familyMessage: "", familyBusy: false, pendingFamilyInvite: "", language: "en", languageMenuOpen: false,
+    smartHome: { status: "checking", devices: [], message: "Checking the local smart-home bridge…", checkedAt: null },
     authProvider: savedLocalProfile ? "local" : "signed-out", authBusy: false, authMessage: "", pendingAuthScreen: ""
   };
   const firebaseReady = (async () => {
@@ -927,11 +928,31 @@
     return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${waterIntelligenceEntry()}${usage(summary)}${status(summary)}${patternCard()}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p><p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
   }
 
+  function smartHomePanel() {
+    const home = state.smartHome || { status: "checking", devices: [], message: "Checking the local smart-home bridge…" };
+    const statusLabel = home.status === "connected" ? "Bridge connected" : home.status === "not_configured" ? "Setup needed" : home.status === "checking" ? "Checking…" : "Not connected";
+    const rows = (home.devices || []).map(device => {
+      const label = device.utility === "water" ? "Water" : device.utility === "gas" ? "Gas" : "Electricity";
+      const value = Number(device.value);
+      const formatted = Number.isFinite(value) ? new Intl.NumberFormat("en-IN", { maximumFractionDigits: 3 }).format(value) : "—";
+      const kind = device.kind === "cumulative" ? "Cumulative meter" : "Live measurement";
+      return `<div class="utlt-smart-device"><div class="utlt-smart-device-main"><strong>${escapeHtml(device.name || device.entityId)}</strong><span>${label} · ${kind}</span><small>${escapeHtml(device.entityId || "")}</small></div><div class="utlt-smart-device-value"><strong>${formatted}</strong><span>${escapeHtml(device.unit || "")}</span></div></div>`;
+    }).join("");
+    return `<section class="utlt-smart-home-card">
+      <div class="utlt-smart-home-heading"><span class="utlt-smart-home-icon">${icon("house-wifi", 23)}</span><div><p class="utlt-eyebrow">SMART HOME BRIDGE</p><h2>Home Assistant sensors</h2></div><span class="utlt-smart-home-status ${home.status === "connected" ? "is-connected" : ""}">${statusLabel}</span></div>
+      <p class="utlt-smart-home-copy">${escapeHtml(home.message || "Connect a supported smart-home hub to read compatible meter sensors.")}</p>
+      ${rows ? `<div class="utlt-smart-device-list">${rows}</div>` : ""}
+      <button type="button" class="utlt-secondary-button" data-action="refresh-smart-home" ${home.status === "checking" ? "disabled" : ""}>${home.status === "checking" ? "Checking…" : "Refresh smart-home readings"}</button>
+      <div class="utlt-smart-home-note"><strong>About Alexa and Google Home</strong><p>UTLT cannot directly list every device paired only inside Alexa or Google Home. Add compatible devices to Home Assistant through their supported integration first. Google Home's device APIs currently require a native Android or iOS app; Alexa integrations require account linking and a supported device-cloud skill.</p></div>
+      ${home.checkedAt ? `<small class="utlt-smart-home-updated">Last checked: ${escapeHtml(new Date(home.checkedAt).toLocaleTimeString([], { hour: "numeric", minute: "2-digit" }))}</small>` : ""}
+    </section>`;
+  }
+
   function devicePage() {
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
       ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "";
-    return `<section class="utlt-device-settings"><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button><button class="utlt-secondary-button" data-action="survey">${state.survey ? "Edit household survey" : "Start household survey"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p></section>`;
+    return `<section class="utlt-device-settings"><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button><button class="utlt-secondary-button" data-action="survey">${state.survey ? "Edit household survey" : "Start household survey"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p></section>${smartHomePanel()}`;
   }
 
   function pairPage() {
@@ -1601,6 +1622,7 @@
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
     if (action === "connect-ble") { connectBluetooth(); return; }
     if (action === "download-history") { requestHistory(); return; }
+    if (action === "refresh-smart-home") { refreshSmartHomeBridge(); return; }
     if (action === "assistant-mode") { state.assistantMode = ["today", "recent", "ask"].includes(button.dataset.mode) ? button.dataset.mode : "today"; render(true); return; }
     if (action === "forecast-follow-up") { state.assistantMode = "ask"; state.llmQuestion = "Will I stay within my water goal by 8 pm?"; render(true); root.querySelector("#utlt-assistant-question")?.focus(); return; }
     if (action === "assistant-prompt") {
@@ -1891,6 +1913,21 @@
     if (delta > 0) { syncFamilyUsage(); syncCommunityInsight(); syncCompetitionStats(); }
     return changed;
   }
+  async function refreshSmartHomeBridge() {
+    state.smartHome = { ...(state.smartHome || {}), status: "checking", message: "Checking the local smart-home bridge…" };
+    if (state.screen === "device") render(true);
+    try {
+      const response = await fetch("/api/smart-home", { cache: "no-store" });
+      if (!response.ok || !response.headers.get("content-type")?.includes("application/json")) throw new Error("Local bridge not available from this app address.");
+      const payload = await response.json();
+      if (!["connected", "not_configured", "error", "configuration_error"].includes(payload.status) || !Array.isArray(payload.devices)) throw new Error("Unexpected smart-home bridge response.");
+      state.smartHome = { status: payload.status, devices: payload.devices, message: payload.message || "", checkedAt: new Date().toISOString() };
+    } catch (error) {
+      state.smartHome = { status: "unavailable", devices: [], message: error.message || "The local smart-home bridge is unavailable.", checkedAt: new Date().toISOString() };
+    }
+    if (state.screen === "device") render(true);
+  }
+
   async function refreshWaterBridge() {
     if (pagesPreview || bleDevice?.gatt?.connected) return;
     try {
@@ -1952,4 +1989,6 @@
   }, 60000);
   refreshWaterBridge();
   setInterval(refreshWaterBridge, 5000);
+  refreshSmartHomeBridge();
+  setInterval(() => { if (document.visibilityState === "visible") refreshSmartHomeBridge(); }, 30000);
 })();
