@@ -91,7 +91,7 @@
     uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
     leaderboardVisible: false, communitySharing: false,
     communityPercentile: null, communityParticipants: 0, communityStatus: "off", friendMessage: "", friendBusy: false,
-    family: null, familyInviteUrl: "", familyRequests: [], familyMessage: "", familyBusy: false, pendingFamilyInvite: "", language: "en",
+    family: null, familyInviteUrl: "", familyRequests: [], familyMessage: "", familyBusy: false, pendingFamilyInvite: "", language: "en", languageMenuOpen: false,
     authProvider: savedLocalProfile ? "local" : "signed-out", authBusy: false, authMessage: "", pendingAuthScreen: ""
   };
   const firebaseReady = (async () => {
@@ -599,7 +599,19 @@
     { code: "ur", label: "اردو · Urdu" }
   ];
   function languageSelector() {
-    return `<label class="utlt-language-control" title="Translate the app interface"><span aria-hidden="true">🌐</span><span class="utlt-language-label">Language</span><select data-action="language" aria-label="Choose app language"><option value="en" ${state.language === "en" ? "selected" : ""}>English</option>${indianLanguages.map(item => `<option value="${item.code}" ${state.language === item.code ? "selected" : ""}>${item.label}</option>`).join("")}</select></label>`;
+    const selected = state.language === "en" ? { label: "English", code: "en" } : indianLanguages.find(item => item.code === state.language) || { label: "English", code: "en" };
+    const options = [{ code: "en", label: "English" }, ...indianLanguages];
+    return `<div class="utlt-language-picker">
+      <button class="utlt-language-trigger" type="button" data-action="language-menu" aria-expanded="${state.languageMenuOpen === true}" aria-haspopup="true">
+        <span class="utlt-language-globe" aria-hidden="true">🌐</span>
+        <span class="utlt-language-trigger-copy"><small>APP LANGUAGE</small><strong>${selected.label}</strong></span>
+        <span class="utlt-language-chevron" aria-hidden="true">${icon(state.languageMenuOpen ? "chevronUp" : "chevronDown", 16)}</span>
+      </button>
+      ${state.languageMenuOpen ? `<div class="utlt-language-popup" role="menu" aria-label="Choose app language">
+        <div class="utlt-language-popup-heading"><strong>Choose a language</strong><span>23 languages</span></div>
+        <div class="utlt-language-options">${options.map(item => `<button type="button" role="menuitemradio" aria-checked="${state.language === item.code}" class="utlt-language-option ${state.language === item.code ? "is-selected" : ""}" data-action="select-language" data-value="${item.code}"><span>${item.label}</span><span class="utlt-language-option-check">${state.language === item.code ? "✓" : ""}</span></button>`).join("")}</div>
+      </div>` : ""}
+    </div>`;
   }
 
   function header() {
@@ -1553,6 +1565,14 @@
     const button = event.target.closest("button[data-action]");
     if (!button) return;
     const action = button.dataset.action;
+    if (action === "language-menu") { state.languageMenuOpen = !state.languageMenuOpen; render(true); return; }
+    if (action === "select-language") {
+      state.language = button.dataset.value === "en" || indianLanguages.some(item => item.code === button.dataset.value) ? button.dataset.value : "en";
+      state.languageMenuOpen = false;
+      persistProfile();
+      render(true);
+      return;
+    }
     if (action === "open-demo") { state.screen = "demo"; render(); return; }
     if (action === "scan-qr") { startQrScanner(); return; }
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
@@ -1656,12 +1676,6 @@
   });
 
   root.addEventListener("change", (event) => {
-    if (event.target.matches('select[data-action="language"]')) {
-      state.language = indianLanguages.some(item => item.code === event.target.value) ? event.target.value : "en";
-      persistProfile();
-      render(true);
-      return;
-    }
     if (event.target.id === "utlt-qr-photo") { scanQrPhoto(event.target.files?.[0]); return; }
     if (event.target.matches('input[data-action="community-sharing"]')) {
       state.communitySharing = event.target.checked === true;
