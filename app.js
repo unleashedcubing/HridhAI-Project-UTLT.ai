@@ -497,7 +497,7 @@
     { code: "ur", label: "اردو · Urdu" }
   ];
   function languageSelector() {
-    return `<label class="utlt-language-control" title="Translate the app interface"><span aria-hidden="true">🌐</span><select data-action="language" aria-label="Choose app language"><option value="en" ${state.language === "en" ? "selected" : ""}>English</option>${indianLanguages.map(item => `<option value="${item.code}" ${state.language === item.code ? "selected" : ""}>${item.label}</option>`).join("")}</select></label>`;
+    return `<label class="utlt-language-control" title="Translate the app interface"><span aria-hidden="true">🌐</span><span class="utlt-language-label">Language</span><select data-action="language" aria-label="Choose app language"><option value="en" ${state.language === "en" ? "selected" : ""}>English</option>${indianLanguages.map(item => `<option value="${item.code}" ${state.language === item.code ? "selected" : ""}>${item.label}</option>`).join("")}</select></label>`;
   }
 
   function header() {
