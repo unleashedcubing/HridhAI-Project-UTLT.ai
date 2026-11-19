@@ -15,7 +15,6 @@ from pathlib import Path
 from threading import Lock
 from zoneinfo import ZoneInfo
 
-import smart_home_bridge
 
 ROOT = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("UTLT_DB_PATH", ROOT / "water.sqlite3"))
@@ -119,9 +118,6 @@ class Handler(BaseHTTPRequestHandler):
         path = self.path.split("?", 1)[0]
         if path == "/api/water":
             self.send_json(200, snapshot())
-            return
-        if path == "/api/smart-home":
-            self.send_json(200, smart_home_bridge.get_snapshot())
             return
         name = FILES.get(path)
         if not name:
