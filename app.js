@@ -1093,7 +1093,9 @@
   async function translateRenderedUi(renderId) {
     const language = state.language;
     if (!language || language === "en") return;
-    const ignored = "svg,script,style,textarea,input,select,.utlt-title,.utlt-profile-card,.utlt-family-member,.utlt-friend-row,.utlt-friend-code-card,.utlt-rank-name,.utlt-hero";
+    // Translate all app-authored interface copy, including hero cards and form hints.
+    // Keep editable user content, identity fields, and language names untouched.
+    const ignored = "svg,script,style,textarea,input,select,.utlt-title,.utlt-profile-card,.utlt-family-member,.utlt-friend-row,.utlt-friend-code-card,.utlt-rank-name,.utlt-language-picker";
     const targets = [];
     const walker = document.createTreeWalker(root, 4);
     let node;
@@ -1104,7 +1106,8 @@
       targets.push({ value, set: translated => { textNode.nodeValue = translated; } });
     }
     root.querySelectorAll("[aria-label],[placeholder],[title]").forEach(element => {
-      if (element.closest(ignored)) return;
+      // Translate accessible labels and hints on controls too, but never user-entered values.
+      if (element.closest("svg,script,style,textarea,.utlt-title,.utlt-profile-card,.utlt-family-member,.utlt-friend-row,.utlt-friend-code-card,.utlt-rank-name,.utlt-language-picker")) return;
       ["aria-label", "placeholder", "title"].forEach(attribute => {
         const value = element.getAttribute(attribute);
         if (value && /[A-Za-z]/.test(value)) targets.push({ value, set: translated => element.setAttribute(attribute, translated) });
