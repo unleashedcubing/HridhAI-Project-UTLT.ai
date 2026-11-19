@@ -98,6 +98,49 @@ img { max-width: 100%; }
   gap: 12px;
   padding: 10px 18px 6px;
 }
+.utlt-header {
+  display: flex;
+  min-height: 104px;
+  flex: 0 0 auto;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 8px;
+  padding: 10px 18px 10px;
+}
+.utlt-header-top {
+  display: flex;
+  min-width: 0;
+  min-height: 42px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.utlt-language-row {
+  display: flex;
+  min-height: 36px;
+  align-items: center;
+  justify-content: flex-end;
+}
+.utlt-language-control { flex: 0 0 auto; }
+.utlt-language-control { flex: 0 0 auto; }
+.utlt-title {
+  display: flex; min-width: 0; align-items: center; gap: 8px;
+  font-size: 22px; font-weight: 800; letter-spacing: -.6px; line-height: 1.2;
+}
+.utlt-title > span:first-child { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.utlt-connection-icon {
+  display: inline-grid; place-items: center; width: 26px; height: 26px; flex: 0 0 26px;
+  border-radius: 50%; background: var(--utlt-panel); color: var(--utlt-muted);
+}
+.utlt-connection-icon.is-connected { background: rgb(0 169 219 / .16); color: #0792b8; }
+.utlt-header-actions { display: flex; align-items: center; gap: 4px; }
+.utlt-icon-button {
+  display: grid; width: 42px; height: 42px; place-items: center;
+  border: 0; border-radius: 50%; background: transparent; color: var(--utlt-text); cursor: pointer;
+}
+.utlt-icon-button svg { width: 24px; height: 24px; }
+.utlt-icon-button:active { background: var(--utlt-panel); transform: scale(.94); }
+
 .utlt-title {
   display: flex; min-width: 0; align-items: center; gap: 8px;
   font-size: 22px; font-weight: 800; letter-spacing: -.6px; line-height: 1.2;
