@@ -111,3 +111,17 @@ Generation runs in a phone worker. The app supplies exact recent meter totals, s
 `esp32/wifi_main.py` preserves the earlier ESP32-hosted Wi-Fi dashboard. `esp32/bridge_main.py`, `server.py`, `ble_bridge.py`, and `start_bridge.py` preserve the older computer bridge for development. Neither is needed for Android BLE pairing.
 
 Google sign-in is used on Android. Bluefy skips Google and creates a local profile after pairing. That profile has no cloud sync, Friends or Family access and should not be treated as authenticated device ownership. Enable Google sign-in and Firestore in the `utlt-ai1` Firebase project and deploy [firestore.rules](firestore.rules) for Android cloud features. The BLE meter itself can still send readings without Wi-Fi.
+
+
+## Smart-home sensor bridge (read-only)
+
+UTLT now includes an optional **Home Assistant** adapter in the local Python bridge. It reads numeric, supported sensor entities from Home Assistant's authenticated `GET /api/states` endpoint and exposes a privacy-filtered snapshot at `GET /api/smart-home`. The app displays supported water, gas, energy and power measurements in **Devices → Smart Home Bridge**. It does not send commands to devices.
+
+Configure the local bridge process with these environment variables (keep the token on the computer running the bridge; never paste it into browser JavaScript or commit it):
+
+- `UTLT_HOME_ASSISTANT_URL`: your Home Assistant base URL, such as `http://homeassistant.local:8123` on the same trusted network.
+- `UTLT_HOME_ASSISTANT_TOKEN`: a Home Assistant long-lived access token stored only in the bridge process environment.
+
+Then start the existing local bridge using the normal setup in **Phone pairing**. The app polls the local `/api/smart-home` endpoint every 30 seconds. If Home Assistant is not configured, the panel explains that setup is needed. If the app is opened from GitHub Pages, this local API is not present; use the local bridge-served app URL for this connector.
+
+**Important ecosystem limitation:** Alexa and Google Home do not provide a general browser API that lets an unrelated website enumerate every device already paired in their apps. This adapter does not scrape those accounts and cannot import devices that exist only in Alexa or Google Home. Compatible devices must also be exposed to Home Assistant through a supported integration, or UTLT must later ship separately approved Alexa account-linking and native Google Home app integrations. Google's current Home APIs are native Android/iOS SDKs, not a GitHub Pages browser SDK. Smart plugs commonly report on/off or instantaneous watts; those are displayed as measurements, not misrepresented as water or cumulative energy consumption. Only numeric sensor entities with supported utility classes and measurement/total state classes are shown.
