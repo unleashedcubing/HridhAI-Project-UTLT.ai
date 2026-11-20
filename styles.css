@@ -99,30 +99,9 @@ img { max-width: 100%; }
 .utlt-content::-webkit-scrollbar-thumb { border-radius: 99px; background: rgb(120 135 150 / .4); }
 
 /* 04 · HEADER --------------------------------------------------------------- */
-.utlt-header {
-  display: flex;
-  min-height: 104px;
-  flex: 0 0 auto;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  padding: 10px 18px 10px;
-}
-.utlt-header-top {
-  display: flex;
-  min-width: 0;
-  min-height: 42px;
-  align-items: center;
-  justify-content: space-between;
-  gap: 10px;
-}
-.utlt-language-row {
-  display: flex;
-  min-height: 36px;
-  align-items: center;
-  justify-content: flex-end;
-}
-.utlt-language-control { flex: 0 0 auto; }
+.utlt-header { flex: 0 0 auto; min-height: 60px; padding: 10px 18px 6px; }
+.utlt-header-top { display: flex; min-width: 0; min-height: 44px; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 10px; }
+.utlt-header-end { display: flex; flex: 0 0 auto; align-items: center; gap: 6px; }
 .utlt-title {
   display: flex; min-width: 0; align-items: center; gap: 8px;
   font-size: 22px; font-weight: 800; letter-spacing: -.6px; line-height: 1.2;
@@ -142,9 +121,9 @@ img { max-width: 100%; }
 .utlt-icon-button:active { background: var(--utlt-panel); transform: scale(.94); }
 
 /* 05 · UTILITY PILLS -------------------------------------------------------- */
-.utlt-pills { display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 16px 6px; }
+.utlt-pills { flex-wrap: wrap; display: flex; align-items: center; justify-content: center; gap: 8px; margin: 8px 16px 6px; }
 .utlt-pill {
-  display: inline-flex; height: 44px; flex: 1 1 0; max-width: 128px; align-items: center; justify-content: center; gap: 7px;
+  min-width: 0; display: inline-flex; height: 44px; flex: 1 1 96px; max-width: 128px; align-items: center; justify-content: center; gap: 7px;
   padding: 0 12px; border: 1.5px solid var(--utlt-border); border-radius: 999px;
   background: var(--utlt-card); color: var(--utlt-text); font-size: 14px; font-weight: 650; cursor: pointer;
 }
@@ -168,7 +147,7 @@ img { max-width: 100%; }
 
 /* 07 · WATER RING ----------------------------------------------------------- */
 .utlt-usage { display: flex; flex-direction: column; align-items: center; padding-top: 8px; }
-.utlt-donut { position: relative; width: 224px; height: 224px; filter: drop-shadow(0 14px 22px rgb(22 136 248 / .22)); }
+.utlt-donut { position: relative; width: min(224px, 100%); height: auto; aspect-ratio: 1; filter: drop-shadow(0 14px 22px rgb(22 136 248 / .22)); }
 .utlt-donut svg { width: 100%; height: 100%; transform: rotate(-90deg); }
 .utlt-donut.is-warn { --utlt-ring-start: #c77700; --utlt-ring-end: #ffb938; filter: drop-shadow(0 14px 22px rgb(217 138 0 / .25)); }
 .utlt-donut.is-over { --utlt-ring-start: #c0262b; --utlt-ring-end: #ff7479; filter: drop-shadow(0 14px 22px rgb(229 72 77 / .28)); }
@@ -246,7 +225,7 @@ img { max-width: 100%; }
 .utlt-kokonut-card-head > span, .utlt-trend-head > span { color: var(--utlt-muted); font-size: 11px; font-weight: 750; letter-spacing: .1em; }
 .utlt-kokonut-card-head strong { min-width: 0; overflow-wrap: anywhere; font-size: 18px; font-weight: 800; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .utlt-kokonut-card-head small { color: var(--utlt-muted); font-size: 12px; font-weight: 650; }
-.utlt-kokonut-pie { display: block; width: 200px; height: 200px; margin: 10px auto 14px; }
+.utlt-kokonut-pie { display: block; width: min(200px, 100%); height: auto; aspect-ratio: 1; margin: 10px auto 14px; }
 .utlt-pie-hole { fill: var(--utlt-card); }
 .utlt-pie-total { fill: var(--utlt-text); font-size: 24px; font-weight: 800; text-anchor: middle; }
 .utlt-pie-caption { fill: var(--utlt-muted); font-size: 9.5px; font-weight: 700; letter-spacing: .1em; text-anchor: middle; }
@@ -335,7 +314,7 @@ img { max-width: 100%; }
 .utlt-unavailable-card .utlt-primary-button { width: 100%; }
 .utlt-account { padding: 14px 20px 26px; }
 .utlt-profile-card { display: flex; align-items: center; gap: 14px; padding: 18px 16px; border: 1px solid var(--utlt-border); border-radius: 24px; background: var(--utlt-card); box-shadow: var(--utlt-shadow); }
-.utlt-avatar { display: grid; width: 54px; height: 54px; flex: 0 0 54px; place-items: center; border-radius: 50%; background: linear-gradient(135deg, #cfe7ff, #e9f4ff); color: #0a6fd0; }
+.utlt-avatar { display: grid; width: 54px; height: 54px; flex: 0 0 54px; place-items: center; border-radius: 50%; font-size: 19px; font-weight: 800; letter-spacing: -.5px; background: linear-gradient(135deg, #cfe7ff, #e9f4ff); color: #0a6fd0; }
 .utlt-dark .utlt-avatar { background: linear-gradient(135deg, #1c4568, #183958); color: #7db6ff; }
 .utlt-profile-card > div:nth-child(2) { display: flex; min-width: 0; flex-direction: column; gap: 3px; }
 .utlt-profile-card strong { overflow: hidden; font-size: 16px; text-overflow: ellipsis; white-space: nowrap; }
@@ -351,7 +330,7 @@ img { max-width: 100%; }
 .utlt-field { display: flex; flex-direction: column; gap: 7px; margin: 0 0 16px; font-size: 13px; font-weight: 650; }
 .utlt-field input, .utlt-add-friend input {
   width: 100%; height: 50px; padding: 0 14px; border: 1.5px solid var(--utlt-border); border-radius: 14px; outline: none;
-  background: var(--utlt-card); color: var(--utlt-text); font-size: 15px; font-weight: 450;
+  background: var(--utlt-card); color: var(--utlt-text); font-size: 16px; font-weight: 450;
 }
 .utlt-field input:focus, .utlt-add-friend input:focus { border-color: var(--utlt-blue); box-shadow: 0 0 0 4px rgb(22 136 248 / .18); }
 .utlt-input-wrap { position: relative; }
@@ -379,7 +358,7 @@ img { max-width: 100%; }
 }
 .utlt-tabbar > button {
   display: flex; min-width: 0; height: 54px; flex: 1 1 0; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
-  border: 0; border-radius: 14px; background: transparent; color: var(--utlt-muted); font-size: 11.5px; font-weight: 650; cursor: pointer;
+  border: 0; border-radius: 14px; background: transparent; color: var(--utlt-muted); font-size: clamp(9px, 2.9vw, 11.5px); font-weight: 650; cursor: pointer;
 }
 .utlt-tabbar > button.is-current { color: var(--utlt-accent); font-weight: 800; }
 .utlt-nav-icon, .utlt-tab-avatar { display: grid; width: 54px; height: 28px; place-items: center; border-radius: 999px; background: transparent; }
@@ -421,7 +400,7 @@ img { max-width: 100%; }
 .utlt-add-friend { margin: 18px 0 10px; }
 .utlt-add-friend > label { display: block; margin-bottom: 8px; font-size: 14px; font-weight: 700; }
 .utlt-add-friend > div { display: flex; gap: 8px; }
-.utlt-add-friend input { width: 0; min-width: 0; flex: 1; font-size: 14px; text-transform: uppercase; }
+.utlt-add-friend input { width: 0; min-width: 0; flex: 1; font-size: 16px; text-transform: uppercase; }
 .utlt-add-friend .utlt-primary-button { min-height: 50px; padding-inline: 14px; white-space: nowrap; font-size: 13px; }
 .utlt-friend-section { margin-top: 22px; }
 .utlt-friend-section h2, .utlt-leaderboard-heading { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; font-size: 18px; letter-spacing: -.3px; }
@@ -500,7 +479,7 @@ img { max-width: 100%; }
 }
 @media (max-width: 360px) {
   .utlt-dashboard { padding-inline: 14px; }
-  .utlt-donut { width: 200px; height: 200px; }
+  .utlt-donut { width: min(200px, 100%); }
   .utlt-donut-label strong { font-size: 46px; }
   .utlt-title { font-size: 20px; }
   .utlt-pill { padding: 0 8px; font-size: 13px; }
@@ -510,7 +489,7 @@ img { max-width: 100%; }
   .utlt-pair-page h1 { font-size: 26px; }
 }
 @media (max-height: 640px) and (orientation: landscape) {
-  .utlt-donut { width: 170px; height: 170px; }
+  .utlt-donut { width: 170px; }
 }
 
 /* 20 · ACCESSIBILITY --------------------------------------------------------- */
@@ -574,35 +553,63 @@ img { max-width: 100%; }
 }
 
 
-/* 22 · INDIAN LANGUAGE SELECTOR -------------------------------------------- */
+/* 22 · LANGUAGE BUTTON (🌐 EN) -------------------------------------------- */
+/* The real <select> sits invisibly on top, so the whole 44px pill is tappable and the
+   native language picker opens. 16px font stops iPhones zooming in. */
 .utlt-language-control {
-  display: inline-flex;
-  min-width: 150px;
-  height: 36px;
-  align-items: center;
-  gap: 5px;
-  padding: 0 8px;
-  border: 1px solid var(--utlt-border);
-  border-radius: 11px;
-  background: var(--utlt-card);
-  color: var(--utlt-muted);
+  position: relative; display: inline-flex; min-width: 44px; height: 44px; flex: 0 0 auto; align-items: center; justify-content: center; gap: 4px;
+  padding: 0 11px; border: 1px solid var(--utlt-border); border-radius: 999px; background: var(--utlt-card); color: var(--utlt-text);
+  font-size: 12px; font-weight: 800; letter-spacing: .04em; cursor: pointer;
 }
-.utlt-language-control > span { flex: 0 0 auto; font-size: 15px; }
-.utlt-language-control select {
-  width: 128px;
-  max-width: 30vw;
-  border: 0;
-  outline: 0;
-  background: transparent;
-  color: var(--utlt-text);
-  font: 600 11px/1.2 Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-  cursor: pointer;
-}
-.utlt-language-control select:focus-visible { outline: 2px solid var(--utlt-blue); outline-offset: 3px; border-radius: 4px; }
-@media (max-width: 360px) {
-  .utlt-header { padding-inline: 12px; min-height: 100px; }
-  .utlt-language-control { min-width: 138px; height: 34px; padding-inline: 6px; }
-  .utlt-language-control select { width: 116px; font-size: 10px; }
+.utlt-language-control > span { font-size: 17px; line-height: 1; }
+.utlt-language-control::after { content: attr(data-code); }
+.utlt-language-control select { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; border: 0; opacity: 0; cursor: pointer; font-size: 16px; }
+.utlt-language-control:focus-within { outline: 3px solid var(--utlt-blue); outline-offset: 3px; }
+@media (hover: hover) { .utlt-language-control:hover { border-color: var(--utlt-blue); } }
+
+/* 23 · DEVICES PAGE + EXTRAS ------------------------------------------------ */
+.utlt-pair-status { display: flex; align-items: center; gap: 12px; margin: 18px 0 0; padding: 14px; border: 1px solid var(--utlt-border); border-radius: 18px; background: var(--utlt-card); box-shadow: var(--utlt-shadow); }
+.utlt-pair-status.is-connected { border-color: var(--utlt-good); background: var(--utlt-good-bg); }
+.utlt-pair-status > div { display: flex; min-width: 0; flex-direction: column; gap: 2px; }
+.utlt-pair-status strong { font-size: 15px; }
+.utlt-pair-status small { color: var(--utlt-muted); font-size: 12.5px; line-height: 1.4; }
+.utlt-pair-status .utlt-device-icon { width: 44px; height: 44px; flex-basis: 44px; border-radius: 14px; }
+.utlt-signin-hint { margin-top: 18px; padding: 14px; border: 1px dashed var(--utlt-border); border-radius: 18px; text-align: center; }
+.utlt-signin-hint p { margin-bottom: 10px; color: var(--utlt-muted); font-size: 13px; line-height: 1.5; }
+.utlt-secondary-button { display: inline-flex; min-height: 46px; align-items: center; justify-content: center; padding: 0 20px; border: 1.5px solid var(--utlt-border); border-radius: 14px; background: var(--utlt-card); color: var(--utlt-accent); font-size: 14px; font-weight: 700; cursor: pointer; }
+.utlt-secondary-button:active { transform: scale(.98); background: var(--utlt-panel); }
+@media (hover: hover) { .utlt-secondary-button:hover { border-color: var(--utlt-blue); } }
+
+/* Hour-by-hour chart (By time view) */
+.utlt-hourly { margin-top: 12px; padding: 16px 14px 14px; border: 1px solid var(--utlt-border); border-radius: 24px; background: var(--utlt-card); box-shadow: var(--utlt-shadow); }
+.utlt-hourly svg { display: block; width: 100%; height: auto; margin-top: 6px; overflow: visible; }
+.utlt-hour-bar { fill: #8fb5f3; }
+.utlt-hour-bar.is-night { fill: #f6b73c; }
+.utlt-dark .utlt-hour-bar { fill: #4d86d6; }
+.utlt-dark .utlt-hour-bar.is-night { fill: #e0a21f; }
+.utlt-hour-tick { fill: var(--utlt-muted); font-size: 9px; font-weight: 600; }
+.utlt-hourly-note { margin-top: 12px; padding: 10px 12px; border-radius: 14px; background: var(--utlt-good-bg); color: var(--utlt-good-ink); font-size: 12.5px; font-weight: 600; line-height: 1.5; }
+.utlt-hourly-note.is-alert { background: var(--utlt-warn-bg); color: var(--utlt-warn-ink); }
+
+/* Short landscape phones: compact header and a one-line tab bar */
+@media (max-height: 520px) and (orientation: landscape) {
+  .utlt-header { min-height: 46px; padding-block: 4px; }
+  .utlt-pills { margin-block: 4px; }
+  .utlt-hero span { display: none; }
+  .utlt-tabbar { min-height: 52px; padding-block: 2px; }
+  .utlt-tabbar > button { height: 46px; flex-direction: row; gap: 8px; }
+  .utlt-nav-icon, .utlt-tab-avatar, .utlt-tabbar > button.is-current .utlt-nav-icon { width: 40px; }
 }
 
-.utlt-language-control .utlt-language-label { font-size: 11px; font-weight: 700; color: var(--utlt-text); }
+/* Big desktop screens: brand message beside the phone */
+@media (min-width: 1200px) {
+  .utlt-app {
+    background:
+      radial-gradient(60rem 40rem at 10% 8%, rgb(22 136 248 / .16), transparent 60%),
+      radial-gradient(50rem 36rem at 96% 96%, rgb(18 194 165 / .15), transparent 60%),
+      var(--utlt-page);
+  }
+  .utlt-app::before, .utlt-app::after { position: fixed; left: max(48px, calc(50% - 640px)); width: calc(50% - 342px); max-width: 440px; pointer-events: none; }
+  .utlt-app::before { content: "Every litre counts."; top: 50%; transform: translateY(-100%); padding-bottom: 16px; color: var(--utlt-text); font-size: clamp(38px, 3.6vw, 58px); font-weight: 800; letter-spacing: -2px; line-height: 1.05; }
+  .utlt-app::after { content: "Track your home’s water use, stay inside your daily goal and help save water in Hyderabad."; top: 50%; color: var(--utlt-muted); font-size: 18px; line-height: 1.6; }
+}
