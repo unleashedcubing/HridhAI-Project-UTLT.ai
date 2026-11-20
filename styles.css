@@ -121,7 +121,7 @@ img { max-width: 100%; }
   align-items: center;
   justify-content: flex-end;
 }
-.utlt-language-picker { position: relative; z-index: 30; flex: 0 0 auto; }
+.utlt-language-picker { position: relative; z-index: 4; flex: 0 0 auto; }
 .utlt-language-trigger {
   display: flex; min-width: 190px; height: 48px; align-items: center; gap: 10px;
   padding: 5px 12px; border: 1px solid var(--utlt-border); border-radius: 14px;
