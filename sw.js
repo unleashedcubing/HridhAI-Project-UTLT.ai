@@ -1,5 +1,5 @@
 /* AI-assisted offline cache code. */
-const CACHE = "utlt-shell-v21";
+const CACHE = "utlt-shell-v22";
 const SHELL = [
   "./", "./index.html", "./styles.css", "./data.js", "./ai.js", "./model.json", "./local_llm.js", "./llm-worker.js", "./app.js", "./demo.js", "./demo.css",
   "./vendor/jsQR.js", "./manifest.webmanifest", "./assets/utlt-icon.svg",
