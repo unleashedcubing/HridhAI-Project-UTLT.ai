@@ -100,7 +100,7 @@ img { max-width: 100%; }
 }
 .utlt-header {
   display: flex;
-  min-height: 104px;
+  min-height: 62px;
   flex: 0 0 auto;
   flex-direction: column;
   align-items: stretch;
@@ -115,15 +115,10 @@ img { max-width: 100%; }
   justify-content: space-between;
   gap: 10px;
 }
-.utlt-language-row {
-  display: flex;
-  min-height: 36px;
-  align-items: center;
-  justify-content: flex-end;
-}
-.utlt-language-picker { position: relative; z-index: 4; flex: 0 0 auto; }
+.utlt-language-settings { margin-bottom: 24px; }
+.utlt-language-settings .utlt-eyebrow { margin-bottom: 8px; }
 .utlt-language-trigger {
-  display: flex; min-width: 190px; height: 48px; align-items: center; gap: 10px;
+  display: flex; width: 100%; min-height: 48px; align-items: center; gap: 10px;
   padding: 5px 12px; border: 1px solid var(--utlt-border); border-radius: 14px;
   background: var(--utlt-card); color: var(--utlt-text); cursor: pointer; text-align: left;
   box-shadow: 0 4px 14px rgb(0 0 0 / .10); transition: border-color .18s, transform .18s, box-shadow .18s;
@@ -136,7 +131,7 @@ img { max-width: 100%; }
 .utlt-language-trigger-copy strong { overflow: hidden; font-size: 13px; font-weight: 750; text-overflow: ellipsis; white-space: nowrap; }
 .utlt-language-chevron { display: grid; place-items: center; color: var(--utlt-muted); }
 .utlt-language-popup {
-  position: absolute; top: calc(100% + 9px); right: 0; width: min(330px, calc(100vw - 36px));
+  margin-top: 8px;
   overflow: hidden; border: 1px solid var(--utlt-border); border-radius: 16px;
   background: var(--utlt-card); color: var(--utlt-text);
   box-shadow: 0 18px 50px rgb(0 0 0 / .32); animation: utlt-language-pop .16s ease-out;
@@ -150,12 +145,7 @@ img { max-width: 100%; }
 .utlt-language-option:hover { background: var(--utlt-panel); }
 .utlt-language-option.is-selected { background: rgb(22 136 248 / .13); color: #1688f8; }
 .utlt-language-option-check { width: 17px; flex: 0 0 17px; color: #1688f8; font-size: 15px; font-weight: 900; text-align: center; }
-@media(max-width:360px) { .utlt-language-trigger { min-width: 174px; height: 44px; } .utlt-language-popup { width: min(310px, calc(100vw - 24px)); } }
-@media(max-width:360px) {
-  .utlt-header { padding-inline: 12px; min-height: 100px; }
-  .utlt-language-control { min-width: 138px; height: 34px; padding-inline: 6px; }
-  .utlt-language-control select { width: 116px; font-size: 10px; }
-}
+@media(max-width:360px) { .utlt-header { padding-inline: 12px; } }
 .utlt-title {
   display: flex; min-width: 0; align-items: center; gap: 8px;
   font-size: 22px; font-weight: 800; letter-spacing: -.6px; line-height: 1.2;
