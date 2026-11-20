@@ -526,7 +526,7 @@
     if (state.screen === "friends") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     if (state.screen === "account" || state.screen === "device") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     const titleTag = ["home", "account", "device"].includes(state.screen) ? "h1" : "div";
-    return `<header class="utlt-header"><div class="utlt-header-top"><${titleTag} class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</${titleTag}><div class="utlt-header-end">${languageSelector()}${actions}</div></div></header>`;
+    return `<header class="utlt-header"><div class="utlt-header-top"><${titleTag} class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</${titleTag}><div class="utlt-header-end">${state.screen === "home" ? languageSelector() : ""}${actions}</div></div></header>`;
   }
 
   function utilityTabs() {
