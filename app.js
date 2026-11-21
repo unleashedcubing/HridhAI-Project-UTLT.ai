@@ -940,65 +940,103 @@
   let renderToken = 0, lastRenderSig = "", lastDialogKey = "";
   const translationCache = new Map();
   const translationFailures = new Set();
+
+  async function requestUiTranslation(value, language) {
+    const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=" +
+      encodeURIComponent(language) + "&dt=t&q=" + encodeURIComponent(value);
+    let lastError;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      try {
+        const response = await fetch(url, { headers: { Accept: "application/json" } });
+        if (!response.ok) throw new Error("Translation service returned " + response.status);
+        const data = await response.json();
+        const result = Array.isArray(data?.[0])
+          ? data[0].map(part => part?.[0] || "").join("").trim()
+          : "";
+        if (!result) throw new Error("No translated text was returned");
+        return result;
+      } catch (error) {
+        lastError = error;
+        if (attempt < 2) await new Promise(resolve => setTimeout(resolve, 250 * (attempt + 1)));
+      }
+    }
+    throw lastError || new Error("Translation failed");
+  }
+
   async function translateRenderedUi(renderId) {
     const language = state.language;
     if (!language || language === "en") return;
-    const ignored = "svg,script,style,textarea,input,select,.utlt-title,.utlt-profile-card,.utlt-family-member,.utlt-friend-row,.utlt-friend-code-card,.utlt-rank-name,.utlt-hero";
+
+    // Keep user-specific content and code/icons intact, but translate all normal UI copy.
+    const ignoredText = "script,style,svg,.utlt-user-content,.utlt-rank-name";
     const targets = [];
-    const walker = document.createTreeWalker(root, 4);
-    let node;
-    while ((node = walker.nextNode())) {
-      const value = node.nodeValue || "";
-      if (!value.trim() || !/[A-Za-z]/.test(value) || node.parentElement?.closest(ignored)) continue;
-      const textNode = node;
-      targets.push({ value, set: translated => { textNode.nodeValue = translated; } });
-    }
-    root.querySelectorAll("[aria-label],[placeholder],[title]").forEach(element => {
-      if (element.closest(ignored)) return;
-      ["aria-label", "placeholder", "title"].forEach(attribute => {
-        const value = element.getAttribute(attribute);
-        if (value && /[A-Za-z]/.test(value)) targets.push({ value, set: translated => element.setAttribute(attribute, translated) });
-      });
-    });
-    const pending = [];
-    targets.forEach(target => {
-      const key = language + "|" + target.value;
-      if (translationCache.has(key)) target.set(translationCache.get(key));
-      else pending.push({ ...target, key });
-    });
-    for (let offset = 0; offset < pending.length; offset += 14) {
-      if (renderId !== renderToken) return;
-      const batch = pending.slice(offset, offset + 14);
-      const marker = index => "UTLTSEG" + String(index).padStart(4, "0") + "X";
-      const payload = batch.map((item, index) => marker(index) + item.value + marker(index)).join(" ");
-      try {
-        const url = "https://translate.googleapis.com/translate_a/single?client=gtx&sl=en&tl=" +
-          encodeURIComponent(language) + "&dt=t&q=" + encodeURIComponent(payload);
-        const response = await fetch(url);
-        if (!response.ok) throw new Error("Translation service returned " + response.status);
-        const data = await response.json();
-        const translated = Array.isArray(data?.[0]) ? data[0].map(part => part?.[0] || "").join("") : "";
-        if (!translated) throw new Error("No translated text was returned");
-        for (let index = 0; index < batch.length; index++) {
-          const token = marker(index).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-          const match = translated.match(new RegExp(token + "([\\s\\S]*?)" + token));
-          if (!match) continue;
-          const original = batch[index].value;
-          const leading = original.match(/^\s*/)?.[0] || "";
-          const trailing = original.match(/\s*$/)?.[0] || "";
-          const result = match[1].trim();
-          if (!result) continue;
-          translationCache.set(batch[index].key, result);
-          batch[index].set(leading + result + trailing);
-        }
-      } catch (error) {
-        console.warn("UTLT translation unavailable for " + language + ".", error);
-        if (!translationFailures.has(language)) {
-          translationFailures.add(language);
-          showToast("Translation is unavailable right now. The app is still usable in English.");
-        }
+    const seen = new Set();
+    const addTarget = (value, set) => {
+      if (!value || !/[A-Za-z]/.test(value) || !value.trim()) return;
+      const key = language + "|" + value;
+      const identity = key;
+      if (seen.has(identity)) {
+        const existing = targets.find(item => item.key === key);
+        if (existing) existing.setters.push(set);
         return;
       }
+      seen.add(identity);
+      targets.push({ key, value, setters: [set] });
+    };
+
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    let node;
+    while ((node = walker.nextNode())) {
+      if (node.parentElement?.closest(ignoredText)) continue;
+      const value = node.nodeValue || "";
+      if (!value.trim() || !/[A-Za-z]/.test(value)) continue;
+      const textNode = node;
+      addTarget(value, translated => { textNode.nodeValue = translated; });
+    }
+
+    // Translate accessibility labels and hints, including placeholders, but never input values.
+    root.querySelectorAll("[aria-label],[placeholder],[title]").forEach(element => {
+      if (element.matches("input,textarea") && element.closest(ignoredText)) return;
+      if (element.closest(ignoredText)) return;
+      ["aria-label", "placeholder", "title"].forEach(attribute => {
+        const value = element.getAttribute(attribute);
+        if (value && /[A-Za-z]/.test(value)) {
+          addTarget(value, translated => element.setAttribute(attribute, translated));
+        }
+      });
+    });
+
+    const pending = [];
+    targets.forEach(target => {
+      if (translationCache.has(target.key)) {
+        target.setters.forEach(setter => setter(translationCache.get(target.key)));
+      } else {
+        pending.push(target);
+      }
+    });
+
+    // Independent requests avoid fragile marker tokens being changed by translation.
+    let cursor = 0;
+    let failed = false;
+    const worker = async () => {
+      while (cursor < pending.length) {
+        const item = pending[cursor++];
+        if (renderId !== renderToken) return;
+        try {
+          const translated = await requestUiTranslation(item.value, language);
+          if (renderId !== renderToken) return;
+          translationCache.set(item.key, translated);
+          item.setters.forEach(setter => setter(translated));
+        } catch (error) {
+          failed = true;
+          console.warn("UTLT could not translate a UI phrase.", language, item.value, error);
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(4, pending.length) }, worker));
+    if (failed && renderId === renderToken && !translationFailures.has(language)) {
+      translationFailures.add(language);
+      showToast("Some text could not be translated. Please try changing the language again.");
     }
   }
 
