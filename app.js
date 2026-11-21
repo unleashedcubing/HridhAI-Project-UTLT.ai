@@ -1584,6 +1584,10 @@
       });
   }
 
+  root.addEventListener("utlt-demo-change", () => {
+    if (state.screen === "demo") translateRenderedUi(++renderToken);
+  });
+
   root.addEventListener("click", (event) => {
     const button = event.target.closest("button[data-action]");
     if (!button) return;
