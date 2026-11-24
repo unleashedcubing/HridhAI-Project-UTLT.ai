@@ -17,7 +17,12 @@
   const bleControlUuid = "930a7d60-8489-4b31-9cc6-64ee5e809102";
   const bleHistoryUuid = "930a7d60-8489-4b31-9cc6-64ee5e809103";
   const pairingKey = "waterMeterPairingV1";
-  const calibrationKey = "waterMeterCalibrationV1";
+  const legacyCalibrationKey = "waterMeterCalibrationV1";
+  const calibrationKey = "waterMeterBenchCalibrationV1";
+  const directReadingsKey = "waterMeterReadingsV1";
+  const languageKey = "waterAppLanguageV1";
+  const calibrationVolumeLitres = 0.160;
+  const defaultCalibration = { pulseRate: 12, seconds: 40 };
   const grantedDeviceKey = "waterMeterGrantedBluetoothV1";
   const demoKey = "waterMeterDemoEnabledV1";
   const surveyKey = "waterSurveyV1";
@@ -28,22 +33,42 @@
   const localProfileKey = "waterLocalProfileV1";
   let savedPairing = "";
   try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) {  }
-  const pulsesPerLitre = 3000;
+  function calibrationFactor({ pulseRate, seconds }) {
+    if (!(pulseRate >= 0.01 && pulseRate <= 5000 && seconds >= 0.01 && seconds <= 600)) return null;
+    const factor = pulseRate * seconds / calibrationVolumeLitres;
+    return factor >= 1 && factor <= 100000 ? factor : null;
+  }
+  let calibration = defaultCalibration;
+  let hasCustomCalibration = false;
+  let legacyPulsesPerLitre = calibrationFactor(defaultCalibration);
+  try {
+    const stored = Number(localStorage.getItem(legacyCalibrationKey));
+    if (stored > 0 && Number.isFinite(stored)) legacyPulsesPerLitre = stored;
+    const custom = JSON.parse(localStorage.getItem(calibrationKey) || "null");
+    if (custom && calibrationFactor(custom)) {
+      calibration = custom;
+      hasCustomCalibration = true;
+    }
+  } catch (_error) { }
+  function convertReadings(readings, originalFactor, currentFactor) {
+    if (!Array.isArray(readings)) return [];
+    if (originalFactor === currentFactor) return readings;
+    return readings.map(item => Number.isFinite(item?.litres)
+      ? { ...item, litres: item.litres * originalFactor / currentFactor } : item);
+  }
+  function savedMeterReadings() {
+    const factor = state.pulsesPerLitre;
+    try {
+      const saved = JSON.parse(localStorage.getItem(directReadingsKey) || "{}") || {};
+      const originalFactor = Number(saved.pulsesPerLitre) || legacyPulsesPerLitre;
+      return { ...saved, readings: convertReadings(saved.readings, originalFactor, factor), pulsesPerLitre: factor };
+    } catch (_error) {
+      return { readings: [], pulsesPerLitre: factor };
+    }
+  }
   let demoEnabled = false;
   let savedSurvey = null, reviewedDays = [], confirmedLabels = {}, corrections = [], lastConnected = null, savedLocalProfile = null;
   try {
-    const stored = Number(localStorage.getItem(calibrationKey));
-    if (stored > 0 && stored !== pulsesPerLitre) {
-      try {
-        const previous = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "null");
-        if (previous && Array.isArray(previous.readings)) {
-          previous.readings = previous.readings.map(item => Number.isFinite(item?.litres)
-            ? { ...item, litres: item.litres * stored / pulsesPerLitre } : item);
-          localStorage.setItem("waterMeterReadingsV1", JSON.stringify(previous));
-        }
-      } catch (error) { console.warn("Could not update older water readings to the new calibration.", error); }
-    }
-    localStorage.setItem(calibrationKey, String(pulsesPerLitre));
     demoEnabled = localStorage.getItem(demoKey) === "true";
     savedSurvey = JSON.parse(localStorage.getItem(surveyKey) || "null");
     reviewedDays = JSON.parse(localStorage.getItem(reviewKey) || "[]");
@@ -73,7 +98,8 @@
     flowRunningMinutes: 0,
     rawPulseCount: null,
     pulseRateHz: null,
-    pulsesPerLitre,
+    pulsesPerLitre: calibrationFactor(calibration),
+    calibrationStatus: "",
     currentMeterSession: "",
     bridgeAvailable: false,
     readings: demoEnabled ? window.UTLTData.demoReadings : [],
@@ -386,7 +412,7 @@
     if (typeof profile.homeName === "string") state.homeName = profile.homeName;
     if (Number(profile.goal) > 0) state.goal = Number(profile.goal);
     if (["use", "time"].includes(profile.breakdown)) state.breakdown = profile.breakdown;
-    if (indianLanguages.some(item => item.code === profile.language)) state.language = profile.language;
+    if (isAppLanguage(profile.language)) state.language = profile.language;
     state.leaderboardVisible = profile.leaderboardVisible === true;
     state.communitySharing = profile.communitySharing === true;
   }
@@ -598,6 +624,14 @@
     { code: "te", label: "తెలుగు · Telugu" },
     { code: "ur", label: "اردو · Urdu" }
   ];
+  function isAppLanguage(code) {
+    return code === "en" || indianLanguages.some(item => item.code === code);
+  }
+  try {
+    const savedLanguage = localStorage.getItem(languageKey);
+    if (isAppLanguage(savedLanguage)) state.language = savedLanguage;
+  } catch (_error) { }
+
   function languageSelector() {
     const selected = state.language === "en" ? { label: "English", code: "en" } : indianLanguages.find(item => item.code === state.language) || { label: "English", code: "en" };
     const options = [{ code: "en", label: "English" }, ...indianLanguages];
@@ -656,6 +690,7 @@
   }
 
   function greetingMarkup() {
+    if (!state.device.connected) return "";
     const hour = new Date().getHours();
     const part = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
     const first = (state.name || "").trim().split(" ")[0];
@@ -921,17 +956,39 @@
 
   function dashboard() {
     if (!state.device.connected && !state.demoEnabled && state.readings.length === 0) {
-      return `<div class="utlt-dashboard"><section class="utlt-language-settings" aria-labelledby="utlt-language-title"><p class="utlt-eyebrow" id="utlt-language-title">APP SETTINGS</p>${languageSelector()}</section>${greetingMarkup()}${waterIntelligenceEntry()}<section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">WATER MONITOR</p><h2>Your water data starts here</h2><p>Connect your UTLT device to see today's usage, the breakdown, and your daily trend.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><span>Want to explore first? Enable demo data in Device Settings.</span></section><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></div>`;
+      return `<div class="utlt-dashboard">${waterIntelligenceEntry()}<section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">WATER MONITOR</p><h2>Your water data starts here</h2><p>Connect your UTLT device to see today's usage, the breakdown, and your daily trend.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><span>Want to explore first? Enable demo data in Device Settings.</span></section><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></div>`;
     }
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard"><section class="utlt-language-settings" aria-labelledby="utlt-language-title"><p class="utlt-eyebrow" id="utlt-language-title">APP SETTINGS</p>${languageSelector()}</section>${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${waterIntelligenceEntry()}${usage(summary)}${status(summary)}${patternCard()}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p><p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${waterIntelligenceEntry()}${usage(summary)}${status(summary)}${patternCard()}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p><p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+  }
+
+  function calibrationForm() {
+    return `<form id="utlt-calibration-form" class="utlt-meter-diagnostics" aria-labelledby="utlt-calibration-title">
+      <strong id="utlt-calibration-title">Water meter calibration</strong>
+      <small>Your 160 mL test took 39–41 seconds. Use the average pulse rate and elapsed time from the same run. This setting also updates saved meter totals.</small>
+      <div class="utlt-calibration-fields">
+        <label class="utlt-field" for="utlt-pulse-rate">Pulses per second
+          <input id="utlt-pulse-rate" name="pulseRate" type="number" step="any" min="0.01" max="5000" inputmode="decimal" value="${calibration.pulseRate}" required>
+        </label>
+        <label class="utlt-field" for="utlt-fill-seconds">Seconds for 160 mL
+          <input id="utlt-fill-seconds" name="seconds" type="number" step="any" min="0.01" max="600" inputmode="decimal" value="${calibration.seconds}" required>
+        </label>
+      </div>
+      <p>Current conversion: ${formatCalibration(state.pulsesPerLitre)} pulses per litre</p>
+      <button class="utlt-secondary-button" type="submit">Save calibration</button>
+      ${state.calibrationStatus ? `<p class="utlt-calibration-status" role="status">${escapeHtml(state.calibrationStatus)}</p>` : ""}
+    </form>`;
+  }
+
+  function formatCalibration(factor) {
+    return factor.toLocaleString("en-IN", { maximumFractionDigits: 1 });
   }
 
   function devicePage() {
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
       ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "";
-    return `<section class="utlt-device-settings"><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button><button class="utlt-secondary-button" data-action="survey">${state.survey ? "Edit household survey" : "Start household survey"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p></section>`;
+    return `<section class="utlt-device-settings"><section class="utlt-language-settings" aria-labelledby="utlt-language-title"><p class="utlt-eyebrow" id="utlt-language-title">APP SETTINGS</p>${languageSelector()}</section><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button><button class="utlt-secondary-button" data-action="survey">${state.survey ? "Edit household survey" : "Start household survey"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / state.pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p>${calibrationForm()}</section>`;
   }
   function pairPage() {
     const ready = Boolean(state.pairedDeviceId);
@@ -949,7 +1006,7 @@
       ${state.device.connected && !state.survey ? '<button class="utlt-secondary-button" type="button" data-action="survey">Set up your household (optional)</button>' : ''}
       <button class="utlt-primary-button ${ready ? "utlt-scan-again" : ""}" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : ready ? "Scan another device QR" : "Scan device QR"}</button>
       ${!ready || state.qrScanning ? '<label class="utlt-qr-photo">Or use a camera photo<input type="file" id="utlt-qr-photo" accept="image/*" capture="environment" aria-label="Take a photo of the device QR code"></label>' : ''}
-      <div class="utlt-meter-diagnostics"><strong>Water conversion</strong><span>3,000 pulses ≈ 1 litre</span>${state.rawPulseCount !== null ? `<span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span>` : ""}<small>Provisional 160 mL estimate; the observed range could be about 21% low to 20% high at this flow.</small></div>
+      <div class="utlt-meter-diagnostics"><strong>Water conversion</strong><span>${formatCalibration(state.pulsesPerLitre)} pulses ≈ 1 litre</span>${state.rawPulseCount !== null ? `<span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span>` : ""}<small>Adjust the provisional 160 mL conversion in Device Settings.</small></div>
       ${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : state.flowRateLpm !== null ? `<p class="utlt-pair-feedback">Measured flow: ${state.flowRateLpm.toFixed(2)} L/min</p>` : ''}
       ${state.pairStatus && !state.pairStatus.startsWith("QR verified") ? `<p class="utlt-pair-feedback" role="status">${escapeHtml(state.pairStatus)}</p>` : ''}
       <button class="utlt-reset-readings" type="button" data-action="reset-meter-readings">Clear saved water readings</button>
@@ -1165,9 +1222,13 @@
         }
       } catch (error) {
         console.warn("UTLT translation unavailable for " + language + ".", error);
-        if (!translationFailures.has(language)) {
+        if (renderId === renderToken && !translationFailures.has(language)) {
           translationFailures.add(language);
-          showToast("Translation is unavailable right now. The app is still usable in English.");
+          const notice = document.createElement("p");
+          notice.className = "utlt-flow-warning";
+          notice.setAttribute("role", "status");
+          notice.textContent = "Translation is unavailable right now. The app is still usable in English.";
+          root.querySelector(".utlt-content")?.prepend(notice);
         }
         return;
       }
@@ -1207,7 +1268,7 @@
   }
 
   function renderMeterUpdate() {
-    if (state.screen === "device" && state.languageMenuOpen) return;
+    if (state.screen === "device" && (state.languageMenuOpen || root.querySelector("#utlt-calibration-form:focus-within"))) return;
     if (["survey", "review", "account", "assistant", "demo"].includes(state.screen)) return;
     if (!root.querySelector(".utlt-auth-screen")) render(true);
   }
@@ -1373,13 +1434,13 @@
     historyLoading = false;
     const latest = latestBlePacket;
     if (!latest) return;
-    let saved = {};
-    try { saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}"); } catch (_error) {  }
+    const pulsesPerLitre = state.pulsesPerLitre;
+    const saved = savedMeterReadings();
     if (!complete) {
       saved.session = latest.session;
       saved.lastPulses = latest.total;
       saved.lastObservedAt = Date.now();
-      try { localStorage.setItem("waterMeterReadingsV1", JSON.stringify(saved)); } catch (_error) {  }
+      try { localStorage.setItem(directReadingsKey, JSON.stringify(saved)); } catch (_error) {  }
       state.historyStatus = "History transfer did not finish. Reconnect or tap Download history to retry.";
       render(true);
       return;
@@ -1400,7 +1461,7 @@
     const afterSnapshot = historySnapshot !== null && latest.total >= historySnapshot ? latest.total - historySnapshot : 0;
     if (afterSnapshot) recovered.push({ recordedAt: indiaIso(Math.floor(Date.now() / 1000)), litres: afterSnapshot / pulsesPerLitre, category: "Misc" });
     const readings = recovered.length ? [...earlier, ...recovered] : Array.isArray(saved.readings) ? saved.readings : [];
-    try { localStorage.setItem("waterMeterReadingsV1", JSON.stringify({ session: latest.session, lastPulses: Math.max(latest.total, historySnapshot || 0), lastObservedAt: Date.now(), readings })); } catch (_error) {  }
+    try { localStorage.setItem(directReadingsKey, JSON.stringify({ session: latest.session, lastPulses: Math.max(latest.total, historySnapshot || 0), lastObservedAt: Date.now(), readings, pulsesPerLitre })); } catch (_error) {  }
     state.readings = readings;
     state.usingDemo = false;
     state.demoEnabled = false;
@@ -1594,7 +1655,8 @@
     const action = button.dataset.action;
     if (action === "language-menu") { state.languageMenuOpen = !state.languageMenuOpen; render(true); return; }
     if (action === "select-language") {
-      state.language = button.dataset.value === "en" || indianLanguages.some(item => item.code === button.dataset.value) ? button.dataset.value : "en";
+      state.language = isAppLanguage(button.dataset.value) ? button.dataset.value : "en";
+      try { localStorage.setItem(languageKey, state.language); } catch (_error) { }
       state.languageMenuOpen = false;
       persistProfile();
       render(true);
@@ -1628,9 +1690,7 @@
         state.readings = window.UTLTData.demoReadings;
         state.usingDemo = true;
       } else {
-        let saved = {};
-        try { saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}"); } catch (_error) {  }
-        state.readings = Array.isArray(saved.readings) ? saved.readings : [];
+        state.readings = savedMeterReadings().readings;
         state.usingDemo = state.readings.length === 0;
       }
       try { localStorage.setItem(demoKey, String(state.demoEnabled)); } catch (_error) {  }
@@ -1638,7 +1698,7 @@
       return;
     }
     if (action === "reset-meter-readings") {
-      try { localStorage.removeItem("waterMeterReadingsV1"); } catch (_error) {  }
+      try { localStorage.removeItem(directReadingsKey); } catch (_error) {  }
       state.readings = [];
       state.usingDemo = false;
       state.flowWarning = "";
@@ -1703,6 +1763,10 @@
     render(action === "theme" || action === "utility" || action === "breakdown");
   });
 
+  root.addEventListener("input", (event) => {
+    if (event.target.form?.id === "utlt-calibration-form") event.target.form.elements.pulseRate.setCustomValidity("");
+  });
+
   root.addEventListener("change", (event) => {
     if (event.target.id === "utlt-qr-photo") { scanQrPhoto(event.target.files?.[0]); return; }
     if (event.target.matches('input[data-action="community-sharing"]')) {
@@ -1726,6 +1790,42 @@
     }
   });
   root.addEventListener("submit", async (event) => {
+    if (event.target.id === "utlt-calibration-form") {
+      event.preventDefault();
+      const form = new FormData(event.target);
+      const next = { pulseRate: Number(form.get("pulseRate")), seconds: Number(form.get("seconds")) };
+      const factor = calibrationFactor(next);
+      if (!factor) {
+        const field = event.target.elements.pulseRate;
+        field.setCustomValidity("Use a rate and time that produce 1 to 100,000 pulses per litre.");
+        field.reportValidity();
+        return;
+      }
+      try {
+        localStorage.setItem(calibrationKey, JSON.stringify(next));
+      } catch (_error) {
+        state.calibrationStatus = "Calibration could not be saved on this browser.";
+        render(true);
+        return;
+      }
+      const previousFactor = state.pulsesPerLitre;
+      calibration = next;
+      hasCustomCalibration = true;
+      state.pulsesPerLitre = factor;
+      state.calibrationStatus = "Calibration saved on this browser.";
+      if (bridgeSignature) {
+        bridgeSignature = "";
+        refreshWaterBridge();
+      } else if (!state.usingDemo) {
+        state.readings = convertReadings(state.readings, previousFactor, factor);
+        if (state.pulseRateHz !== null) state.flowRateLpm = state.pulseRateHz * 60 / factor;
+        syncFamilyUsage();
+        syncCommunityInsight();
+        syncCompetitionStats();
+      }
+      render(true);
+      return;
+    }
     if (event.target.id === "utlt-assistant-form") {
       event.preventDefault();
       if (state.llmBusy || !state.llmReady) return;
@@ -1793,9 +1893,9 @@
         localStorage.setItem(reviewKey, JSON.stringify(state.reviewedDays));
         localStorage.setItem(labelsKey, JSON.stringify(state.confirmedLabels));
         localStorage.setItem(correctionsKey, JSON.stringify(state.corrections));
-        const saved = JSON.parse(localStorage.getItem("waterMeterReadingsV1") || "{}");
+        const saved = savedMeterReadings();
         saved.readings = state.readings;
-        localStorage.setItem("waterMeterReadingsV1", JSON.stringify(saved));
+        localStorage.setItem(directReadingsKey, JSON.stringify(saved));
       } catch (_error) {  }
       state.screen = "home";
       render();
@@ -1851,12 +1951,15 @@
   });
   let bridgeSignature = "";
   let bridgeReadingsSignature = "";
-  const directReadingsKey = "waterMeterReadingsV1";
+  function excessiveFlowWarning(rateLpm) {
+    return rateLpm > 6
+      ? `Sensor signal is too fast (${rateLpm.toFixed(1)} L/min). This sensor is rated to 5 L/min, so these pulses were not added. Check wiring and try separate pump power.` : "";
+  }
   function applyStandaloneReading(payload) {
     const total = Number(payload.totalPulses);
     if (!Number.isSafeInteger(total) || total < 0 || typeof payload.session !== "string") throw new Error("Invalid meter reading");
-    let saved = {};
-    try { saved = JSON.parse(localStorage.getItem(directReadingsKey) || "{}"); } catch (_error) {  }
+    const pulsesPerLitre = state.pulsesPerLitre;
+    const saved = savedMeterReadings();
     const now = Date.now();
     const sameSession = saved.session === payload.session && Number.isSafeInteger(saved.lastPulses) && saved.lastPulses <= total;
     const previous = sameSession ? saved.lastPulses : total;
@@ -1876,14 +1979,14 @@
     state.flowRateLpm = rateLpm;
     state.rawPulseCount = total;
     state.pulseRateHz = elapsedMs >= 500 ? rawDelta * 1000 / elapsedMs : null;
-    state.flowWarning = impossibleFlow ? `Sensor signal is too fast (${rateLpm.toFixed(1)} L/min). This sensor is rated to 5 L/min, so these pulses were not added. Check wiring and try separate pump power.` : "";
+    state.flowWarning = excessiveFlowWarning(rateLpm);
     const readings = Array.isArray(saved.readings) ? saved.readings.filter(item => item && typeof item.recordedAt === "string" && Date.parse(item.recordedAt) >= Date.now() - 7 * 86400000) : [];
     const delta = impossibleFlow ? 0 : rawDelta;
     if (delta > 0) {
       const indiaTime = new Date(Date.now() + 330 * 60000).toISOString().replace("Z", "+05:30");
       readings.push({ recordedAt: indiaTime, litres: delta / pulsesPerLitre, category: "Misc" });
     }
-    try { localStorage.setItem(directReadingsKey, JSON.stringify({ session: payload.session, lastPulses: total, lastObservedAt: now, readings })); } catch (_error) {  }
+    try { localStorage.setItem(directReadingsKey, JSON.stringify({ session: payload.session, lastPulses: total, lastObservedAt: now, readings, pulsesPerLitre })); } catch (_error) {  }
     const changed = delta > 0 || state.usingDemo || !state.device.connected || previousWarning !== state.flowWarning || hadFlowAlert !== (state.flowRunningMinutes >= 16);
     state.readings = readings;
     state.usingDemo = false;
@@ -1913,8 +2016,10 @@
       bridgeSignature = signature;
       state.device = { connected: Boolean(payload.device.connected), lastConnectedAt: payload.device.lastConnectedAt || null };
       if (payload.device.lastConnectedAt || payload.readings.length) {
-        const readingsSignature = JSON.stringify(payload.readings);
-        state.readings = payload.readings;
+        const bridgeFactor = Number(payload.pulsesPerLitre);
+        state.readings = hasCustomCalibration && bridgeFactor > 0 && Number.isFinite(bridgeFactor)
+          ? convertReadings(payload.readings, bridgeFactor, state.pulsesPerLitre) : payload.readings;
+        const readingsSignature = JSON.stringify(state.readings);
         state.usingDemo = false;
         if (state.demoEnabled) {
           state.demoEnabled = false;
