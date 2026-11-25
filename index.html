@@ -99,7 +99,7 @@
 
 <body>
 
-  <!-- Main application -->
+  <!-- Main application: preserved -->
   <div id="app">
     <div class="utlt-splash" role="status">
       <span aria-hidden="true">💧</span>
@@ -107,8 +107,95 @@
     </div>
   </div>
 
-  <!-- Chatbot mount point -->
-  <div id="utlt-chatbot-root"></div>
+  <!-- UTLT.ai floating assistant -->
+  <div id="utlt-ai-widget">
+
+    <section
+      id="utlt-ai-panel"
+      role="dialog"
+      aria-label="UTLT.ai assistant"
+      aria-modal="false"
+      hidden
+    >
+      <header class="utlt-ai-header">
+        <div>
+          <div class="utlt-ai-title">UTLT.ai Assistant</div>
+          <span class="utlt-ai-subtitle">
+            Your water-saving companion
+          </span>
+        </div>
+
+        <button
+          id="utlt-ai-close"
+          type="button"
+          aria-label="Close assistant"
+        >×</button>
+      </header>
+
+      <div
+        id="utlt-ai-messages"
+        aria-live="polite"
+        aria-relevant="additions"
+      ></div>
+
+      <div class="utlt-ai-quick">
+        <button
+          type="button"
+          data-utlt-question="How much water have I used?"
+        >
+          My usage
+        </button>
+
+        <button
+          type="button"
+          data-utlt-question="Am I within my daily water goal?"
+        >
+          Daily goal
+        </button>
+
+        <button
+          type="button"
+          data-utlt-question="Give me tips to save water."
+        >
+          Save water
+        </button>
+      </div>
+
+      <form id="utlt-ai-form">
+        <input
+          id="utlt-ai-input"
+          type="text"
+          placeholder="Ask about your water use…"
+          autocomplete="off"
+          required
+        >
+
+        <button
+          id="utlt-ai-send"
+          type="submit"
+          aria-label="Send message"
+        >➤</button>
+      </form>
+
+      <div
+        id="utlt-ai-status"
+        class="utlt-ai-status"
+        role="status"
+      >Ready</div>
+    </section>
+
+    <!-- Floating chat launcher -->
+    <button
+      id="utlt-ai-launcher"
+      type="button"
+      aria-label="Open UTLT.ai assistant"
+      aria-controls="utlt-ai-panel"
+      aria-expanded="false"
+    >
+      💬
+    </button>
+
+  </div>
 
   <noscript>
     <p style="margin:0;padding:24px;font:16px/1.5 Arial,sans-serif;color:#f1f5f9;background:#12171d;">
