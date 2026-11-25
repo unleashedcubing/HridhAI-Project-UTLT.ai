@@ -1,0 +1,160 @@
+/* UTLT.ai floating assistant. Scoped to #utlt-ai-widget to avoid app styles. */
+#utlt-ai-widget {
+  position: fixed;
+  right: max(20px, env(safe-area-inset-right));
+  bottom: max(20px, env(safe-area-inset-bottom));
+  z-index: 1000000;
+  font-family: Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #e8eefc;
+}
+#utlt-ai-launcher {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border: 0;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #1688f8, #00b9c7);
+  color: #fff;
+  font-size: 27px;
+  cursor: pointer;
+  box-shadow: 0 8px 28px #0005;
+  transition: transform .18s ease, box-shadow .18s ease;
+}
+#utlt-ai-launcher:hover { transform: translateY(-2px); box-shadow: 0 12px 32px #0006; }
+#utlt-ai-launcher:focus-visible,
+#utlt-ai-widget button:focus-visible,
+#utlt-ai-input:focus-visible { outline: 3px solid #7dd3fc; outline-offset: 3px; }
+#utlt-ai-panel {
+  position: absolute;
+  right: 0;
+  bottom: 76px;
+  display: flex;
+  flex-direction: column;
+  width: 380px;
+  height: min(540px, calc(100dvh - 116px));
+  max-width: calc(100vw - 28px);
+  overflow: hidden;
+  border: 1px solid #2a3556;
+  border-radius: 19px;
+  background: #0f1424;
+  color: #e8eefc;
+  box-shadow: 0 16px 48px #0008;
+}
+#utlt-ai-panel[hidden] { display: none !important; }
+.utlt-ai-header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 15px 16px;
+  border-bottom: 1px solid #2a3556;
+  background: #161d33;
+}
+.utlt-ai-title { font-size: 15px; font-weight: 800; }
+.utlt-ai-subtitle { display: block; margin-top: 4px; color: #9eabc7; font-size: 11px; }
+#utlt-ai-close {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: #cbd5e1;
+  font-size: 24px;
+  cursor: pointer;
+}
+#utlt-ai-close:hover { background: #26324c; }
+#utlt-ai-messages {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  gap: 11px;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 15px;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: #3a4968 transparent;
+}
+.utlt-ai-message {
+  max-width: 91%;
+  padding: 10px 13px;
+  border-radius: 14px;
+  font-size: 13px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+.utlt-ai-message.bot { align-self: flex-start; background: #1f2a44; color: #e8eefc; }
+.utlt-ai-message.user { align-self: flex-end; background: #2563eb; color: #fff; }
+.utlt-ai-message p { margin: 0 0 7px; }
+.utlt-ai-message p:last-child { margin-bottom: 0; }
+.utlt-ai-message ul { margin: 5px 0 7px; padding-left: 19px; }
+.utlt-ai-message li { margin: 3px 0; }
+.utlt-ai-message strong { color: #fff; font-weight: 750; }
+.utlt-ai-quick {
+  display: flex;
+  flex: 0 0 auto;
+  gap: 7px;
+  padding: 9px 11px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.utlt-ai-quick::-webkit-scrollbar { display: none; }
+.utlt-ai-quick button {
+  flex: 0 0 auto;
+  padding: 7px 11px;
+  border: 1px solid #34415f;
+  border-radius: 30px;
+  background: #161d33;
+  color: #dbeafe;
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+.utlt-ai-quick button:hover { background: #253452; }
+#utlt-ai-form {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 9px;
+  padding: 11px;
+  border-top: 1px solid #2a3556;
+}
+#utlt-ai-input {
+  flex: 1;
+  min-width: 0;
+  padding: 12px 15px;
+  border: 1px solid #34415f;
+  border-radius: 30px;
+  outline: none;
+  background: #161d33;
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+}
+#utlt-ai-input::placeholder { color: #8b97b5; }
+#utlt-ai-input:focus { border-color: #3b82f6; }
+#utlt-ai-send {
+  display: grid;
+  flex: 0 0 42px;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border: 0;
+  border-radius: 50%;
+  background: #3b82f6;
+  color: #fff;
+  font-size: 19px;
+  cursor: pointer;
+}
+#utlt-ai-send:disabled { opacity: .55; cursor: wait; }
+.utlt-ai-status { min-height: 0; padding: 0 13px 7px; color: #9eabc7; font-size: 10px; }
+@media (max-width: 480px) {
+  #utlt-ai-widget { right: max(12px, env(safe-area-inset-right)); bottom: max(12px, env(safe-area-inset-bottom)); }
+  #utlt-ai-launcher { width: 58px; height: 58px; }
+  #utlt-ai-panel { right: 0; bottom: 70px; width: calc(100vw - 24px); max-width: calc(100vw - 24px); height: min(540px, calc(100dvh - 100px)); }
+}
+@media (prefers-reduced-motion: reduce) {
+  #utlt-ai-launcher { transition: none; }
+}
