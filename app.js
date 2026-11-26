@@ -44,13 +44,14 @@
       import("https://www.gstatic.com/firebasejs/" + version + "/firebase-firestore.js")
     ]);
     const firebaseConfig = {
-    apiKey: "AIzaSyAvYOPq7VmZzy2aReQaF8OE0ezQn_LEMwM",
-    authDomain: "utlt-ai1.firebaseapp.com",
-    projectId: "utlt-ai1",
-    storageBucket: "utlt-ai1.firebasestorage.app",
-    messagingSenderId: "824195452987",
-    appId: "1:824195452987:web:184170a778e9edec1d0c1e",
-    measurementId: "G-H5HNX08WJJ"
+    apiKey: "AIzaSyB2D31wQh9jApQagWeYMkG6ieJuY4xn8OA",
+  authDomain: "game1-a3220.firebaseapp.com",
+  databaseURL: "https://game1-a3220-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "game1-a3220",
+  storageBucket: "game1-a3220.firebasestorage.app",
+  messagingSenderId: "508583368014",
+  appId: "1:508583368014:web:8555b4194e68d728f43a1f",
+  measurementId: "G-DVVE5XYMHE"
   };
     const firebaseApp = appSdk.initializeApp(firebaseConfig);
     const auth = authSdk.getAuth(firebaseApp);
