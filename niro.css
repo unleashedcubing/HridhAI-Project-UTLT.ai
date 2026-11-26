@@ -12,11 +12,11 @@
   --utlt-accent:#91c9ff; --utlt-ring-start:#328fe0; --utlt-ring-end:#83caff; --utlt-ring-track:#3b4858;
 }
 .utlt-app[data-utility="Gas"] {
-  --utlt-accent:#17613d; --utility-button:#17613d; --utility-soft:#ddf6e8; --utility-deep:#144c30;
+  --utlt-ring-start:#288554; --utlt-ring-end:#6fc28b; --utlt-accent:#17613d; --utility-button:#17613d; --utility-soft:#ddf6e8; --utility-deep:#144c30;
 }
 .utlt-app.utlt-dark[data-utility="Gas"] {--utlt-accent:#9ae1b6}
 .utlt-app[data-utility="Electricity"] {
-  --utlt-accent:#775500; --utility-button:#f2cc58; --utility-ink:#302300; --utility-soft:#fff1b9; --utility-deep:#594000;
+  --utlt-ring-start:#b67e00; --utlt-ring-end:#ffda5b; --utlt-accent:#775500; --utility-button:#f2cc58; --utility-ink:#302300; --utility-soft:#fff1b9; --utility-deep:#594000;
 }
 .utlt-app.utlt-dark[data-utility="Electricity"] {--utlt-accent:#ffdb70}
 .utlt-pill[data-value="Water"] {--utility-color:#327fc3}
@@ -38,14 +38,19 @@
   position:relative; isolation:isolate; overflow:hidden; border:1px solid var(--utlt-border);
   border-radius:26px; background:var(--utlt-card); box-shadow:var(--utlt-shadow);
 }
-/* Two slow ripples behind the water cards, kept separate from the chart. */
-.utlt-usage::before,.utlt-empty-dashboard::before {
-  content:"";position:absolute;z-index:-1;inset:auto -35% -124px;height:220px;
-  border-radius:44% 60% 0 0;background:#75bfff29;animation:utlt-water-drift 10s ease-in-out infinite alternate;
+/* The waves drift inside the measured fill, from the bottom to the daily goal. */
+.utlt-water-fill {
+  position:absolute;z-index:-1;inset:0;overflow:hidden;
+  background:linear-gradient(180deg,#75bfff18,#589ff03b);
 }
-.utlt-usage::after,.utlt-empty-dashboard::after {
-  content:"";position:absolute;z-index:-1;inset:auto -35% -150px;height:224px;
-  border-radius:63% 42% 0 0;background:repeating-radial-gradient(ellipse at 54% 0%,#60aaff2e 0 2px,#75bfff17 3px 12px);
+.utlt-water-fill::before,.utlt-water-fill::after {
+  content:"";position:absolute;inset:0 -35% -12%;
+  border-radius:45% 58% 0 0;background:#75bfff24;
+  animation:utlt-water-drift 10s ease-in-out infinite alternate;
+}
+.utlt-water-fill::after {
+  inset:12px -35% -18%;border-radius:61% 44% 0 0;
+  background:repeating-radial-gradient(ellipse at 54% 0%,#60aaff2e 0 2px,#75bfff17 3px 12px);
   animation:utlt-water-drift 14s ease-in-out infinite alternate-reverse;
 }
 @keyframes utlt-water-drift {
@@ -53,7 +58,15 @@
   to {transform:translateX(8%) rotate(4deg)}
 }
 @media(prefers-reduced-motion:reduce){
-  .utlt-usage::before,.utlt-usage::after,.utlt-empty-dashboard::before,.utlt-empty-dashboard::after {animation:none}
+  .utlt-water-fill::before,.utlt-water-fill::after {animation:none}
+}
+#utlt-water-gradient stop:first-child {
+  stop-color:var(--utlt-ring-start);
+  stop-color:color-mix(in srgb,var(--utlt-ring-start),#c42439 var(--ring-warning,0%));
+}
+#utlt-water-gradient stop:last-child {
+  stop-color:var(--utlt-ring-end);
+  stop-color:color-mix(in srgb,var(--utlt-ring-end),#f25460 var(--ring-warning,0%));
 }
 .utlt-usage {display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px}
 .utlt-usage .utlt-donut {width:min(54vw,210px);height:auto;aspect-ratio:1}

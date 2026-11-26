@@ -684,16 +684,38 @@
   }
 
   function utilityPreview() {
-    return `<section class="utlt-unavailable-card niro-utility"><p class="utlt-eyebrow">NIRO</p>${utilityNotice()}
+    return `<div class="utlt-dashboard"><section class="utlt-usage">${usageRing(state.utility)}</section></div>
+      <section class="utlt-unavailable-card niro-utility"><p class="utlt-eyebrow">NIRO</p>${utilityNotice()}
       <button type="button" class="utlt-primary-button" data-action="niro">Open Niro</button></section>`;
+  }
+
+  // Clamp the ring and water level at the goal while leaving the measured total visible.
+  function usageRing(utility, ratio = null) {
+    const progress = Math.min(1, Math.max(0, ratio ?? 0));
+    const percent = Math.round((ratio ?? 0) * 100);
+    const warning = Math.max(0, (progress - 0.5) * 2) * 100;
+    const label = ratio === null ? `No ${utility.toLowerCase()} reading today` : `${percent} percent of daily ${utility.toLowerCase()} goal used`;
+    return `<div class="utlt-donut" style="--ring-warning:${warning}%">
+      <svg viewBox="0 0 193 193" role="img" aria-label="${label}">
+        <defs><linearGradient id="utlt-water-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%"/><stop offset="100%"/>
+        </linearGradient></defs>
+        <circle class="utlt-donut-track" cx="96.5" cy="96.5" r="84"/>
+        <circle class="utlt-donut-value" cx="96.5" cy="96.5" r="84" visibility="${progress ? "visible" : "hidden"}" style="stroke-dasharray:${progress * circumference} ${circumference}"/>
+      </svg>
+      <div class="utlt-donut-label"><strong>${ratio === null ? "—" : percent + "%"}</strong><span>${ratio === null ? "No reading" : "Used"}</span></div>
+    </div>`;
   }
 
   function usage(summary) {
     const goal = Math.max(1, Number(state.goal) || 350);
     const hasToday = summary.daily.at(-1)?.hasData;
-    const percent = Math.round(summary.used / goal * 100);
-    const dash = Math.min(summary.used / goal, 1) * circumference;
-    return `<section class="utlt-usage"><div class="utlt-donut${summary.used > goal ? " is-over" : summary.used / goal >= 0.8 ? " is-warn" : ""}"><svg viewBox="0 0 193 193" role="img" aria-label="${hasToday ? percent + " percent of daily water goal used" : "No water reading today"}"><defs><linearGradient id="utlt-water-gradient" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="var(--utlt-ring-start)"/><stop offset="100%" stop-color="var(--utlt-ring-end)"/></linearGradient></defs><circle class="utlt-donut-track" cx="96.5" cy="96.5" r="84"/><circle class="utlt-donut-value" cx="96.5" cy="96.5" r="84" style="stroke-dasharray:${dash} ${circumference}"/></svg><div class="utlt-donut-label"><strong>${hasToday ? percent + "%" : "—"}</strong><span>${hasToday ? "Used" : "No reading"}</span></div></div><div class="utlt-usage-summary"><strong>${hasToday ? number(summary.used) : "—"}</strong><span>/ ${goal} Litres</span></div></section>`;
+    const ratio = hasToday ? summary.used / goal : null;
+    const level = Math.min(1, Math.max(0, ratio ?? 0));
+    return `<section class="utlt-usage">${level ? `<div class="utlt-water-fill" style="transform:translateY(${(1 - level) * 100}%)" aria-hidden="true"></div>` : ""}
+      ${usageRing("Water", ratio)}
+      <div class="utlt-usage-summary"><strong>${hasToday ? number(summary.used) : "—"}</strong><span>/ ${goal} Litres</span></div>
+    </section>`;
   }
 
   function status(summary) {
@@ -1323,6 +1345,22 @@
 
   let renderToken = 0;
 
+  // When a meter update redraws the card, continue from the last visible fill and color.
+  function animateUsage(previousLevel, previousColors) {
+    if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+    const water = root.querySelector(".utlt-water-fill");
+    if (!water?.animate) return;
+    const from = previousLevel || "translateY(100%)";
+    if (from !== getComputedStyle(water).transform) {
+      water.animate([{ transform: from }, { transform: water.style.transform }], { duration: 700, easing: "ease-out" });
+    }
+    root.querySelectorAll("#utlt-water-gradient stop").forEach((stop, index) => {
+      const start = previousColors[index];
+      const end = getComputedStyle(stop).stopColor;
+      if (start && start !== end) stop.animate([{ stopColor: start }, { stopColor: end }], { duration: 700, easing: "ease-out" });
+    });
+  }
+
   let lastMotionView = "";
   async function render(preserveScroll = false) {
     const translationRenderId = ++renderToken;
@@ -1348,7 +1386,12 @@
       : state.screen === "family" ? await familyPage()
       : pairPage();
     if (translationRenderId !== renderToken) return;
+    const previousWater = root.querySelector(".utlt-water-fill");
+    const previousLevel = previousWater && getComputedStyle(previousWater).transform;
+    const previousColors = Array.from(root.querySelectorAll(".utlt-water-fill ~ .utlt-donut stop"),
+      stop => getComputedStyle(stop).stopColor);
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${enterMotion ? "utlt-enter" : ""}" data-utility="${state.utility}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}${chat ? " niro-chat-phone" : ""}">${header()}<main class="utlt-content${chat ? " is-niro-chat" : ""}">${content}</main>${nav()}</div></div>`;
+    animateUsage(previousLevel, previousColors);
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute("content", state.dark ? "#212121" : "#ffffff"));
     const scroller = root.querySelector(".utlt-content");
     if (scroller) scroller.scrollTop = previousScroll;

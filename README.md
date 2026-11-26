@@ -7,7 +7,7 @@ UTLT.ai is a HridhAI 2026 team project. The current build measures water in a re
 - [Live app](https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/) and [page map](https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/screens.html). The map lists all 23 screens and subviews and is also linked from **Account → Help & support**.
 - For live readings, pair the ESP32 in **Devices**. For a walkthrough without hardware, use **Explore with demo data**, or open **Help & support → Try the app demos** for Leak detection, Water trends and AI water coach.
 - Open **Niro** to ask for a forecast, water-use split, chart or table. Tap **Download to use** to open chat. The SmolLM2 model file is 137 MB and runs in your browser.
-- Find language, appearance and help in **Account**. Meter calibration stays in **Devices**. Gas and Electricity have their own report and Niro views that show when monitoring is unavailable. Google Home and Apple Home remain future integrations.
+- Find language, appearance and help in **Account**. Meter calibration stays in **Devices**. The usage ring blends toward red near the goal and the water card fills with measured use. Gas and Electricity show empty rings and unavailable reporting until monitoring is enabled. Google Home and Apple Home remain future integrations.
 
 ## Team and credits
 
