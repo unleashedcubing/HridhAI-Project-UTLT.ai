@@ -1,47 +1,77 @@
+/* Neutral surfaces and utility-specific accents. */
 .utlt-app {
-  --utlt-bg:#eff6fc; --utlt-card:#fff; --utlt-panel:#e4effb; --utlt-page:#d9e9f9;
-  --utlt-border:#c8dcef; --utlt-text:#102e4b; --utlt-muted:#42617d;
-  --utlt-accent:#0758a7; --utlt-blue:#096aba; --utlt-ring-start:#1277ce; --utlt-ring-end:#60b8f8;
-  --utlt-ring-track:#d0e4f6; --utlt-shadow:0 5px 17px #10385c0c;
+  --utlt-bg:#fff; --utlt-card:#fff; --utlt-panel:#f5f6f8; --utlt-page:#f4f5f7;
+  --utlt-border:#dce0e5; --utlt-text:#1d2530; --utlt-muted:#515d6b;
+  --utlt-accent:#0758a7; --utlt-blue:var(--utlt-accent); --utlt-ring-start:#1277ce;
+  --utlt-ring-end:#60b8f8; --utlt-ring-track:#e4eef8; --utlt-shadow:0 5px 17px #142b400c;
+  --utility-button:#075eae; --utility-ink:#fff; --utility-soft:#e4f1ff; --utility-deep:#084477;
 }
 .utlt-app.utlt-dark {
-  --utlt-bg:#12243a; --utlt-card:#1b344e; --utlt-panel:#233f5c; --utlt-page:#0c1d32;
-  --utlt-border:#3d5c7c; --utlt-text:#e9f5ff; --utlt-muted:#b8d2eb; --utlt-accent:#93ccff;
-  --utlt-blue:#74bdf9; --utlt-ring-start:#328fe0; --utlt-ring-end:#83caff; --utlt-ring-track:#3b5977;
+  --utlt-bg:#202124; --utlt-card:#292a2e; --utlt-panel:#303136; --utlt-page:#18191c;
+  --utlt-border:#42464d; --utlt-text:#f4f5f8; --utlt-muted:#c2c8d1;
+  --utlt-accent:#91c9ff; --utlt-ring-start:#328fe0; --utlt-ring-end:#83caff; --utlt-ring-track:#3b4858;
 }
+.utlt-app[data-utility="Gas"] {
+  --utlt-accent:#17613d; --utility-button:#17613d; --utility-soft:#ddf6e8; --utility-deep:#144c30;
+}
+.utlt-app.utlt-dark[data-utility="Gas"] {--utlt-accent:#9ae1b6}
+.utlt-app[data-utility="Electricity"] {
+  --utlt-accent:#775500; --utility-button:#f2cc58; --utility-ink:#302300; --utility-soft:#fff1b9; --utility-deep:#594000;
+}
+.utlt-app.utlt-dark[data-utility="Electricity"] {--utlt-accent:#ffdb70}
+.utlt-pill[data-value="Water"] {--utility-color:#327fc3}
+.utlt-pill[data-value="Gas"] {--utility-color:#36805a}
+.utlt-pill[data-value="Electricity"] {--utility-color:#d4a723}
 .utlt-phone {width:min(100%,570px)}
-.utlt-header {background:var(--utlt-bg);box-shadow:none}
+.utlt-header {background:var(--utlt-bg);box-shadow:none;padding-top:max(10px,env(safe-area-inset-top))}
 .utlt-header .utlt-title {letter-spacing:-.035em}
 .utlt-tabbar {
   margin:3px 10px max(9px,env(safe-area-inset-bottom)); padding:5px; gap:2px;
-  border:1px solid #2b4c6b; border-radius:24px; background:#102e4b;
-  box-shadow:0 6px 22px #08244833; flex-shrink:0;
+  border:1px solid var(--utlt-border); border-radius:24px; background:var(--utlt-panel);
+  box-shadow:var(--utlt-shadow); flex-shrink:0;
 }
-.utlt-tabbar>button {min-width:0;color:#d9edff;border-radius:18px}
-.utlt-tabbar>button.is-current {background:#c8e7ff;color:#0c426e}
+.utlt-tabbar>button {min-width:0;color:var(--utlt-muted);border-radius:18px}
+.utlt-tabbar>button.is-current {background:var(--utility-soft);color:var(--utility-deep)}
 .utlt-tabbar>button.is-current .utlt-nav-icon {background:none}
-.utlt-tabbar>button:focus-visible {outline-color:#96d4ff}
+.utlt-tabbar>button:focus-visible {outline-color:var(--utlt-accent)}
 .utlt-usage, .utlt-empty-dashboard {
   position:relative; isolation:isolate; overflow:hidden; border:1px solid var(--utlt-border);
   border-radius:26px; background:var(--utlt-card); box-shadow:var(--utlt-shadow);
 }
+/* Two slow ripples behind the water cards, kept separate from the chart. */
 .utlt-usage::before,.utlt-empty-dashboard::before {
-  content:""; position:absolute; z-index:-1; inset:auto -30% -125px -12%; height:210px;
-  border-radius:48% 62% 0 0; background:#80c4ff28; transform:rotate(-8deg);
+  content:"";position:absolute;z-index:-1;inset:auto -35% -124px;height:220px;
+  border-radius:44% 60% 0 0;background:#75bfff29;animation:utlt-water-drift 10s ease-in-out infinite alternate;
 }
-.utlt-usage { display:grid; grid-template-columns:minmax(106px,154px) 1fr; align-items:center; gap:12px; padding:16px}
-.utlt-usage .utlt-donut {width:100%;height:auto;aspect-ratio:1}
-.utlt-usage .utlt-donut-label strong {font-size:clamp(28px,8vw,37px)}
-.utlt-usage .utlt-donut-label span {font-size:9px;letter-spacing:.07em}
-.utlt-usage .utlt-usage-summary {min-width:0;display:grid;gap:4px;justify-items:start;padding:0;margin:0}
+.utlt-usage::after,.utlt-empty-dashboard::after {
+  content:"";position:absolute;z-index:-1;inset:auto -35% -150px;height:224px;
+  border-radius:63% 42% 0 0;background:repeating-radial-gradient(ellipse at 54% 0%,#60aaff2e 0 2px,#75bfff17 3px 12px);
+  animation:utlt-water-drift 14s ease-in-out infinite alternate-reverse;
+}
+@keyframes utlt-water-drift {
+  from {transform:translateX(-8%) rotate(-5deg)}
+  to {transform:translateX(8%) rotate(4deg)}
+}
+@media(prefers-reduced-motion:reduce){
+  .utlt-usage::before,.utlt-usage::after,.utlt-empty-dashboard::before,.utlt-empty-dashboard::after {animation:none}
+}
+.utlt-usage {display:flex;flex-direction:column;align-items:center;gap:14px;padding:18px}
+.utlt-usage .utlt-donut {width:min(54vw,210px);height:auto;aspect-ratio:1}
+.utlt-usage .utlt-donut-label strong {font-size:clamp(28px,9vw,42px)}
+.utlt-usage .utlt-donut-label span {font-size:10px;letter-spacing:.07em}
+.utlt-usage .utlt-usage-summary {min-height:0;margin:0;padding:10px 0 4px;border:0;background:none;box-shadow:none}
 .utlt-usage .utlt-usage-summary strong {font-size:clamp(26px,8vw,46px)}
-.utlt-usage .utlt-usage-summary span {font-size:14px}
+.utlt-usage .utlt-usage-summary span {font-size:15px}
 .utlt-empty-dashboard {margin-top:7px;text-align:left;align-items:start;padding:22px}
 .utlt-empty-dashboard h2 {text-align:left;font-size:clamp(26px,8vw,39px);line-height:1.05;letter-spacing:-.052em}
 .utlt-empty-dashboard>.utlt-secondary-button {margin-top:10px}
-.utlt-app .utlt-primary-button:not(:disabled),.utlt-pill.is-active,.utlt-pill.is-active[data-value="Electricity"] {background:#075eae;color:#fff}
-.utlt-app .utlt-primary-button:hover:not(:disabled) {background:#064c8e}
-.utlt-settings-links {display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
+.utlt-app .utlt-primary-button:not(:disabled),.utlt-pill.is-active,.utlt-pill.is-active[data-value="Electricity"] {background:var(--utility-button);border-color:var(--utility-button);color:var(--utility-ink)}
+.utlt-app .utlt-primary-button:hover:not(:disabled) {filter:brightness(.92)}
+.utlt-account-settings {margin-top:24px}
+.utlt-account-settings h2 {margin-bottom:12px}
+.utlt-account-settings .utlt-language-picker {margin-top:10px}
+.niro-utility h1 {font-size:clamp(25px,7vw,34px);margin-bottom:12px}
+.niro-utility .niro-avatar {margin:2px 0 10px}
 .utlt-help-row {background:var(--utlt-card);border:1px solid var(--utlt-border);padding:12px 14px;border-radius:13px;margin-top:10px}
 .utlt-help-row summary {font-weight:700;cursor:pointer}
 .utlt-help-row p {padding-top:8px;color:var(--utlt-muted)}
@@ -104,12 +134,14 @@
 @media(prefers-reduced-motion:reduce){.niro-avatar *{animation:none!important}.niro-avatar.is-waving{background:var(--utlt-panel)}}
 .utlt-pill:not(.is-active) {color:var(--utlt-text)}
 /* The chat thread scrolls while the composer stays above the app tabs. */
-.utlt-content:has(.niro-chat) {overflow:hidden;padding-bottom:0}
-.niro-chat {display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:9px;height:100%;min-height:0;padding:10px 16px 8px}
+.utlt-content.is-niro-chat {overflow:hidden;padding-bottom:0}
+.utlt-phone.niro-chat-phone {max-height:var(--chat-viewport,100dvh)}
+.niro-chat {display:grid;grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto minmax(0,1fr) auto;gap:9px;height:100%;min-height:0;padding:10px max(16px,env(safe-area-inset-right)) 8px max(16px,env(safe-area-inset-left))}
 .niro-chat-head h1 {font-size:clamp(18px,5vw,26px)}
 .niro-chat-head>.niro-avatar {width:46px}
-.niro-chat-head>.niro-new {margin-inline-start:auto}
-.niro-new {padding:6px 10px;min-height:36px;border:1px solid var(--utlt-border);border-radius:12px;background:var(--utlt-card);color:var(--utlt-accent);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.niro-chat-head>div {min-width:0}
+.niro-chat-head>.niro-new {flex:none;margin-inline-start:auto}
+.niro-new {padding:6px 10px;min-height:44px;border:1px solid var(--utlt-border);border-radius:12px;background:var(--utlt-card);color:var(--utlt-accent);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
 .niro-thread {display:flex;flex-direction:column;gap:16px;overflow:auto;padding:4px 4px 12px;overscroll-behavior:contain}
 .niro-welcome {margin:auto;text-align:center;padding:12px 6px}
 .niro-welcome h2 {font-size:clamp(21px,6vw,30px);letter-spacing:-.035em}
@@ -120,13 +152,25 @@
 .niro-chat .utlt-question-prompts {flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding:2px 2px 5px}
 .niro-chat .utlt-question-prompts button {flex:none;white-space:nowrap}
 .niro-compose form {grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:end;margin:3px 0;padding:5px;border:1px solid var(--utlt-border);border-radius:22px;background:var(--utlt-card)}
-.niro-compose form textarea {max-height:96px;min-height:40px;padding:9px 11px;border:0;background:none}
-.niro-compose form button {display:grid;place-items:center;width:40px;height:40px;min-height:0;padding:0;border-radius:50%}
+.niro-compose form textarea {max-height:96px;min-height:44px;padding:9px 11px;border:0;background:none;font-size:16px}
+.niro-compose form button {display:grid;place-items:center;width:44px;height:44px;min-height:44px;padding:0;border-radius:50%}
 .niro-compose-meta {display:flex;align-items:center;justify-content:space-between;gap:8px}
 .niro-compose-meta p {margin:0}
-.niro-compose-meta .niro-new {min-height:32px}
 .niro-compose .utlt-device-help {margin:5px 0 0;font-size:11px}
-@media(max-height:530px) {
-  .utlt-content:has(.niro-chat) {overflow:auto}
-  .niro-chat {min-height:365px}
+/* The first run shows setup alone until the model is ready. */
+.niro-download {display:grid;justify-items:center;align-content:center;gap:9px;min-height:100%;padding:24px 18px;text-align:center}
+.niro-download .niro-avatar {width:90px}
+.niro-download h1 {font-size:32px;letter-spacing:-.04em}
+.niro-download button {margin:8px 0 2px;min-height:46px;padding-inline:24px}
+.niro-download p {color:var(--utlt-muted);font-size:13px}
+@media(max-height:540px) {
+  .niro-chat {gap:5px;padding-block:5px}
+  .niro-chat-head>.niro-avatar {width:35px}
+  .niro-chat-phone .utlt-tabbar {margin-block:2px;min-height:0}
+  .niro-chat-phone .utlt-tabbar>button {height:44px}
+}
+.niro-compact-viewport .niro-chat-phone .utlt-tabbar,
+.niro-compact-viewport .niro-chat .utlt-question-prompts {display:none}
+@media(max-width:360px) {
+  .niro-chat {padding-inline:10px}
 }
