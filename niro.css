@@ -82,7 +82,6 @@
 .utlt-app .utlt-primary-button:hover:not(:disabled) {filter:brightness(.92)}
 .utlt-account-settings {margin-top:24px}
 .utlt-account-settings h2 {margin-bottom:12px}
-.utlt-account-settings .utlt-language-picker {margin-top:10px}
 .niro-utility h1 {font-size:clamp(25px,7vw,34px);margin-bottom:12px}
 .niro-utility .niro-avatar {margin:2px 0 10px}
 .utlt-help-row {background:var(--utlt-card);border:1px solid var(--utlt-border);padding:12px 14px;border-radius:13px;margin-top:10px}

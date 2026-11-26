@@ -603,6 +603,7 @@
     copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
     shield: '<path d="M12 22s8-4 8-11V5l-8-3-8 3v6c0 7 8 11 8 11Z"/><path d="m9 12 2 2 4-4"/>',
     alert: '<path d="M12 9v4"/><path d="M10.363 3.591l-8.106 13.534a1.914 1.914 0 0 0 1.636 2.871h16.214a1.914 1.914 0 0 0 1.636 -2.87l-8.106 -13.536a1.914 1.914 0 0 0 -3.274 0"/><path d="M12 16h.01"/>',
+    globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18"/><ellipse cx="12" cy="12" rx="4" ry="9"/>',
     graph: '<path d="M3 4v16h18M7 15l4-5 4 2 5-6"/>',
     flame: '<path d="M12 12c2 -2.96 0 -7 -1 -8c0 3.038 -1.773 4.741 -3 6c-1.226 1.26 -2 3.24 -2 5a6 6 0 1 0 12 0c0 -1.532 -1.056 -3.94 -2 -5c-1.786 3 -2.791 3 -4 2z"/>',
     bolt: '<path d="M13 3l0 7l6 0l-8 11l0 -7l-6 0l8 -11"/>',
@@ -650,10 +651,10 @@
     const selected = state.language === "en" ? { label: "English", code: "en" } : indianLanguages.find(item => item.code === state.language) || { label: "English", code: "en" };
     const options = [{ code: "en", label: "English" }, ...indianLanguages];
     return `<div class="utlt-language-picker">
-      <button class="utlt-language-trigger" type="button" data-action="language-menu" aria-expanded="${state.languageMenuOpen === true}" aria-haspopup="true">
-        <span class="utlt-language-globe" aria-hidden="true">🌐</span>
-        <span class="utlt-language-trigger-copy"><small>APP LANGUAGE</small><strong>${selected.label}</strong></span>
-        <span class="utlt-language-chevron" aria-hidden="true">${icon(state.languageMenuOpen ? "chevronUp" : "chevronDown", 16)}</span>
+      <button class="utlt-settings-row utlt-language-trigger" type="button" data-action="language-menu" aria-expanded="${state.languageMenuOpen === true}" aria-haspopup="menu">
+        <span class="utlt-settings-icon">${icon("globe", 19)}</span>
+        <span><strong>App Language</strong><small class="utlt-language-current">${selected.label}</small></span>
+        ${icon(state.languageMenuOpen ? "chevronUp" : "chevronDown", 18)}
       </button>
       ${state.languageMenuOpen ? `<div class="utlt-language-popup" role="menu" aria-label="Choose app language">
         <div class="utlt-language-popup-heading"><strong>Choose a language</strong><span>23 languages</span></div>
@@ -1271,7 +1272,7 @@
     if (!language || language === "en") return;
     // Translate all app-authored interface copy, including hero cards and form hints.
     // Keep editable user content, identity fields, and language names untouched.
-    const ignored = "svg,script,style,textarea,input,select,.utlt-title,.utlt-user-content,.utlt-friend-row,.utlt-friend-code-card,.utlt-rank-name,.utlt-language-options,.utlt-language-trigger-copy strong";
+    const ignored = "svg,script,style,textarea,input,select,.utlt-title,.utlt-user-content,.utlt-friend-row,.utlt-friend-code-card,.utlt-rank-name,.utlt-language-options,.utlt-language-current";
     const targets = [];
     const walker = document.createTreeWalker(root, 4);
     let node;
@@ -1283,7 +1284,7 @@
     }
     root.querySelectorAll("[aria-label],[placeholder],[title]").forEach(element => {
       // Translate accessible labels and hints on controls too, but never user-entered values.
-      if (element.closest("svg,script,style,textarea,.utlt-title,.utlt-user-content,.utlt-friend-row,.utlt-friend-code-card,.utlt-rank-name,.utlt-language-options,.utlt-language-trigger-copy strong")) return;
+      if (element.closest("svg,script,style,textarea,.utlt-title,.utlt-user-content,.utlt-friend-row,.utlt-friend-code-card,.utlt-rank-name,.utlt-language-options,.utlt-language-current")) return;
       ["aria-label", "placeholder", "title"].forEach(attribute => {
         const value = element.getAttribute(attribute);
         if (value && /[A-Za-z]/.test(value)) targets.push({ value, set: translated => element.setAttribute(attribute, translated) });
