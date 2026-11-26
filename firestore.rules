@@ -22,6 +22,11 @@ service cloud.firestore {
       allow read, write: if signedIn() && request.auth.uid == userId;
     }
 
+    // Private per-account reading history.
+    match /userReadings/{userId} {
+      allow read, write: if signedIn() && request.auth.uid == userId;
+    }
+
     // Friend-code documents contain only a UID and display name, never an email.
     match /friendCodes/{code} {
       allow get: if signedIn();
