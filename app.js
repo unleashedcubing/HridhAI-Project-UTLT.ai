@@ -6,7 +6,7 @@
   // Remove only legacy UTLT app data. Firebase's own auth persistence is kept.
   function clearLegacyAppData() {
     try {
-      for (const key of Object.keys(localStorage)) if (key.startsWith("utlt-") || key.startsWith("UTLT")) localStorage.removeItem(key);
+      for (const key of Object.keys(localStorage)) if (key !== "utlt-guest-profile" && (key.startsWith("utlt-") || key.startsWith("UTLT"))) localStorage.removeItem(key);
       for (const key of Object.keys(sessionStorage)) if (key.startsWith("utlt-") || key.startsWith("UTLT")) sessionStorage.removeItem(key);
     } catch (error) { console.warn("Could not clear all legacy UTLT browser data.", error); }
   }
@@ -44,14 +44,13 @@
       import("https://www.gstatic.com/firebasejs/" + version + "/firebase-firestore.js")
     ]);
     const firebaseConfig = {
-    apiKey: "AIzaSyB2D31wQh9jApQagWeYMkG6ieJuY4xn8OA",
-  authDomain: "game1-a3220.firebaseapp.com",
-  databaseURL: "https://game1-a3220-default-rtdb.asia-southeast1.firebasedatabase.app",
-  projectId: "game1-a3220",
-  storageBucket: "game1-a3220.firebasestorage.app",
-  messagingSenderId: "508583368014",
-  appId: "1:508583368014:web:8555b4194e68d728f43a1f",
-  measurementId: "G-DVVE5XYMHE"
+    apiKey: "AIzaSyAvYOPq7VmZzy2aReQaF8OE0ezQn_LEMwM",
+    authDomain: "utlt-ai1.firebaseapp.com",
+    projectId: "utlt-ai1",
+    storageBucket: "utlt-ai1.firebasestorage.app",
+    messagingSenderId: "824195452987",
+    appId: "1:824195452987:web:184170a778e9edec1d0c1e",
+    measurementId: "G-H5HNX08WJJ"
   };
     const firebaseApp = appSdk.initializeApp(firebaseConfig);
     const auth = authSdk.getAuth(firebaseApp);
@@ -299,6 +298,16 @@
       language: state.language
     };
   }
+  const GUEST_PROFILE_KEY = "utlt-guest-profile";
+  function loadGuestProfile() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(GUEST_PROFILE_KEY) || "null");
+      if (saved && typeof saved.name === "string" && saved.name.trim()) {
+        applySavedProfile(saved);
+        state.onboarding = "";
+      }
+    } catch (error) { console.warn("Could not read saved guest profile.", error); }
+  }
   function persistProfile() {
     const profile = profileSnapshot();
     if (firebaseStore) {
@@ -311,7 +320,9 @@
           render(true);
         });
     } else {
-      // Guest mode keeps settings in memory; Google sign-in is only needed for cloud features.
+      // Guest mode: remember the profile on this device so the welcome form and quick tour only appear once.
+      try { localStorage.setItem(GUEST_PROFILE_KEY, JSON.stringify(profile)); }
+      catch (error) { console.warn("Could not save guest profile on this device.", error); }
       state.syncStatus = "guest";
       state.syncError = "";
     }
@@ -421,6 +432,7 @@
 
   async function initializePersistence() {
     // Show the demo dashboard immediately. Firebase is only needed for protected features.
+    loadGuestProfile();
     render();
     try {
       firebaseContext = await firebaseReady;
