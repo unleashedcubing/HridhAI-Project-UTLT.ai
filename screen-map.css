@@ -1,16 +1,16 @@
 *{box-sizing:border-box}
-body{margin:0;background:#e8f3f5;color:#122f3d;font:16px/1.55 system-ui,sans-serif}
+body{margin:0;background:#e8f3fd;color:#122f4e;font:16px/1.55 system-ui,sans-serif}
 main{width:min(100% - 36px,1040px);margin:36px auto 64px}
-header{padding:26px;border-radius:23px;background:#103744;color:#ecfaff}
+header{padding:26px;border-radius:23px;background:#103756;color:#ecf7ff}
 header>a{color:inherit;font-weight:650}
 h1{margin:.4em 0 0;font-size:clamp(34px,8vw,53px);line-height:1.1;letter-spacing:-.05em}
-header p{margin:8px 0 17px;color:#d3ebec}
+header p{margin:8px 0 17px;color:#d3e9fa}
 nav{display:flex;flex-wrap:wrap;gap:7px}
-nav a{color:#eaffff;background:#24525b;border-radius:24px;padding:7px 13px;text-decoration:none;font-size:.86rem;font-weight:650}
+nav a{color:#eaf5ff;background:#245783;border-radius:24px;padding:7px 13px;text-decoration:none;font-size:.86rem;font-weight:650}
 section{margin-top:22px;scroll-margin-top:12px}
 section>h2{font-size:22px;margin:0 0 8px;letter-spacing:-.025em}
 .screen-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,270px),1fr));gap:8px}
-article{background:#fff;border:1px solid #ccdee0;border-radius:16px;padding:14px 15px}
+article{background:#fff;border:1px solid #ccdeef;border-radius:16px;padding:14px 15px}
 h3{margin:0 0 3px;font-size:16px}
-article p{margin:0;color:#3d5d69;font-size:14px}
-a:focus-visible{outline:3px solid #5dcbcc;outline-offset:3px}
+article p{margin:0;color:#3d5c77;font-size:14px}
+a:focus-visible{outline:3px solid #519be0;outline-offset:3px}

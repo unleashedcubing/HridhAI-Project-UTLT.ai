@@ -2,6 +2,13 @@
 
 UTLT.ai is a HridhAI 2026 team project. The current build measures water in a recirculating demo and shows the readings in a phone web app. Gas and electricity are planned extensions, not working measurements yet. The six-page [project report](reports/UTLT_Project_Report_16_Nov_2026.docx) records the build and each member's contribution through 16 November.
 
+## Open the demo
+
+- [Live app](https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/) and [page map](https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/screens.html). The map lists all 22 screens and subviews and is also linked from **Devices → Help & support**.
+- For live readings, pair the ESP32 in **Devices**. For a walkthrough without hardware, use **Explore with demo data**, or open **Help & support → Try the app demos** for Leak detection, Water trends and AI water coach.
+- Open **Niro** to ask for a forecast, water-use split, chart or table. Download the optional local model for general questions. It uses a browser download, with no model API key needed.
+- Find language and meter calibration in **Devices**. Gas, electricity, Google Home and Apple Home remain future integrations.
+
 ## Team and credits
 
 | Member | Work recorded so far |
@@ -104,11 +111,13 @@ The printable enclosure files and adjustable source are in [enclosure/](enclosur
 
 Niro takes inspiration from ChatGPT Pets. Hrishi asked Codex to design Niro as an original pixel-art water droplet. The avatar waves on tap and reacts to app activity using SVG and CSS with reduced-motion support.
 
-Niro Summary sits below daily usage and prioritises a possible leak, a projected goal overrun, a pace change, or today’s breakdown. The Niro tab can show charts and tables directly from the readings. The existing Today and Recent use views retain their original calculations. Niro can estimate by midnight or answer an explicit 8 pm question.
+Niro Summary sits below daily usage and prioritises a possible leak, a projected goal overrun, a pace change, or today’s breakdown. The Niro tab shows inline charts and tables from the readings. Chat stays in memory until you reload or choose **New chat**. The transcript is excluded from online translation. The existing Today and Recent use views retain their original calculations. Niro can estimate by midnight or answer an explicit 8 pm question.
 
 For optional general explanations, tap **Download local chat model**. A browser worker runs the 8-bit SmolLM2 135M Instruct ONNX model through Transformers.js and WebAssembly. The first download requires internet. Answers and meter data stay in the browser during inference. Meter tracking and checked answers work without this download. The earlier fine-tuned Qwen model is documented in [training/llm/README.md](training/llm/README.md).
 
-See the [app page map](screens.html) for navigation and page states. The tour adapts Armaan’s standalone app. His original hosted assistant sent chat to a Render backend and then to an OpenAI-compatible Supabase function. Niro uses local inference.
+The quick tour adapts Armaan’s standalone app. His original assistant sent chat through Render to an OpenAI-compatible Supabase function. This build uses the local model described above.
+
+For developers, [`niro.js`](niro.js) holds the avatar, summary selection and chart/table rendering. [`niro.css`](niro.css) controls the avatar motion and UI theme. [`llm-worker.js`](llm-worker.js) runs the optional model. [`screens.html`](screens.html) contains the page map.
 
 ## Other modes and cloud features
 

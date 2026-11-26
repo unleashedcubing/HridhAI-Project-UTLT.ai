@@ -89,7 +89,7 @@
   }
   const state = {
     screen: "home",
-    niroMessages: [],
+    niroMessages: [], // Session only. Keep chat out of storage and cloud sync.
     tourStep: 0,
     utility: "Water",
     breakdown: "use",
@@ -842,7 +842,7 @@
     if (state.assistantMode === "today") return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><h1>Today's water</h1><p>A live outlook from the first recorded flow, with a fuller check-in after six hours.</p>${modes}${dailyFeedbackCard()}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
     if (state.assistantMode === "recent") return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><h1>Your water story</h1><p>A clear look at recent measured days, with gaps shown honestly.</p>${modes}${recentUseCard()}<div class="utlt-assistant-evidence"><span>TODAY BY THIS TIME</span><strong>${escapeHtml(evidence)}</strong><small>${state.demoEnabled ? "Sample readings · not a real household" : "Based on readings stored on this phone"}</small></div><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
     const messageMarkup = state.niroMessages.map(({ role, text, chart, table }) =>
-      `<div class="niro-message is-${role}"><p>${escapeHtml(text)}</p>${window.UTLTNiro.figures(chart, table)}</div>`).join("");
+      `<div class="niro-message is-${role} utlt-user-content"><p>${escapeHtml(text)}</p>${window.UTLTNiro.figures(chart, table)}</div>`).join("");
     const lastAnswer = state.niroMessages.at(-1);
     const mood = state.llmBusy ? "curious" : lastAnswer?.mood || (lastAnswer?.chart ? "happy" : "idle");
     const promptButtons = [
@@ -852,14 +852,23 @@
       ["Weekly table", "Show my weekly water use as a table"],
     ].map(([label,question]) => `<button type="button" data-action="assistant-prompt" data-question="${escapeHtml(question)}">${escapeHtml(label)}</button>`).join("");
     return `<section class="utlt-assistant-page niro-chat">
-      <header class="niro-chat-head">${window.UTLTNiro.avatar(mood)}<div><h1>Chat with Niro</h1><p>${state.demoEnabled ? "Sample readings" : "Your water assistant"}</p></div></header>
+      <header class="niro-chat-head">${window.UTLTNiro.avatar(mood)}<div><h1>Chat with Niro</h1><p>${state.demoEnabled ? "Sample readings" : "Water assistant"}</p></div><button type="button" class="niro-new" data-action="niro-new">New chat</button></header>
       ${modes}
-      <div class="niro-thread" role="log" aria-label="Conversation with Niro"><div class="niro-message is-bot"><p>Hi, I’m Niro. Ask about your water use or request a chart or table.</p></div>${messageMarkup}</div>
-      <div class="utlt-question-prompts" aria-label="Example questions">${promptButtons}</div>
-      <div class="niro-compose"><form id="utlt-assistant-form" class="utlt-assistant-form"><label for="utlt-assistant-question">Message Niro</label><textarea id="utlt-assistant-question" name="question" rows="2" maxlength="300" placeholder="Show me this week’s water use" required>${escapeHtml(state.llmQuestion)}</textarea><button class="utlt-primary-button" type="submit" ${state.llmBusy ? "disabled" : ""}>Send</button></form>
-      ${available && !state.llmReady ? `<button class="utlt-secondary-button" type="button" data-action="load-local-llm" ${state.llmBusy ? "disabled" : ""}>Download local chat model</button>` : ""}
-      ${state.llmStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.llmStatus)}</p>` : ""}
-      <p class="utlt-ai-note">Charts come from your readings. Generated explanations may be wrong.</p></div>
+      <div class="niro-thread" role="log" aria-label="Conversation with Niro">
+        ${messageMarkup || '<div class="niro-welcome"><h2>What would you like to know?</h2><p>Ask about your water use or request a chart or table.</p></div>'}
+      </div>
+      <div class="niro-compose">
+        <div class="utlt-question-prompts" aria-label="Example questions">${promptButtons}</div>
+        <form id="utlt-assistant-form" class="utlt-assistant-form">
+          <textarea id="utlt-assistant-question" name="question" aria-label="Message Niro" rows="1" maxlength="300" placeholder="Message Niro" required>${escapeHtml(state.llmQuestion)}</textarea>
+          <button class="utlt-primary-button" type="submit" aria-label="Send message" ${state.llmBusy ? "disabled" : ""}><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 19V5m-6 6 6-6 6 6"/></svg></button>
+        </form>
+        <div class="niro-compose-meta">
+          <p class="utlt-ai-note">Chats aren’t saved.</p>
+          ${available && !state.llmReady ? `<button class="niro-new" type="button" data-action="load-local-llm" ${state.llmBusy ? "disabled" : ""}>Download local chat model</button>` : ""}
+        </div>
+        ${state.llmStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.llmStatus)}</p>` : ""}
+      </div>
     </section>`;
   }
 
@@ -966,8 +975,14 @@
       return `<div class="utlt-dashboard"><section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">HOME WATER</p><h2>See what flows<br>through your home.</h2><p>Connect your water monitor to see today’s usage and spot changes.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><button type="button" class="utlt-secondary-button" data-action="open-demo">Try the app demos</button></section>${window.UTLTNiro.summary(state)}</div>`;
     }
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">SAMPLE READINGS</p>' : ""}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${usage(summary)}${window.UTLTNiro.summary(state)}${status(summary)}${patternCard()}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}</div>`;
+    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">SAMPLE READINGS</p>' : ""}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${usage(summary)}${window.UTLTNiro.summary(state, summary)}${status(summary)}${patternCard()}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}</div>`;
   }
+
+  const helpTour = [
+    ["Connect your monitor", "Pair your ESP32 in Devices to see the readings it sends over Bluetooth."],
+    ["Give your water use a goal", "Set a daily litre goal in Account, then check how today’s use compares on Home."],
+    ["Ask Niro what changed", "The dashboard shows a relevant insight. Ask Niro for the chart or table behind it."],
+  ];
 
   function helpPage() {
     const items = [
@@ -976,13 +991,9 @@
       ["Why are some activities listed as Misc?", "Your meter measures flow. An activity label stays in Misc until there is enough evidence or you confirm it."],
       ["Does Niro use a cloud API?", "Niro uses calculations from the app and can run a downloaded model in this browser. Sign-in and translation have separate online services."],
     ];
-    const tour = [
-      ["Connect your monitor", "Pair your ESP32 in Devices to see the readings it sends over Bluetooth."],
-      ["Give your water use a goal", "Set a daily litre goal in Account, then check how today’s use compares on Home."],
-      ["Ask Niro what changed", "The dashboard shows a relevant insight. Ask Niro for the chart or table behind it."],
-    ];
+    const step = helpTour[state.tourStep - 1];
     return `<section class="utlt-assistant-page"><h1>Help &amp; support</h1>
-      ${state.tourStep ? `<section class="niro-summary"><p>Quick tour · ${state.tourStep} of ${tour.length}</p><h2>${tour[state.tourStep-1][0]}</h2><p>${tour[state.tourStep-1][1]}</p><button class="utlt-primary-button" data-action="tour">${state.tourStep === tour.length ? "Done" : "Next"}</button></section>` : `<button class="utlt-secondary-button" data-action="tour">Take the quick tour</button>`}
+      ${step ? `<section class="niro-summary"><p>Quick tour · ${state.tourStep} of ${helpTour.length}</p><h2>${step[0]}</h2><p>${step[1]}</p><button class="utlt-primary-button" data-action="tour">${state.tourStep === helpTour.length ? "Done" : "Next"}</button></section>` : `<button class="utlt-secondary-button" data-action="tour">Take the quick tour</button>`}
       ${items.map(([q,a]) => `<details class="utlt-help-row"><summary>${q}</summary><p>${a}</p></details>`).join("")}
       <button type="button" class="utlt-secondary-button" data-action="open-demo">Try the app demos</button> <a class="utlt-page-link" href="./screens.html">App page map</a>
     </section>`;
@@ -1702,8 +1713,15 @@
       render(true);
       return;
     }
+    if (action === "niro-new") {
+      state.niroMessages = [];
+      state.llmQuestion = "";
+      render(true);
+      root.querySelector("#utlt-assistant-question")?.focus();
+      return;
+    }
     if (action === "niro-wave") { window.UTLTNiro.wave(button); return; }
-    if (action === "tour") { state.tourStep = (state.tourStep + 1) % 4; render(true); return; }
+    if (action === "tour") { state.tourStep = (state.tourStep + 1) % (helpTour.length + 1); render(true); return; }
     if (action === "niro") { state.assistantMode = "ask"; state.languageMenuOpen = false; if (state.qrScanning) stopQrScanner(); state.screen = "assistant"; render(); return; }
     if (action === "open-demo") { state.screen = "demo"; render(); return; }
     if (action === "scan-qr") { startQrScanner(); return; }
@@ -1832,28 +1850,35 @@
     const question = message.trim().slice(0, 300);
     if (!question || state.llmBusy) return;
     state.llmQuestion = "";
-    state.niroMessages = [...state.niroMessages.slice(-18), { role: "user", text: question }];
-    const checked = window.UTLTNiro.answer(question,state);
-    const simple = checked ? null : checkedWaterAnswer(question);
-    if (checked || simple || !state.llmReady) {
-      state.niroMessages.push({ role: "bot", ...(checked || {text:simple || "Try asking for a daily total, chart or table, or download the local model for general explanations."}) });
-    } else {
+    const thread = state.niroMessages = [...state.niroMessages.slice(-18), { role: "user", text: question }];
+    // Use checked meter answers before asking the optional local model.
+    const checked = window.UTLTNiro.answer(question, state);
+    let text = checked?.text || checkedWaterAnswer(question);
+    if (!text && state.llmReady) {
       state.llmBusy = true;
       state.llmStatus = "Thinking…";
       render(true);
       try {
-        const result = await window.UTLTLocalLLM.ask(question, assistantFacts());
-        state.niroMessages.push({ role:"bot", text:result.answer });
+        text = (await window.UTLTLocalLLM.ask(question, assistantFacts())).answer;
       } catch (_error) {
-        state.niroMessages.push({ role:"bot", text:"I couldn’t verify an explanation. Try asking for the chart or table behind the numbers." });
+        text = "I couldn’t verify an explanation. Try asking for the chart or table behind the numbers.";
       } finally { state.llmBusy = false; }
     }
+    thread.push({ role: "bot", ...checked,
+      text: text || "Try asking for a daily total, chart or table, or download the local model for general explanations." });
     state.llmStatus = "";
     if (state.screen === "assistant") {
       await render(true);
       root.querySelector(".niro-thread")?.lastElementChild?.scrollIntoView({ block:"nearest" });
     }
   }
+
+  root.addEventListener("keydown", event => {
+    if (event.target.id !== "utlt-assistant-question" || event.key !== "Enter" ||
+        event.shiftKey || event.isComposing || event.keyCode === 229) return;
+    event.preventDefault();
+    if (!state.llmBusy) event.target.form.requestSubmit();
+  });
 
   root.addEventListener("submit", async (event) => {
     if (event.target.id === "utlt-calibration-form") {

@@ -1,33 +1,33 @@
 .utlt-app {
-  --utlt-bg:#eef5f6; --utlt-card:#fff; --utlt-panel:#e4f0f1; --utlt-page:#d9e9ec;
-  --utlt-border:#c8dce0; --utlt-text:#102e3d; --utlt-muted:#426370;
-  --utlt-accent:#006c7e; --utlt-blue:#00768a; --utlt-ring-start:#057e97; --utlt-ring-end:#39c3c5;
-  --utlt-ring-track:#d0e5e8; --utlt-shadow:0 5px 17px #1038420c;
+  --utlt-bg:#eff6fc; --utlt-card:#fff; --utlt-panel:#e4effb; --utlt-page:#d9e9f9;
+  --utlt-border:#c8dcef; --utlt-text:#102e4b; --utlt-muted:#42617d;
+  --utlt-accent:#0758a7; --utlt-blue:#096aba; --utlt-ring-start:#1277ce; --utlt-ring-end:#60b8f8;
+  --utlt-ring-track:#d0e4f6; --utlt-shadow:0 5px 17px #10385c0c;
 }
 .utlt-app.utlt-dark {
-  --utlt-bg:#12242c; --utlt-card:#1b3440; --utlt-panel:#233f4a; --utlt-page:#0c1d26;
-  --utlt-border:#3d5d69; --utlt-text:#e9f9fa; --utlt-muted:#b8d2d5; --utlt-accent:#84e2df;
-  --utlt-blue:#61ccc8; --utlt-ring-start:#218fa0; --utlt-ring-end:#66ded8; --utlt-ring-track:#3b5966;
+  --utlt-bg:#12243a; --utlt-card:#1b344e; --utlt-panel:#233f5c; --utlt-page:#0c1d32;
+  --utlt-border:#3d5c7c; --utlt-text:#e9f5ff; --utlt-muted:#b8d2eb; --utlt-accent:#93ccff;
+  --utlt-blue:#74bdf9; --utlt-ring-start:#328fe0; --utlt-ring-end:#83caff; --utlt-ring-track:#3b5977;
 }
 .utlt-phone {width:min(100%,570px)}
 .utlt-header {background:var(--utlt-bg);box-shadow:none}
 .utlt-header .utlt-title {letter-spacing:-.035em}
 .utlt-tabbar {
   margin:3px 10px max(9px,env(safe-area-inset-bottom)); padding:5px; gap:2px;
-  border:1px solid #2b4c58; border-radius:24px; background:#102e3d;
-  box-shadow:0 6px 22px #08243233; flex-shrink:0;
+  border:1px solid #2b4c6b; border-radius:24px; background:#102e4b;
+  box-shadow:0 6px 22px #08244833; flex-shrink:0;
 }
-.utlt-tabbar>button {min-width:0;color:#d9edf1;border-radius:18px}
-.utlt-tabbar>button.is-current {background:#c8f0ed;color:#0c4247}
+.utlt-tabbar>button {min-width:0;color:#d9edff;border-radius:18px}
+.utlt-tabbar>button.is-current {background:#c8e7ff;color:#0c426e}
 .utlt-tabbar>button.is-current .utlt-nav-icon {background:none}
-.utlt-tabbar>button:focus-visible {outline-color:#96f0e9}
+.utlt-tabbar>button:focus-visible {outline-color:#96d4ff}
 .utlt-usage, .utlt-empty-dashboard {
   position:relative; isolation:isolate; overflow:hidden; border:1px solid var(--utlt-border);
   border-radius:26px; background:var(--utlt-card); box-shadow:var(--utlt-shadow);
 }
 .utlt-usage::before,.utlt-empty-dashboard::before {
   content:""; position:absolute; z-index:-1; inset:auto -30% -125px -12%; height:210px;
-  border-radius:48% 62% 0 0; background:#80d9da28; transform:rotate(-8deg);
+  border-radius:48% 62% 0 0; background:#80c4ff28; transform:rotate(-8deg);
 }
 .utlt-usage { display:grid; grid-template-columns:minmax(106px,154px) 1fr; align-items:center; gap:12px; padding:16px}
 .utlt-usage .utlt-donut {width:100%;height:auto;aspect-ratio:1}
@@ -39,8 +39,8 @@
 .utlt-empty-dashboard {margin-top:7px;text-align:left;align-items:start;padding:22px}
 .utlt-empty-dashboard h2 {text-align:left;font-size:clamp(26px,8vw,39px);line-height:1.05;letter-spacing:-.052em}
 .utlt-empty-dashboard>.utlt-secondary-button {margin-top:10px}
-.utlt-app .utlt-primary-button:not(:disabled) {background:#006e80;color:#fff}
-.utlt-app .utlt-primary-button:hover:not(:disabled) {background:#005769}
+.utlt-app .utlt-primary-button:not(:disabled),.utlt-pill.is-active,.utlt-pill.is-active[data-value="Electricity"] {background:#075eae;color:#fff}
+.utlt-app .utlt-primary-button:hover:not(:disabled) {background:#064c8e}
 .utlt-settings-links {display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px}
 .utlt-help-row {background:var(--utlt-card);border:1px solid var(--utlt-border);padding:12px 14px;border-radius:13px;margin-top:10px}
 .utlt-help-row summary {font-weight:700;cursor:pointer}
@@ -53,11 +53,6 @@
 .niro-summary>p {margin:9px 0;color:var(--utlt-muted);font-size:14px}
 .niro-summary>.utlt-primary-button {margin-top:9px;min-height:44px}
 .niro-chat-head h1 {margin:0;font-size:29px}
-.niro-chat-head {margin-bottom:12px}
-.niro-thread {display:grid;gap:8px;min-height:95px;margin:14px 0}
-.niro-message {max-width:100%;color:var(--utlt-text);background:var(--utlt-card);border:1px solid var(--utlt-border);border-radius:17px 17px 17px 5px;padding:11px 13px;overflow-wrap:anywhere}
-.niro-message.is-user {justify-self:end;background:var(--utlt-panel);max-width:88%;border-radius:17px 17px 5px 17px}
-.niro-chat form {margin:13px 0}
 .niro-figure {margin:10px 0 4px;padding:10px;background:var(--utlt-panel);border-radius:12px;font-size:12px}
 .niro-figure figcaption {color:var(--utlt-text);font-weight:750;margin-bottom:7px}
 .niro-bars {display:grid;gap:7px;list-style:none;padding:0;font-variant-numeric:tabular-nums}
@@ -71,7 +66,8 @@
 .niro-figure caption {position:absolute;clip-path:inset(50%);width:1px;height:1px;overflow:hidden}
 .niro-figure th,.niro-figure td {padding:4px;border-bottom:1px solid var(--utlt-border)}
 .niro-figure td {text-align:right}
-.niro-figure.small,.niro-figure small {display:block;margin-top:7px;color:var(--utlt-muted)}
+.niro-figure small {display:block;margin-top:7px;color:var(--utlt-muted)}
+/* Avatar motion. Feet, arms and face move independently. */
 .niro-avatar {
   appearance:none;display:inline-flex;flex:none;align-items:center;width:66px;padding:1px;
   border:0;border-radius:13px;background:none;cursor:pointer;
@@ -107,19 +103,30 @@
 @keyframes niro-wave {18%,42%,66%{transform:rotate(-91deg)} 30%,54%,78%{transform:rotate(-52deg)}}
 @media(prefers-reduced-motion:reduce){.niro-avatar *{animation:none!important}.niro-avatar.is-waving{background:var(--utlt-panel)}}
 .utlt-pill:not(.is-active) {color:var(--utlt-text)}
-.utlt-pill.is-active,.utlt-pill.is-active[data-value="Electricity"] {background:#006e80;color:#fff}
-.niro-chat {
-  display:flex;flex-direction:column;gap:9px;min-height:550px;height:100%;padding-block:12px 14px;
-}
-.niro-chat-head {margin:0}
-.niro-thread {display:flex;flex-direction:column;gap:8px;flex:1;overflow:auto;min-height:100px;margin:0;padding:2px 4px}
-.niro-message {flex:none}
-.niro-message.is-user {align-self:flex-end}
-.niro-chat .utlt-question-prompts {flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding:2px}
+/* The chat thread scrolls while the composer stays above the app tabs. */
+.utlt-content:has(.niro-chat) {overflow:hidden;padding-bottom:0}
+.niro-chat {display:grid;grid-template-rows:auto auto minmax(0,1fr) auto;gap:9px;height:100%;min-height:0;padding:10px 16px 8px}
+.niro-chat-head h1 {font-size:clamp(18px,5vw,26px)}
+.niro-chat-head>.niro-avatar {width:46px}
+.niro-chat-head>.niro-new {margin-inline-start:auto}
+.niro-new {padding:6px 10px;min-height:36px;border:1px solid var(--utlt-border);border-radius:12px;background:var(--utlt-card);color:var(--utlt-accent);font:inherit;font-size:12px;font-weight:700;cursor:pointer}
+.niro-thread {display:flex;flex-direction:column;gap:16px;overflow:auto;padding:4px 4px 12px;overscroll-behavior:contain}
+.niro-welcome {margin:auto;text-align:center;padding:12px 6px}
+.niro-welcome h2 {font-size:clamp(21px,6vw,30px);letter-spacing:-.035em}
+.niro-welcome p,.niro-compose-meta p {color:var(--utlt-muted);font-size:13px}
+.niro-message {flex:none;max-width:100%;line-height:1.55;overflow-wrap:anywhere}
+.niro-message p {white-space:pre-wrap}
+.niro-message.is-user {align-self:flex-end;max-width:88%;padding:9px 13px;border-radius:17px 17px 5px 17px;background:var(--utlt-panel)}
+.niro-chat .utlt-question-prompts {flex-wrap:nowrap;overflow-x:auto;scrollbar-width:thin;padding:2px 2px 5px}
 .niro-chat .utlt-question-prompts button {flex:none;white-space:nowrap}
-.niro-compose form {display:grid;grid-template-columns:1fr auto;gap:5px 8px;align-items:end;margin:0 0 6px}
-.niro-compose form label {grid-column:1/-1;font-size:13px}
-.niro-compose form textarea {min-width:0;max-height:104px;min-height:45px;padding:8px 10px}
-.niro-compose form button {width:auto;min-height:45px}
-.niro-compose>.utlt-secondary-button {min-height:36px;padding:5px 11px;font-size:12px}
-.niro-compose .utlt-ai-note,.niro-compose .utlt-device-help {margin:5px 0 0;font-size:11px}
+.niro-compose form {grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:end;margin:3px 0;padding:5px;border:1px solid var(--utlt-border);border-radius:22px;background:var(--utlt-card)}
+.niro-compose form textarea {max-height:96px;min-height:40px;padding:9px 11px;border:0;background:none}
+.niro-compose form button {display:grid;place-items:center;width:40px;height:40px;min-height:0;padding:0;border-radius:50%}
+.niro-compose-meta {display:flex;align-items:center;justify-content:space-between;gap:8px}
+.niro-compose-meta p {margin:0}
+.niro-compose-meta .niro-new {min-height:32px}
+.niro-compose .utlt-device-help {margin:5px 0 0;font-size:11px}
+@media(max-height:530px) {
+  .utlt-content:has(.niro-chat) {overflow:auto}
+  .niro-chat {min-height:365px}
+}
