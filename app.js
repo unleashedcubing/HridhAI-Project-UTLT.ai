@@ -3,14 +3,7 @@
 (function () {
   "use strict";
 
-  // Remove only legacy UTLT app data. Firebase's own auth persistence is kept.
-  function clearLegacyAppData() {
-    try {
-      for (const key of Object.keys(localStorage)) if (key !== "utlt-guest-profile" && (key.startsWith("utlt-") || key.startsWith("UTLT"))) localStorage.removeItem(key);
-      for (const key of Object.keys(sessionStorage)) if (key.startsWith("utlt-") || key.startsWith("UTLT")) sessionStorage.removeItem(key);
-    } catch (error) { console.warn("Could not clear all legacy UTLT browser data.", error); }
-  }
-  clearLegacyAppData();
+  // Preserve application data between visits; Firebase auth persistence is separate.
   const state = {
     screen: "home",
     utility: "Water",
@@ -34,6 +27,27 @@
     family: null, familyInviteUrl: "", familyRequests: [], familyMessage: "", familyBusy: false, pendingFamilyInvite: "",
     authProvider: "signed-out", authBusy: false, authMessage: "", pendingAuthScreen: "", language: "en"
   };
+  function saveGuestSnapshot() {
+    try { localStorage.setItem("utlt-guest-data-v1", JSON.stringify({ profile: profileSnapshot(), readings: state.readings, usingDemo: state.usingDemo })); }
+    catch (error) { console.warn("Guest data could not be saved.", error); }
+  }
+  try {
+    const cached = JSON.parse(localStorage.getItem("utlt-guest-data-v1") || "null");
+    if (cached && typeof cached === "object") {
+      const p = cached.profile || {};
+      if (typeof p.name === "string") state.name = p.name;
+      if (typeof p.email === "string") state.email = p.email;
+      if (["Water","Gas","Electricity"].includes(p.utility)) state.utility = p.utility;
+      if (typeof p.dark === "boolean") state.dark = p.dark;
+      if (typeof p.homeName === "string") state.homeName = p.homeName;
+      if (Number(p.goal) > 0) state.goal = Number(p.goal);
+      if (["use","time"].includes(p.breakdown)) state.breakdown = p.breakdown;
+      if (typeof p.language === "string") state.language = p.language;
+      if (Array.isArray(cached.readings)) state.readings = cached.readings;
+      state.usingDemo = cached.usingDemo !== false;
+    }
+  } catch (error) { console.warn("Guest data could not be restored.", error); }
+
 
   // Firebase initializes in the background; the dashboard is available without signing in.
   const firebaseReady = (async () => {
@@ -274,6 +288,17 @@
         const q=firestoreSdk.query(firestoreSdk.collection(db,"familyUsage"),firestoreSdk.where("familyId","==",familyId));
         const s=await firestoreSdk.getDocs(q); return s.docs.filter(d=>d.data().date===date).map(d=>({id:d.id,...d.data()}));
       },
+      async loadReadings() {
+        const ref = firestoreSdk.doc(db, "userReadings", uid);
+        const snapshot = await firestoreSdk.getDoc(ref);
+        return snapshot.exists() && Array.isArray(snapshot.data().readings) ? snapshot.data().readings : null;
+      },
+      async saveReadings(readings) {
+        await firestoreSdk.setDoc(firestoreSdk.doc(db, "userReadings", uid), {
+          readings: readings.map(item => ({ recordedAt: String(item.recordedAt || ""), litres: Number(item.litres), category: String(item.category || "Misc") })),
+          updatedAt: new Date().toISOString()
+        });
+      },
       async loadProfile() {
         const snapshot = await firestoreSdk.getDoc(profileRef);
         return snapshot.exists() ? snapshot.data() : null;
@@ -309,6 +334,7 @@
     } catch (error) { console.warn("Could not read saved guest profile.", error); }
   }
   function persistProfile() {
+    saveGuestSnapshot();
     const profile = profileSnapshot();
     if (firebaseStore) {
       saveQueue = saveQueue.then(() => firebaseStore.saveProfile(profile))
@@ -366,6 +392,10 @@
     if (user.email) state.email = user.email;
     if (!state.name && user.displayName) state.name = user.displayName;
     if (!remoteProfile) await firebaseStore.saveProfile(profileSnapshot());
+    const cloudReadings = await firebaseStore.loadReadings();
+    if (cloudReadings) { state.readings = cloudReadings; state.usingDemo = false; }
+    else if (!state.usingDemo) await firebaseStore.saveReadings(state.readings);
+    saveGuestSnapshot();
     state.pendingFamilyInvite = new URLSearchParams(location.search).get("familyInvite") || state.pendingFamilyInvite || "";
     const destination = state.pendingAuthScreen || (state.screen === "auth" ? "home" : state.screen);
     state.pendingAuthScreen = "";
@@ -1289,6 +1319,11 @@
       if (!Array.isArray(readings)) throw new TypeError("Readings must be an array");
       state.readings = readings;
       state.usingDemo = false;
+      saveGuestSnapshot();
+      if (firebaseStore) firebaseStore.saveReadings(readings).catch(error => {
+        state.syncStatus = "error"; state.syncError = error?.message || "Reading save failed";
+        console.error("UTLT reading sync failed.", error); render(true);
+      });
       syncFamilyUsage();
       syncCommunityInsight().then(() => { if (state.screen === "home" || state.screen === "family") render(true); });
       render(true);
