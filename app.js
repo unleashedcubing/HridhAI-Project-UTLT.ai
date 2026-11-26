@@ -78,11 +78,22 @@
     if (savedConnection?.qrId === savedPairing) lastConnected = savedConnection.at;
     savedLocalProfile = JSON.parse(localStorage.getItem(localProfileKey) || "null");
   } catch (_error) {  }
+  function localAppearance() {
+    try { return localStorage.getItem("waterAppearanceV1") === "dark"; }
+    catch (_error) { return false; }
+  }
+  function saveAppearance(dark) {
+    state.dark = dark;
+    try { localStorage.setItem("waterAppearanceV1", dark ? "dark" : "light"); } catch (_error) { }
+    persistProfile();
+  }
   const state = {
     screen: "home",
+    niroMessages: [],
+    tourStep: 0,
     utility: "Water",
     breakdown: "use",
-    dark: true,
+    dark: localAppearance(),
     name: typeof savedLocalProfile?.name === "string" ? savedLocalProfile.name : "",
     email: "",
     homeName: typeof savedLocalProfile?.homeName === "string" ? savedLocalProfile.homeName : "My home",
@@ -111,7 +122,7 @@
     corrections,
     historyStatus: "",
     unknownPulses: 0,
-    llmReady: false, llmBusy: false, llmStatus: "", llmQuestion: "", llmAnswer: "", llmAnswerType: "checked", assistantMode: "today",
+    llmReady: false, llmBusy: false, llmStatus: "", llmQuestion: "", assistantMode: "today",
     syncStatus: savedLocalProfile ? "local" : "starting",
     syncError: "",
     uid: "", friendCode: "", friends: [], friendRequests: [], friendStats: [],
@@ -434,6 +445,7 @@
         ${bluefyPhone ? `<button class="utlt-primary-button utlt-auth-google" type="button" data-action="${localAvailable ? "continue-local" : "pair"}">${localAvailable ? "Continue on this phone" : "Pair your device"}</button><p class="utlt-auth-note">No Google sign-in or cloud account is needed in Bluefy. Family sharing is unavailable in this mode.</p>` : `<button class="utlt-primary-button utlt-auth-google" type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "Connecting…" : "Continue with Google"}</button>`}
         <p class="utlt-auth-message" role="status">${escapeHtml(message)}</p>
         <p class="utlt-auth-note">After pairing, your household setup starts automatically.</p>
+        <button class="utlt-secondary-button" type="button" data-action="${state.pairedDeviceId ? "pair" : "home"}">${state.pairedDeviceId ? "Back to pairing" : "Back to Home"}</button>
       </section></main></div>`;
   }
 
@@ -559,6 +571,7 @@
       await firebaseContext.authSdk.signOut(firebaseContext.auth);
     }
     firebaseStore = null; state.uid = ""; state.name = ""; state.email = ""; state.friendCode = "";
+    state.niroMessages = [];
     state.family = null; state.familyRequests = []; state.familyInviteUrl = ""; state.pendingAuthScreen = "";
     state.friends = []; state.friendRequests = []; state.friendStats = []; state.authProvider = "signed-out";
     state.screen = "home"; state.syncStatus = "guest"; render();
@@ -649,13 +662,13 @@
   }
 
   function header() {
-    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "survey" ? "Your Household" : state.screen === "review" ? "Review Water Use" : state.screen === "assistant" ? "UTLT.ai" : state.screen === "demo" ? "Explore UTLT.ai" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
+    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "survey" ? "Your Household" : state.screen === "review" ? "Review Water Use" : state.screen === "assistant" ? "Niro" : state.screen === "help" ? "Help" : state.screen === "reports" ? "Water reports" : state.screen === "demo" ? "Explore UTLT.ai" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
     const last = state.screen === "home" && !state.device.connected && state.device.lastConnectedAt ? `<span class="utlt-header-last">Last connected ${escapeHtml(new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(state.device.lastConnectedAt)))}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button><button class="utlt-icon-button" data-action="theme" aria-label="Switch to ${state.dark ? "light" : "dark"} mode">${icon(state.dark ? "sun" : "moon")}</button></div>`;
     if (state.screen === "friends") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
-    if (["account", "device", "survey", "review", "assistant", "demo"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
+    if (["account", "device", "survey", "review", "assistant", "demo", "help", "reports"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     return `<header class="utlt-header"><div class="utlt-header-top"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${last}${actions}</div></header>`;
   }
 
@@ -828,21 +841,29 @@
     const modes = `<div class="utlt-assistant-modes" role="tablist" aria-label="AI view"><button role="tab" aria-selected="${state.assistantMode === "today"}" class="${state.assistantMode === "today" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="today">Today</button><button role="tab" aria-selected="${state.assistantMode === "recent"}" class="${state.assistantMode === "recent" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="recent">Recent use</button><button role="tab" aria-selected="${state.assistantMode === "ask"}" class="${state.assistantMode === "ask" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="ask">Ask</button></div>`;
     if (state.assistantMode === "today") return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><h1>Today's water</h1><p>A live outlook from the first recorded flow, with a fuller check-in after six hours.</p>${modes}${dailyFeedbackCard()}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
     if (state.assistantMode === "recent") return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><h1>Your water story</h1><p>A clear look at recent measured days, with gaps shown honestly.</p>${modes}${recentUseCard()}<div class="utlt-assistant-evidence"><span>TODAY BY THIS TIME</span><strong>${escapeHtml(evidence)}</strong><small>${state.demoEnabled ? "Sample readings · not a real household" : "Based on readings stored on this phone"}</small></div><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
-    return `<section class="utlt-assistant-page">
-      <p class="utlt-eyebrow">YOUR WATER, EXPLAINED</p><h1>Ask UTLT.ai</h1>
-      <p>Start with your meter facts, then explore your routine. Water-use labels are suggestions until you confirm them.</p>
+    const messageMarkup = state.niroMessages.map(({ role, text, chart, table }) =>
+      `<div class="niro-message is-${role}"><p>${escapeHtml(text)}</p>${window.UTLTNiro.figures(chart, table)}</div>`).join("");
+    const lastAnswer = state.niroMessages.at(-1);
+    const mood = state.llmBusy ? "curious" : lastAnswer?.mood || (lastAnswer?.chart ? "happy" : "idle");
+    const promptButtons = [
+      ["Possible leaks", "Is there a possible leak?"],
+      ["End-of-day outlook", "Show my end-of-day forecast"],
+      ["Today's split", "Chart today's water split by activity"],
+      ["Weekly table", "Show my weekly water use as a table"],
+    ].map(([label,question]) => `<button type="button" data-action="assistant-prompt" data-question="${escapeHtml(question)}">${escapeHtml(label)}</button>`).join("");
+    return `<section class="utlt-assistant-page niro-chat">
+      <header class="niro-chat-head">${window.UTLTNiro.avatar(mood)}<div><h1>Chat with Niro</h1><p>${state.demoEnabled ? "Sample readings" : "Your water assistant"}</p></div></header>
       ${modes}
-      <div class="utlt-assistant-evidence"><span>WHAT THE DATA CAN SAY</span><strong>${escapeHtml(evidence)}</strong><small>${state.demoEnabled ? "Sample readings · not a real household" : "Based on readings stored on this phone"}</small></div>
-      ${state.llmReady ? `<div class="utlt-question-prompts" aria-label="Example questions"><button type="button" data-action="assistant-prompt" data-question="Will I stay within my water goal by 8 pm?">Evening outlook</button><button type="button" data-action="assistant-prompt" data-question="How does today's water use compare with my usual pace?">Compare today</button><button type="button" data-action="assistant-prompt" data-question="What can I do to save water today?">Find one action</button><button type="button" data-action="assistant-prompt" data-question="What do you know and what are you unsure about?">Check certainty</button></div>
-      <form id="utlt-assistant-form" class="utlt-assistant-form"><label for="utlt-assistant-question">Your question</label><textarea id="utlt-assistant-question" name="question" rows="3" maxlength="300" placeholder="What changed in my water use this week?" required>${escapeHtml(state.llmQuestion)}</textarea><button class="utlt-primary-button" type="submit" ${state.llmBusy ? "disabled" : ""}>${state.llmBusy ? "Thinking on your phone…" : "Ask UTLT.ai"}</button></form>` : ""}
-      ${state.llmAnswer ? `<div class="utlt-learning-card utlt-assistant-answer"><strong>${state.llmAnswerType === "checked" ? "Checked from your readings" : "UTLT.ai"}</strong><p>${escapeHtml(state.llmAnswer)}</p></div>` : ""}
-      <div class="utlt-learning-card"><strong>${state.llmReady ? "On-phone model ready" : available ? "Download AI to ask questions" : "On-phone model unavailable here"}</strong><p>${state.llmReady ? "Your questions and meter facts stay in this browser during generation." : available ? "Download the 580 MB model on Wi-Fi before asking questions." : "This browser does not expose WebGPU. Use a compatible browser to download the model and ask questions."}</p>${available && !state.llmReady ? `<button class="utlt-primary-button" data-action="load-local-llm" ${state.llmBusy ? "disabled" : ""}>${state.llmBusy ? "Loading model…" : "Download on-phone AI"}</button>` : ""}</div>
-      ${state.llmStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.llmStatus)}</p>` : ""}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p>
+      <div class="niro-thread" role="log" aria-label="Conversation with Niro"><div class="niro-message is-bot"><p>Hi, I’m Niro. Ask about your water use or request a chart or table.</p></div>${messageMarkup}</div>
+      <div class="utlt-question-prompts" aria-label="Example questions">${promptButtons}</div>
+      <div class="niro-compose"><form id="utlt-assistant-form" class="utlt-assistant-form"><label for="utlt-assistant-question">Message Niro</label><textarea id="utlt-assistant-question" name="question" rows="2" maxlength="300" placeholder="Show me this week’s water use" required>${escapeHtml(state.llmQuestion)}</textarea><button class="utlt-primary-button" type="submit" ${state.llmBusy ? "disabled" : ""}>Send</button></form>
+      ${available && !state.llmReady ? `<button class="utlt-secondary-button" type="button" data-action="load-local-llm" ${state.llmBusy ? "disabled" : ""}>Download local chat model</button>` : ""}
+      ${state.llmStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.llmStatus)}</p>` : ""}
+      <p class="utlt-ai-note">Charts come from your readings. Generated explanations may be wrong.</p></div>
     </section>`;
   }
 
   function checkedWaterAnswer(question) {
-    if (!state.readings.length) return "No water measurements are stored on this phone yet. Connect the ESP32 or enable clearly labeled demo data in Device Settings.";
     const q = question.toLowerCase();
     const source = state.demoEnabled ? "The sample readings show" : "Your meter shows";
     const summary = window.UTLTData.summarize(state.readings);
@@ -869,21 +890,18 @@
       return days.length ? `${source} ${number(days.reduce((sum, day) => sum + day.litres, 0) / days.length)} L per measured day across ${days.length} day${days.length === 1 ? "" : "s"}. Days with no reading are excluded.` : "No measured-day average is available yet.";
     }
     if (/save|one action|what should i do/.test(q)) return "Turn off running water while soaping or scrubbing. Your flow meter cannot tell which activity used the water, so check what is happening at home first.";
-    if (/(how much|total|used|usage).*(today)|(today).*(how much|total|used|usage)/.test(q)) return summary.daily.at(-1)?.hasData ? `${source} ${number(summary.used)} L used today against your ${state.goal} L goal.` : "There is no water reading from today yet.";
+    if (/(how much|total|used|usage).*(today)|(today).*(how much|total|used|usage)|how much water have i used/.test(q)) return summary.daily.at(-1)?.hasData ? `${source} ${number(summary.used)} L used today against your ${state.goal} L goal.` : "There is no water reading from today yet.";
     return null;
   }
 
   function assistantFacts() {
-    if (!state.readings.length) return "No actual water measurements are stored on this phone. No survey or activity can be inferred from the meter yet.";
     const summary = window.UTLTData.summarize(state.readings);
-    const mainUse = [...summary.byUse].filter(item => item.label !== "Misc").sort((a, b) => b.litres - a.litres)[0];
-    const allowedAction = !state.demoEnabled && (!mainUse || mainUse.litres < summary.used * 0.25) ? "Turn off running water while soaping or scrubbing." : mainUse?.label === "Bath" ? "Use a bucket bath or a shorter shower." : mainUse?.label === "Housework" ? "Run full laundry loads and reuse rinse water where safe." : "Use a bowl instead of a running tap when washing food.";
-    const days = summary.daily.map(item => `${item.date}: ${item.hasData ? item.litres.toFixed(2) + " L measured" : "no measurement recorded"}`).join("; ");
-    const insight = window.UTLTAI.numericInsight(state.readings, state.survey);
-    const pace = window.UTLTAI.paceInsight(state.readings);
-    const forecast = window.UTLTAI.dailyForecast(state.readings, state.goal);
-    const uncertain = state.survey ? window.UTLTAI.sessions(state.readings, state.survey, window.UTLTAI.indiaDate(new Date()), state.corrections).slice(0, 4).map(item => `${item.recordedAt}: ${item.litres.toFixed(2)} L, possible ${item.suggestion.category} (${Math.round(item.suggestion.confidence * 100)}% model confidence, unverified)`).join("; ") : "survey not completed";
-    return [`Source: ${state.demoEnabled ? "SIMULATED DEMO READINGS, not a real device" : "ESP32 flow meter readings"}.`, `Household: ${state.survey ? state.survey.people + " people; " + (state.survey.bathrooms || 1) + " bathrooms; water source " + (state.survey.waterSource || "unspecified") + "; usual shower around " + state.survey.usualShowerHour + ":00; " + state.survey.showerStyle + " bathing; washing machine " + (state.survey.washingMachine ? "yes" : "no") + "; plants/garden " + (state.survey.garden ? "yes" : "no") : "survey not completed"}.`, `Daily goal: ${state.goal} L. Today measured: ${summary.daily.at(-1)?.hasData ? summary.used.toFixed(2) + " L" : "no reading yet"}.`, `Evening forecast: ${forecast.projected === undefined ? "not available yet" : forecast.projected.toFixed(2) + " L by 20:00; " + (forecast.tone === "over" ? "could exceed" : "could stay within") + " daily goal"}. Six-hour feedback: ${forecast.stage === "feedback" ? "ready" : "not yet ready"}. This is a rough measured-pace estimate; disconnected hours may be missing.`, `Same-time recent median: ${pace.ready ? pace.baseline.toFixed(2) + " L by " + pace.clock + " from " + pace.measuredDays + " prior measured days; today by then " + pace.today.toFixed(2) + " L; pace " + pace.tone : pace.reason === "today" ? "not available; no reading today yet" : "not available; only " + pace.measuredDays + " of 3 prior measured days"}.`, `Continuous flow: ${state.device.connected && state.flowRunningMinutes >= 16 ? Math.floor(state.flowRunningMinutes) + " minutes detected; inspect taps, cause unknown" : "no sustained-flow alert"}.`, `Last seven dates: ${days}.`, `Seven-day measured-day average: ${insight?.average === undefined ? "not yet available" : insight.average + " L/day"}.`, `Per-person measured-day average: ${insight?.perPerson === undefined ? "not yet available" : insight.perPerson + " L/day"}.`, `Today's water by time: ${summary.byTime.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}.`, `Today's categories: ${summary.byUse.map(item => item.label + " " + item.litres.toFixed(2) + " L").join("; ")}. Unconfirmed activity is Misc. A whole-home meter cannot identify the activity.`, `Numerical model suggestions from 1000 simulated households: ${uncertain || "none"}. These are not verified activities.`, `Allowed water-saving action: ${allowedAction}`].join("\n");
+    return [
+      state.demoEnabled ? "Source: sample data." : "Source: household water meter.",
+      summary.daily.at(-1)?.hasData ? `Today’s reading is ${number(summary.used)} L.` : "No reading for today.",
+      "The meter measures flow and cannot identify activities.",
+      "Allowed action: switch off the tap while scrubbing.",
+    ].join(" ");
   }
 
   function surveyPage() {
@@ -943,23 +961,36 @@
       console.warn("UTLT community insight unavailable.", error);
     }
   }
-  function waterIntelligenceEntry() {
-    return `<section class="utlt-intelligence-entry">
-      <div><p class="utlt-eyebrow">UTLT.AI</p><h2>Your water, explained</h2>
-      <p>Check today’s outlook, compare recent days, or ask about your readings.</p></div>
-      <div class="utlt-intelligence-actions">
-        <button type="button" class="utlt-primary-button" data-action="assistant">Open water intelligence</button>
-        <button type="button" class="utlt-secondary-button" data-action="open-demo">Try 3 demos</button>
-      </div>
+  function dashboard() {
+    if (!state.device.connected && !state.demoEnabled && state.readings.length === 0) {
+      return `<div class="utlt-dashboard"><section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">HOME WATER</p><h2>See what flows<br>through your home.</h2><p>Connect your water monitor to see today’s usage and spot changes.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><button type="button" class="utlt-secondary-button" data-action="open-demo">Try the app demos</button></section>${window.UTLTNiro.summary(state)}</div>`;
+    }
+    const summary = window.UTLTData.summarize(state.readings);
+    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">SAMPLE READINGS</p>' : ""}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${usage(summary)}${window.UTLTNiro.summary(state)}${status(summary)}${patternCard()}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}</div>`;
+  }
+
+  function helpPage() {
+    const items = [
+      ["How do I pair my meter?", "Open Devices, scan your monitor’s QR code, then allow Bluetooth for the matching device."],
+      ["What does a flow alert mean?", "It means the meter detected sustained flow. Check taps and the pump. The reading cannot identify the source."],
+      ["Why are some activities listed as Misc?", "Your meter measures flow. An activity label stays in Misc until there is enough evidence or you confirm it."],
+      ["Does Niro use a cloud API?", "Niro uses calculations from the app and can run a downloaded model in this browser. Sign-in and translation have separate online services."],
+    ];
+    const tour = [
+      ["Connect your monitor", "Pair your ESP32 in Devices to see the readings it sends over Bluetooth."],
+      ["Give your water use a goal", "Set a daily litre goal in Account, then check how today’s use compares on Home."],
+      ["Ask Niro what changed", "The dashboard shows a relevant insight. Ask Niro for the chart or table behind it."],
+    ];
+    return `<section class="utlt-assistant-page"><h1>Help &amp; support</h1>
+      ${state.tourStep ? `<section class="niro-summary"><p>Quick tour · ${state.tourStep} of ${tour.length}</p><h2>${tour[state.tourStep-1][0]}</h2><p>${tour[state.tourStep-1][1]}</p><button class="utlt-primary-button" data-action="tour">${state.tourStep === tour.length ? "Done" : "Next"}</button></section>` : `<button class="utlt-secondary-button" data-action="tour">Take the quick tour</button>`}
+      ${items.map(([q,a]) => `<details class="utlt-help-row"><summary>${q}</summary><p>${a}</p></details>`).join("")}
+      <button type="button" class="utlt-secondary-button" data-action="open-demo">Try the app demos</button> <a class="utlt-page-link" href="./screens.html">App page map</a>
     </section>`;
   }
 
-  function dashboard() {
-    if (!state.device.connected && !state.demoEnabled && state.readings.length === 0) {
-      return `<div class="utlt-dashboard">${waterIntelligenceEntry()}<section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">WATER MONITOR</p><h2>Your water data starts here</h2><p>Connect your UTLT device to see today's usage, the breakdown, and your daily trend.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><span>Want to explore first? Enable demo data in Device Settings.</span></section><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></div>`;
-    }
+  function reportsPage() {
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">DEMO DATA · SAMPLE READINGS</p>' : ''}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${waterIntelligenceEntry()}${usage(summary)}${status(summary)}${patternCard()}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p><p class="utlt-data-source">${state.demoEnabled ? "Demo readings · Connect a device for live data" : "Device readings"}</p></div>`;
+    return `<section class="utlt-assistant-page"><h1>Water reports</h1><p>${state.demoEnabled ? "Sample readings" : "Measured days and today’s breakdown."}</p>${weekly(summary)}${breakdown(summary)}</section>`;
   }
 
   function calibrationForm() {
@@ -988,7 +1019,7 @@
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
       ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "";
-    return `<section class="utlt-device-settings"><section class="utlt-language-settings" aria-labelledby="utlt-language-title"><p class="utlt-eyebrow" id="utlt-language-title">APP SETTINGS</p>${languageSelector()}</section><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button><button class="utlt-secondary-button" data-action="survey">${state.survey ? "Edit household survey" : "Start household survey"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / state.pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p>${calibrationForm()}</section>`;
+    return `<section class="utlt-device-settings"><div class="utlt-settings-links"><button type="button" class="utlt-secondary-button" data-action="theme">${state.dark ? "Light appearance" : "Dark appearance"}</button><button type="button" class="utlt-secondary-button" data-action="help">Help &amp; support</button></div><section class="utlt-language-settings" aria-labelledby="utlt-language-title"><p class="utlt-eyebrow" id="utlt-language-title">APP SETTINGS</p>${languageSelector()}</section><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button><button class="utlt-secondary-button" data-action="survey">${state.survey ? "Edit household survey" : "Start household survey"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / state.pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p>${calibrationForm()}</section>`;
   }
   function pairPage() {
     const ready = Boolean(state.pairedDeviceId);
@@ -1022,14 +1053,20 @@
 
   function accountPage() {
     const local = state.authProvider === "local";
-    return `<section class="utlt-account"><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong class="utlt-user-content">${escapeHtml(state.name || "Your account")}</strong><span>${local ? "This phone only" : "Google account connected"}</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><p class="utlt-data-source" role="status">${local ? "Setup is saved in Bluefy on this phone. There is no cloud sync or family sharing." : "✓ Signed in with Google. Your profile is stored in Firebase."}</p>${local ? "" : `<button class="utlt-settings-row" type="button" data-action="sign-out"><span>Sign out</span>${icon("chevron",18)}</button>`}</section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label>${local ? "" : `<label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label>`}<label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
+    return `<section class="utlt-account"><button class="utlt-secondary-button" data-action="family">Family Connect</button><div class="utlt-profile-card"><div class="utlt-avatar">${icon("user", 38)}</div><div><strong class="utlt-user-content">${escapeHtml(state.name || "Your account")}</strong><span>${local ? "This phone only" : "Google account connected"}</span></div><span class="utlt-connected"><i></i> Active</span></div><section class="utlt-google-auth"><p class="utlt-data-source" role="status">${local ? "Setup is saved in Bluefy on this phone. There is no cloud sync or family sharing." : "✓ Signed in with Google. Your profile is stored in Firebase."}</p>${local ? "" : `<button class="utlt-settings-row" type="button" data-action="sign-out"><span>Sign out</span>${icon("chevron",18)}</button>`}</section><form class="utlt-account-form" id="utlt-account-form"><div class="utlt-section-heading"><div><h2>Personal details</h2><p>Manage your profile and home settings.</p></div></div><label class="utlt-field">Full name<input name="name" value="${escapeHtml(state.name)}" autocomplete="name"></label>${local ? "" : `<label class="utlt-field">Email address<input name="email" type="email" value="${escapeHtml(state.email)}" autocomplete="email"></label>`}<label class="utlt-field">Home name<input name="homeName" value="${escapeHtml(state.homeName)}"></label><label class="utlt-field">Daily water goal <span class="utlt-input-wrap"><input name="goal" type="number" min="1" value="${escapeHtml(state.goal)}"><span>litres</span></span></label><button class="utlt-primary-button utlt-save-button" type="submit">${state.saved ? icon("check", 18) + " Saved" : "Save changes"}</button></form><button class="utlt-settings-row" data-action="theme"><span class="utlt-settings-icon">${icon(state.dark ? "sun" : "moon", 19)}</span><span><strong>Appearance</strong><small>${state.dark ? "Dark mode" : "Light mode"}</small></span>${icon("chevron", 18)}</button><button class="utlt-settings-row" data-action="device"><span class="utlt-settings-icon">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 19)}</span><span><strong>Connected devices</strong><small>Manage your utility monitor</small></span>${icon("chevron", 18)}</button></section>`;
   }
 
   function nav() {
-    return `<nav class="utlt-tabbar" aria-label="Main navigation"><button class="${state.screen === "home" ? "is-current" : ""}" data-action="home" aria-current="${state.screen === "home" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("home", 24)}</span><span>Home</span></button><button class="${state.screen === "family" ? "is-current" : ""}" data-action="family" aria-current="${state.screen === "family" ? "page" : "false"}"><span class="utlt-nav-icon">${icon("users", 24)}</span><span>Family</span></button><button class="${["pair", "device"].includes(state.screen) ? "is-current" : ""}" data-action="device" aria-current="${["pair", "device"].includes(state.screen) ? "page" : "false"}"><span class="utlt-nav-icon">${icon("plus", 24)}</span><span>Devices</span></button><button class="${state.screen === "account" ? "is-current" : ""}" data-action="account" aria-current="${state.screen === "account" ? "page" : "false"}"><span class="utlt-tab-avatar">${icon("user", 18)}</span><span>Account</span></button></nav>`;
+    const tabs = [
+      ["home","Home",icon("home",22)], ["reports","Reports",icon("droplet",22)],
+      ["niro","Niro",window.UTLTNiro.outline], ["device","Devices",icon("bluetooth",22)],
+      ["account","Account",icon("user",22)],
+    ];
+    return `<nav class="utlt-tabbar" aria-label="Main navigation">${tabs.map(([action,label,symbol]) => {
+      const current = ({pair:"device",assistant:"niro",family:"account"})[state.screen] || state.screen;
+      return `<button class="${current === action ? "is-current" : ""}" data-action="${action}" ${current === action ? 'aria-current="page"' : ""}><span class="utlt-nav-icon">${symbol}</span><span>${label}</span></button>`;
+    }).join("")}</nav>`;
   }
-
-
 
   function todayKey() {
     return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Kolkata", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
@@ -1251,6 +1288,8 @@
     const compact = state.screen === "home" && state.utility !== "Water";
     const content = state.screen === "home"
       ? utilityTabs() + (state.utility === "Water" ? dashboard() : `<section class="utlt-unavailable-card"><div class="utlt-unavailable-icon">${icon(state.utility === "Gas" ? "flame" : "bolt", 30)}</div><h2>${state.utility} tracking is coming soon</h2><p>This preview currently tracks water only. When ${state.utility.toLowerCase()} monitoring arrives, you will see:</p><ul class="utlt-coming-list"><li>Your daily ${state.utility.toLowerCase()} usage and goal</li><li>A clear “too much” or “still fine” message</li><li>Records of your previous days</li></ul><button class="utlt-primary-button" data-action="utility" data-value="Water">View water dashboard</button></section>`)
+      : state.screen === "help" ? helpPage()
+      : state.screen === "reports" ? reportsPage()
       : state.screen === "device" ? devicePage()
       : state.screen === "account" ? accountPage()
       : state.screen === "survey" ? surveyPage()
@@ -1259,6 +1298,7 @@
       : state.screen === "demo" ? window.UTLTDemo.render()
       : state.screen === "family" ? await familyPage()
       : pairPage();
+    if (translationRenderId !== renderToken) return;
     root.innerHTML = `<div class="utlt-app ${state.dark ? "utlt-dark" : ""} ${enterMotion ? "utlt-enter" : ""}"><div class="utlt-phone ${state.screen === "pair" ? "utlt-pair" : compact ? "utlt-compact" : ""}">${header()}<main class="utlt-content">${content}</main>${nav()}</div></div>`;
     document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => meta.setAttribute("content", state.dark ? "#212121" : "#ffffff"));
     const scroller = root.querySelector(".utlt-content");
@@ -1662,6 +1702,9 @@
       render(true);
       return;
     }
+    if (action === "niro-wave") { window.UTLTNiro.wave(button); return; }
+    if (action === "tour") { state.tourStep = (state.tourStep + 1) % 4; render(true); return; }
+    if (action === "niro") { state.assistantMode = "ask"; state.languageMenuOpen = false; if (state.qrScanning) stopQrScanner(); state.screen = "assistant"; render(); return; }
     if (action === "open-demo") { state.screen = "demo"; render(); return; }
     if (action === "scan-qr") { startQrScanner(); return; }
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
@@ -1669,11 +1712,7 @@
     if (action === "download-history") { requestHistory(); return; }
     if (action === "assistant-mode") { state.assistantMode = ["today", "recent", "ask"].includes(button.dataset.mode) ? button.dataset.mode : "today"; render(true); return; }
     if (action === "forecast-follow-up") { state.assistantMode = "ask"; state.llmQuestion = "Will I stay within my water goal by 8 pm?"; render(true); root.querySelector("#utlt-assistant-question")?.focus(); return; }
-    if (action === "assistant-prompt") {
-      const field = root.querySelector("#utlt-assistant-question");
-      if (field) { field.value = button.dataset.question || ""; field.focus(); }
-      return;
-    }
+    if (action === "assistant-prompt") { askNiro(button.dataset.question || ""); return; }
     if (action === "load-local-llm") {
       if (state.llmBusy) return;
       state.llmBusy = true; state.llmStatus = "Downloading and starting the on-phone model…"; render(true);
@@ -1713,7 +1752,7 @@
     if (action === "login-google") { signInWithGoogle(); return; }
     if (action === "continue-local") { continueLocally(); return; }
     else if (action === "sign-out") { signOutOfApp().catch(error => renderAuthGate(error.message)); return; }
-    else if (action === "theme") { state.dark = !state.dark; persistProfile(); }
+    else if (action === "theme") { saveAppearance(!state.dark); }
     else if (action === "refresh-device") { refreshWaterBridge(); return; }
     else if (action === "utility") { state.utility = button.dataset.value; persistProfile(); }
     else if (action === "breakdown") { state.breakdown = button.dataset.value; persistProfile(); }
@@ -1746,7 +1785,7 @@
       state.familyBusy=true; firebaseStore.getFamilyInvite(state.pendingFamilyInvite).then(async inv=>{if(!inv)throw new Error("This invite expired. Ask for a new QR code.");if(inv.ownerUid===state.uid)throw new Error("You cannot join your own family.");await firebaseStore.requestFamilyJoin(state.pendingFamilyInvite,inv);state.pendingFamilyInvite="";history.replaceState({},"",location.pathname);state.familyMessage="Request sent. The owner must approve you.";}).catch(e=>{state.familyMessage=e.message||"Could not send request.";}).finally(()=>{state.familyBusy=false;render(true);}); return;
     } else if (action === "family-approve" || action === "family-decline") {
       const req=state.familyRequests.find(x=>x.id===button.dataset.requestId);if(!req)return;firebaseStore.decideFamilyRequest(req,action==="family-approve").then(async()=>{state.familyMessage=action==="family-approve"?"Member approved.":"Request declined.";await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not update request.";}).finally(()=>render(true));return;
-    } else if (["home", "pair", "account", "device", "family", "survey", "review", "assistant"].includes(action)) {
+    } else if (["home", "pair", "account", "device", "family", "survey", "review", "assistant", "help", "reports"].includes(action)) {
       state.languageMenuOpen = false;
       if (action !== "pair" && state.qrScanning) stopQrScanner();
       if ((action === "family" && !firebaseStore && !bluefyPhone) || (action === "account" && !firebaseStore && state.authProvider !== "local")) {
@@ -1789,6 +1828,33 @@
       });
     }
   });
+  async function askNiro(message) {
+    const question = message.trim().slice(0, 300);
+    if (!question || state.llmBusy) return;
+    state.llmQuestion = "";
+    state.niroMessages = [...state.niroMessages.slice(-18), { role: "user", text: question }];
+    const checked = window.UTLTNiro.answer(question,state);
+    const simple = checked ? null : checkedWaterAnswer(question);
+    if (checked || simple || !state.llmReady) {
+      state.niroMessages.push({ role: "bot", ...(checked || {text:simple || "Try asking for a daily total, chart or table, or download the local model for general explanations."}) });
+    } else {
+      state.llmBusy = true;
+      state.llmStatus = "Thinking…";
+      render(true);
+      try {
+        const result = await window.UTLTLocalLLM.ask(question, assistantFacts());
+        state.niroMessages.push({ role:"bot", text:result.answer });
+      } catch (_error) {
+        state.niroMessages.push({ role:"bot", text:"I couldn’t verify an explanation. Try asking for the chart or table behind the numbers." });
+      } finally { state.llmBusy = false; }
+    }
+    state.llmStatus = "";
+    if (state.screen === "assistant") {
+      await render(true);
+      root.querySelector(".niro-thread")?.lastElementChild?.scrollIntoView({ block:"nearest" });
+    }
+  }
+
   root.addEventListener("submit", async (event) => {
     if (event.target.id === "utlt-calibration-form") {
       event.preventDefault();
@@ -1828,23 +1894,7 @@
     }
     if (event.target.id === "utlt-assistant-form") {
       event.preventDefault();
-      if (state.llmBusy || !state.llmReady) return;
-      const question = String(new FormData(event.target).get("question") || "").trim().slice(0, 300);
-      if (!question) return;
-      state.llmQuestion = question;
-      const checked = checkedWaterAnswer(question);
-      if (checked || !state.llmReady) {
-        state.llmAnswer = checked || "This question needs the optional on-phone model. Download it below, then ask again.";
-        state.llmAnswerType = checked ? "checked" : "system";
-        state.llmStatus = "";
-        render(true);
-        return;
-      }
-      state.llmAnswer = ""; state.llmAnswerType = "model"; state.llmBusy = true; state.llmStatus = "Generating on your phone…"; render(true);
-      window.UTLTLocalLLM.ask(question, assistantFacts())
-        .then(result => { state.llmAnswer = result.answer; state.llmStatus = ""; })
-        .catch(error => { state.llmStatus = `Could not answer: ${error.message}`; })
-        .finally(() => { state.llmBusy = false; render(true); });
+      askNiro(String(new FormData(event.target).get("question") || ""));
       return;
     }
     if (event.target.id === "utlt-survey-form") {

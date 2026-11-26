@@ -8,12 +8,12 @@
   let progressHandler = null;
 
   function supported() {
-    return typeof Worker !== "undefined" && Boolean(navigator.gpu);
+    return typeof Worker !== "undefined" && typeof WebAssembly !== "undefined";
   }
 
   function ensureWorker() {
     if (worker) return worker;
-    worker = new Worker("./llm-worker.js?v=qwen3-1000-v2", { type: "module" });
+    worker = new Worker("./llm-worker.js?v=smollm-local-1", { type: "module" });
     worker.onmessage = event => {
       const message = event.data || {};
       if (message.type === "progress") {
@@ -36,12 +36,13 @@
   }
 
   function send(type, data = {}, onProgress) {
-    if (!supported()) return Promise.reject(new Error("This browser does not offer WebGPU for the on-phone model."));
+    if (!supported()) return Promise.reject(new Error("This browser does not support the on-device model."));
     progressHandler = onProgress || null;
     return new Promise((resolve, reject) => {
+      const target = ensureWorker();
       const id = nextId++;
       pending.set(id, { resolve, reject });
-      ensureWorker().postMessage({ id, type, ...data });
+      target.postMessage({ id, type, ...data });
     });
   }
 
