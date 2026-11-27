@@ -112,25 +112,52 @@
     const data = facts(state, 24, usage), pick = priority(data);
     return `<section class="niro-summary" aria-label="Niro Summary"><div class="niro-summary-head">${avatar(pick.mood)}<div><p>Niro Summary${data.demo ? " · Sample data" : ""}</p><h2>${pick.title}</h2></div></div><p>${pick.text}</p>${figures(visual(data,pick.chart))}<button type="button" class="utlt-primary-button" data-action="niro">Chat with Niro</button></section>`;
   }
+  // Use completed calendar days with readings. A missing day is not zero use.
+  function historicalAnswer(text, state, firstWeek = false) {
+    const today = window.UTLTAI.indiaDate(new Date());
+    const firstWeekData = studyForecast(state);
+    const totals = new Map();
+    for (const { recordedAt, litres } of state.readings) {
+      if (!Number.isFinite(litres) || litres < 0 || !Number.isFinite(Date.parse(recordedAt))) continue;
+      const day = window.UTLTAI.indiaDate(new Date(recordedAt));
+      if (day < today) totals.set(day, (totals.get(day) || 0) + litres);
+    }
+    const recent = [...totals].sort(([left], [right]) => left.localeCompare(right)).slice(-7);
+    const useFirstWeek = firstWeek || (recent.length < 3 && Number.isFinite(firstWeekData?.typical));
+    const days = useFirstWeek ? (firstWeekData?.days || []).filter(([day]) => day < today) : recent;
+    if (firstWeek && days.length < 3) return { text: "The first-week forecast needs at least three recorded days and opens after your first week." };
+    if (!days.length) return { text: "I need at least one previous day with water readings to estimate your usage." };
+
+    const label = /\bnext week\b/.test(text) ? "over seven days"
+      : /\btomorrow\b/.test(text) ? "tomorrow" : /\btoday\b/.test(text) ? "today" : "for a typical day";
+    const multiplier = label === "over seven days" ? 7 : 1;
+    const source = state.demoEnabled ? "sample readings" : "meter readings";
+    const period = useFirstWeek ? " in your first week" : "";
+    const [low, high] = [Math.min(...days.map(([, value]) => value)), Math.max(...days.map(([, value]) => value))];
+    const range = low !== high ? ` Daily readings ranged from ${number(low)} to ${number(high)} L.` : "";
+    const uncertainty = days.length < 3 ? " That’s a rough estimate with so few readings." : "";
+    return {
+      text: `Around ${number(medianDailyTotal(days) * multiplier)} L ${label}, based on ${days.length} previous day${days.length === 1 ? "" : "s"} of ${source}${period}.${range}${uncertainty}`,
+      chart: { title: useFirstWeek ? "First-week readings" : "Previous daily readings", key: "Day",
+        rows: days.map(([day, value]) => ({ label: dayFormat.format(new Date(day)), value })) },
+      table: /\btable\b/.test(text),
+    };
+  }
+
+  const expectsUsage = /\b(expect\w*|anticipat\w*|likely to use|will (?:i|we) use|how much.*(?:will|[’']ll).*use|think.*use|supposed to use)\b/i;
+
   // Check specific intents before the generic chart or table request.
   function answer(question, state) {
     const text = question.toLowerCase();
     if (/what.*(spike|peak)|activity.*(spike|peak)|what.*water.*used for/.test(text)) return learnedActivity(state);
-    if (/tomorrow|next week|typical day|first.week forecast/.test(text)) {
-      const outlook = studyForecast(state);
-      if (!Number.isFinite(outlook?.typical)) return { text: "The first-week forecast needs at least three recorded days and opens after your first week." };
-      const isWeek = /next week/.test(text);
-      return {
-        text: `Around ${number(outlook.typical * (isWeek ? 7 : 1))} L ${isWeek ? "over seven days" : "for a typical day"}, based on ${outlook.days.length} recorded days in your first week.`,
-        chart: { title: "First-week readings", key: "Day", rows: outlook.days.map(([day, value]) => ({
-          label: dayFormat.format(new Date(day)), value,
-        })) },
-        table: /\btable\b/.test(text),
-      };
-    }
+    const explicitCutoff = /8\s*p\.?m|evening/i.test(text);
+    const priorReadings = /\b(previous|past|historical|earlier)\b.*\b(readings|results|data|usage|days|totals)\b/.test(text);
+    if (/\bfirst.week forecast\b/.test(text)) return historicalAnswer(text, state, true);
+    if (!explicitCutoff && (expectsUsage.test(text) || /\b(tomorrow|next week|typical day)\b/.test(text) ||
+        (priorReadings && (/\b(estimate\w*|forecast\w*|predict\w*|today)\b/.test(text) || /^(?:and )?(?:based on|from|using)\b/.test(text))))) return historicalAnswer(text, state);
     let kind;
     if (/leak|continuous|running water/.test(text)) kind = "leak";
-    else if (/forecast|projection|predict|evening|end of (the )?day|8 ?p\.?m|goal/.test(text)) kind = "forecast";
+    else if (/forecast|projection|predict|estimate|evening|end of (the )?day|8 ?p\.?m|goal/.test(text)) kind = "forecast";
     else if (/by (time|hour)|time of day|when.*(used|use)|morning|afternoon/.test(text)) kind = "time";
     else if (/split|breakdown|categor|activit|bathing|laundry/.test(text)) kind = "use";
     else if (/trend|week|day.by.day|history|daily totals|last (\d+|seven) days/.test(text)) kind = "trend";
@@ -141,6 +168,7 @@
       data.demo ? "Sample readings cannot tell you whether your home has a leak. Try Leak detection in the demos." :
         state.device.connected ? "There’s no sustained-flow alert right now. The meter cannot rule out a leak." :
           "Connect your meter to check for sustained flow." };
+    if (kind === "forecast" && !explicitCutoff && !Number.isFinite(data.forecast.projected)) return historicalAnswer(text, state);
     const chart = visual(data,kind);
     if (!chart || !chart.rows.some(row => Number.isFinite(row.value))) return { text: "There aren’t readings for that view yet." };
     const source = data.demo ? "From the sample readings" : "From your meter readings";
@@ -242,20 +270,24 @@
       : "I don’t have enough similar confirmed examples to suggest an activity for this interval." };
   }
 
+  function medianDailyTotal(days) {
+    const ordered = days.map(([, value]) => value).sort((a, b) => a - b);
+    const middle = Math.floor(ordered.length / 2);
+    return ordered.length % 2 ? ordered[middle] : (ordered[middle - 1] + ordered[middle]) / 2;
+  }
+
   function studyForecast(state, now = new Date()) {
     const today = window.UTLTAI.indiaDate(now);
     const dayIndex = firstWeekDay(today, state.niroStudyStart);
     if (!(dayIndex >= 7) || state.demoEnabled) return null;
     const days = Object.entries(state.niroStudy.daily).sort(([a], [b]) => a.localeCompare(b));
     if (days.length < 3) return {days};
-    const ordered = days.map(([, value]) => value).sort((a,b) => a-b);
-    const mid = Math.floor(ordered.length / 2);
-    const typical = ordered.length % 2 ? ordered[mid] : (ordered[mid - 1] + ordered[mid]) / 2;
+    const volumes = days.map(([, value]) => value);
     const counts = {};
     Object.values(state.niroStudy.answers).forEach(({ labels }) => {
       labels.filter(label => label !== "Misc").forEach(label => { counts[label] = (counts[label] || 0) + 1; });
     });
-    return { days, typical, low: ordered[0], high: ordered.at(-1),
+    return { days, typical: medianDailyTotal(days), low: Math.min(...volumes), high: Math.max(...volumes),
       recurring: Object.keys(counts).filter(label => counts[label] >= 2) };
   }
 
@@ -298,7 +330,7 @@
       text: breakdown.map(({ label, value }) => `${label}: ${value} L`).join(" · "),
       chart: { title: "Sample use at 4 pm", key: "Activity", rows: breakdown }, table: wantsTable,
     };
-    if (/forecast|project|predict|end of|8\s*p|pace|per hour|rate|why.*400/.test(text) || visual) return {
+    if (expectsUsage.test(text) || /forecast|project|predict|estimate|end of|8\s*p|pace|per hour|rate|why.*400/.test(text) || visual) return {
       text: `The sample home used ${used} L in ${hoursMeasured} hours. At ${used / hoursMeasured} L/hour, four more hours would bring it to ${projected} L by 8 pm, ${projected - goal} L over the goal.`,
       chart: visual ? { title: "Sample outlook", key: "Reading", rows: [
         { label: "Used at 4 pm", value: used }, { label: "Daily goal", value: goal }, { label: "Estimated by 8 pm", value: projected },

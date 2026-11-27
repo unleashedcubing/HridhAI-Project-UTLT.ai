@@ -13,7 +13,7 @@
 
   function ensureWorker() {
     if (worker) return worker;
-    worker = new Worker("./llm-worker.js?v=smollm-local-3", { type: "module" });
+    worker = new Worker("./llm-worker.js?v=smollm-local-4", { type: "module" });
     worker.onmessage = event => {
       const message = event.data || {};
       if (message.type === "progress") {
