@@ -21,19 +21,31 @@ function loadModel() {
   return loading;
 }
 
+function modelText(result) {
+  const generated = result?.[0]?.generated_text;
+  return String(Array.isArray(generated) ? generated.at(-1)?.content || "" : generated || "").trim();
+}
+
 self.onmessage = async ({ data }) => {
-  const { id, type, question, facts } = data || {};
+  const { id, type, question, facts, note } = data || {};
   try {
     const generate = await loadModel();
     if (type === "load") return self.postMessage({ id, type: "ready" });
+    if (type === "routine") {
+      const result = await generate([
+        { role: "system", content: "Classify the household water note. Reply with exactly one word: bathing, laundry, kitchen, outdoors, or none." },
+        { role: "user", content: String(note).slice(0, 240) },
+      ], { max_new_tokens: 8, do_sample: false, return_full_text: false });
+      const focus = modelText(result).toLowerCase().match(/^(bathing|laundry|kitchen|outdoors|none)[.!]?$/)?.[1];
+      return self.postMessage({ id, type: "routine", focus });
+    }
     if (type !== "ask") return;
     const result = await generate([
       { role: "system", content: "You’re Niro, a household water assistant. Answer the water question directly in one plain sentence using the supplied facts. Never make up numbers, activities, or causes. If unsure, say what the meter can measure." },
       { role: "user", content: `Meter facts: ${facts}\nQuestion: ${question}` },
     ], { max_new_tokens: 55, do_sample: false, repetition_penalty: 1.15, return_full_text: false });
     // The model writes explanations. The app calculates all numeric answers.
-    const generated = result?.[0]?.generated_text;
-    const raw = String(Array.isArray(generated) ? generated.at(-1)?.content || "" : generated || "").trim();
+    const raw = modelText(result);
     const sentences = (raw.match(/[^.!?]+[.!?]+/g) || [raw]).map(line =>
       line.trim().replace(/^(?:the )?answer(?: to this question)? is:\s*/i, "")
     ).filter(Boolean);

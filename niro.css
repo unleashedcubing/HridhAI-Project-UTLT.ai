@@ -186,3 +186,22 @@
 @media(max-width:360px) {
   .niro-chat {padding-inline:10px}
 }
+
+.niro-onboarding .niro-avatar {width:60px}
+.niro-onboarding .utlt-survey-form {gap:15px}
+.niro-onboarding input,.niro-onboarding select,.niro-onboarding textarea {font-size:16px}
+.niro-onboarding textarea {box-sizing:border-box;width:100%;padding:12px;border:1px solid var(--utlt-border);border-radius:14px;background:var(--utlt-card);color:var(--utlt-text);resize:vertical}
+.niro-onboarding .utlt-survey-form p {font-size:14px;color:var(--utlt-muted);margin:0}
+
+.niro-study {flex:none;padding:14px;border:1px solid var(--utlt-border);border-radius:18px;background:var(--utlt-card)}
+.niro-study h2 {font-size:18px}
+.niro-study>p {margin-top:6px;font-size:13px;color:var(--utlt-muted)}
+.niro-study-plot {display:grid;grid-template-columns:repeat(24,minmax(0,1fr));align-items:end;gap:2px;height:68px;margin-top:12px;border-bottom:1px solid var(--utlt-border)}
+.niro-study-plot i {height:var(--bar);border-radius:3px 3px 0 0;background:var(--utlt-ring-track)}
+.niro-study-plot .is-highlighted {background:var(--utlt-accent)}
+.niro-study-axis {display:flex;justify-content:space-between;margin-top:4px;color:var(--utlt-muted);font-size:10px}
+.niro-study form {display:grid;gap:8px;margin-top:12px}
+.niro-study label {display:grid;gap:5px;font-size:13px;font-weight:650}
+.niro-study input {width:100%;min-height:44px;padding:8px;border:1px solid var(--utlt-border);border-radius:10px;background:var(--utlt-panel);color:var(--utlt-text);font:inherit;font-size:16px}
+.niro-study form>div {display:flex;flex-wrap:wrap;gap:6px}
+.niro-study form button {flex:1 0 max-content;min-height:44px;padding:7px 10px}

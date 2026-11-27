@@ -13,7 +13,7 @@
 
   function ensureWorker() {
     if (worker) return worker;
-    worker = new Worker("./llm-worker.js?v=smollm-local-2", { type: "module" });
+    worker = new Worker("./llm-worker.js?v=smollm-local-3", { type: "module" });
     worker.onmessage = event => {
       const message = event.data || {};
       if (message.type === "progress") {
@@ -46,5 +46,5 @@
     });
   }
 
-  window.UTLTLocalLLM = Object.freeze({ supported, load: onProgress => send("load", {}, onProgress), ask: (question, facts) => send("ask", { question, facts }) });
+  window.UTLTLocalLLM = Object.freeze({ supported, load: onProgress => send("load", {}, onProgress), ask: (question, facts) => send("ask", { question, facts }), routineFocus: note => send("routine", { note }) });
 })();

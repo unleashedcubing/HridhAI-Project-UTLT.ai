@@ -26,6 +26,8 @@
   const grantedDeviceKey = "waterMeterGrantedBluetoothV1";
   const demoKey = "waterMeterDemoEnabledV1";
   const surveyKey = "waterSurveyV1";
+  const niroStudyKey = "niroWaterStudyV1";
+  const niroSetupKey = "niroWaterSetupV1";
   const reviewKey = "waterReviewedDaysV1";
   const labelsKey = "waterConfirmedLabelsV1";
   const correctionsKey = "waterModelCorrectionsV1";
@@ -66,10 +68,12 @@
       return { readings: [], pulsesPerLitre: factor };
     }
   }
-  let demoEnabled = false;
+  let demoEnabled = false, savedNiroSetup = null, savedNiroStudy = null;
   let savedSurvey = null, reviewedDays = [], confirmedLabels = {}, corrections = [], lastConnected = null, savedLocalProfile = null;
   try {
     demoEnabled = localStorage.getItem(demoKey) === "true";
+    savedNiroSetup = JSON.parse(localStorage.getItem(niroSetupKey) || "null");
+    savedNiroStudy = JSON.parse(localStorage.getItem(niroStudyKey) || "null");
     savedSurvey = JSON.parse(localStorage.getItem(surveyKey) || "null");
     reviewedDays = JSON.parse(localStorage.getItem(reviewKey) || "[]");
     confirmedLabels = JSON.parse(localStorage.getItem(labelsKey) || "{}");
@@ -89,6 +93,10 @@
   }
   const state = {
     screen: "home",
+    niroStudy: { daily: savedNiroStudy?.daily || {}, answers: savedNiroStudy?.answers || {} },
+    niroStudyStart: savedNiroSetup?.startedAt || "",
+    niroSetupDone: savedNiroSetup?.done === true,
+    niroGoalDraft: null, niroSetupBusy: false,
     niroMessages: [], // Session only. Keep chat out of storage and cloud sync.
     tourStep: 0,
     utility: "Water",
@@ -97,7 +105,7 @@
     name: typeof savedLocalProfile?.name === "string" ? savedLocalProfile.name : "",
     email: "",
     homeName: typeof savedLocalProfile?.homeName === "string" ? savedLocalProfile.homeName : "My home",
-    goal: Number(savedLocalProfile?.goal) > 0 ? Number(savedLocalProfile.goal) : 350,
+    goal: Number(savedLocalProfile?.goal) > 0 ? Number(savedLocalProfile.goal) : Number(savedNiroSetup?.goal) || 350,
     saved: false,
     device: { connected: false, lastConnectedAt: lastConnected },
     pairedDeviceId: /^[0-9a-f]{12}$/.test(savedPairing) ? savedPairing : "",
@@ -441,10 +449,9 @@
         <p class="utlt-eyebrow">UTLT.AI · SMART WATER</p>
         <h1>Welcome to UTLT.ai</h1>
         <p class="utlt-auth-intro">Your water, clearly understood.</p>
-        <div class="utlt-auth-feature">${icon("shield", 20)}<span>${bluefyPhone ? "Your household setup and readings stay in Bluefy on this iPhone." : "Sign in to set up your household and save its readings."}</span></div>
+        <div class="utlt-auth-feature">${icon("shield", 20)}<span>${bluefyPhone ? "Your water readings stay in Bluefy on this iPhone." : "Sign in to save your household readings."}</span></div>
         ${bluefyPhone ? `<button class="utlt-primary-button utlt-auth-google" type="button" data-action="${localAvailable ? "continue-local" : "pair"}">${localAvailable ? "Continue on this phone" : "Pair your device"}</button><p class="utlt-auth-note">No Google sign-in or cloud account is needed in Bluefy. Family sharing is unavailable in this mode.</p>` : `<button class="utlt-primary-button utlt-auth-google" type="button" data-action="login-google" ${state.authBusy ? "disabled" : ""}>${state.authBusy ? "Connecting…" : "Continue with Google"}</button>`}
         <p class="utlt-auth-message" role="status">${escapeHtml(message)}</p>
-        <p class="utlt-auth-note">After pairing, your household setup starts automatically.</p>
         <button class="utlt-secondary-button" type="button" data-action="${state.pairedDeviceId ? "pair" : "home"}">${state.pairedDeviceId ? "Back to pairing" : "Back to Home"}</button>
       </section></main></div>`;
   }
@@ -459,7 +466,7 @@
     state.name = state.name || "My household";
     state.email = "";
     state.pendingAuthScreen = "";
-    state.screen = state.pairedDeviceId && !state.survey ? "survey" : "home";
+    state.screen = "home";
     persistProfile();
     render();
   }
@@ -490,7 +497,7 @@
     if (!state.name && user.displayName) state.name = user.displayName;
     try { localStorage.removeItem(localProfileKey); } catch (_error) {  }
     state.pendingFamilyInvite = new URLSearchParams(location.search).get("familyInvite") || state.pendingFamilyInvite || "";
-    const destination = state.pairedDeviceId && !state.survey ? "survey" : state.pendingAuthScreen || (state.screen === "auth" ? "home" : state.screen);
+    const destination = state.pendingAuthScreen || (state.screen === "auth" ? "home" : state.screen);
     state.pendingAuthScreen = "";
     state.screen = destination;
     if (destination === "family") {
@@ -664,13 +671,13 @@
   }
 
   function header() {
-    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "survey" ? "Your Household" : state.screen === "review" ? "Review Water Use" : state.screen === "assistant" ? "Niro" : state.screen === "help" ? "Help" : state.screen === "reports" ? state.utility + " reports" : state.screen === "demo" ? "Explore UTLT.ai" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
+    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "review" ? "Review Water Use" : state.screen === "assistant" ? "Niro" : state.screen === "help" ? "Help" : state.screen === "reports" ? state.utility + " reports" : state.screen === "demo" ? "Explore UTLT.ai" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
     const last = state.screen === "home" && !state.device.connected && state.device.lastConnectedAt ? `<span class="utlt-header-last">Last connected ${escapeHtml(new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(state.device.lastConnectedAt)))}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button></div>`;
     if (state.screen === "friends") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
-    if (["account", "device", "survey", "review", "assistant", "demo", "help", "reports"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
+    if (["account", "device", "review", "assistant", "demo", "help", "reports"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     return `<header class="utlt-header"><div class="utlt-header-top"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${last}${actions}</div></header>`;
   }
 
@@ -819,9 +826,10 @@
 
   function learningCards() {
     if (state.usingDemo || !state.pairedDeviceId) return "";
-    if (!state.survey) return `<section class="utlt-learning-card"><p class="utlt-eyebrow">PERSONALIZE UTLT</p><h2>Tell us about your home</h2><p>A short survey helps suggest likely water uses. Your flow meter cannot identify activities by itself.</p><button class="utlt-primary-button" data-action="survey">Start household survey</button></section>`;
+    if (!state.survey) return "";
     const insight = window.UTLTAI.numericInsight(state.readings, state.survey);
-    const review = !state.reviewedDays.includes(window.UTLTAI.indiaDate(new Date())) && reviewSessions().length;
+    const dayIndex = window.UTLTNiro.firstWeekDay(window.UTLTAI.indiaDate(new Date()), state.niroStudyStart);
+    const review = !(dayIndex >= 0 && dayIndex < 7) && !state.reviewedDays.includes(window.UTLTAI.indiaDate(new Date())) && reviewSessions().length;
     return `${review ? `<section class="utlt-learning-card"><p class="utlt-eyebrow">END-OF-DAY CHECK</p><h2>Help identify ${review} uncertain water period${review === 1 ? "" : "s"}</h2><p>Confirm only today's unclear readings. This check appears during your first seven days and on the first three days of each month.</p><button class="utlt-primary-button" data-action="review">Review today's use</button></section>` : ""}${insight?.average !== undefined ? `<section class="utlt-learning-card"><p class="utlt-eyebrow">YOUR SEVEN-DAY PATTERN</p><h2>${insight.average} L per day on average</h2><p>About ${insight.perPerson} L per person. A gentle goal based on your own week is ${insight.suggestedGoal} L/day. These are estimates from your meter, not a diagnosis of specific activities.</p></section>` : `<section class="utlt-learning-card"><p class="utlt-eyebrow">LEARNING YOUR ROUTINE</p><h2>${insight?.trackedDays || 0} of 7 days measured</h2><p>After seven days, UTLT will show your own average and suggest a daily goal.</p></section>`}`;
   }
 
@@ -871,11 +879,14 @@
   function assistantPage() {
     if (state.utility !== "Water") return utilityTabs() +
       `<section class="utlt-unavailable-card niro-utility"><h1>Niro</h1>${utilityNotice()}</section>`;
-    if (state.assistantMode === "ask" && !state.llmReady) return niroDownloadPage();
+    if (state.assistantMode === "ask") {
+      if (!state.llmReady) return niroDownloadPage();
+      if (!state.niroSetupDone) return niroOnboardingPage();
+    }
     const insight = window.UTLTAI.paceInsight(state.readings);
     const evidence = insight.ready ? `Today is ${insight.tone === "usual" ? "near" : insight.tone} your usual pace by ${insight.clock}.` : insight.reason === "today" ? "Waiting for today's first water reading." : `${insight.measuredDays} of 3 earlier measured days available for a same-time comparison.`;
     const modes = `<div class="utlt-assistant-modes" role="tablist" aria-label="AI view"><button role="tab" aria-selected="${state.assistantMode === "today"}" class="${state.assistantMode === "today" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="today">Today</button><button role="tab" aria-selected="${state.assistantMode === "recent"}" class="${state.assistantMode === "recent" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="recent">Recent use</button><button role="tab" aria-selected="${state.assistantMode === "ask"}" class="${state.assistantMode === "ask" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="ask">Ask</button></div>`;
-    if (state.assistantMode === "today") return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><h1>Today's water</h1><p>A live outlook from the first recorded flow, with a fuller check-in after six hours.</p>${modes}${dailyFeedbackCard()}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
+    if (state.assistantMode === "today") return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><h1>Today's water</h1><p>A live outlook from the first recorded flow, with a fuller check-in after six hours.</p>${modes}${window.UTLTNiro.studyCard(state)}${dailyFeedbackCard()}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
     if (state.assistantMode === "recent") return `<section class="utlt-assistant-page"><p class="utlt-eyebrow">WATER INTELLIGENCE</p><h1>Your water story</h1><p>A clear look at recent measured days, with gaps shown honestly.</p>${modes}${recentUseCard()}<div class="utlt-assistant-evidence"><span>TODAY BY THIS TIME</span><strong>${escapeHtml(evidence)}</strong><small>${state.demoEnabled ? "Sample readings · not a real household" : "Based on readings stored on this phone"}</small></div><p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
     const messageMarkup = state.niroMessages.map(({ role, text, chart, table }) =>
       `<div class="niro-message is-${role} utlt-user-content"><p>${escapeHtml(text)}</p>${window.UTLTNiro.figures(chart, table)}</div>`).join("");
@@ -891,6 +902,7 @@
       <header class="niro-chat-head">${window.UTLTNiro.avatar(mood)}<div><h1>Chat with Niro</h1><p>${state.demoEnabled ? "Sample readings" : "Water assistant"}</p></div><button type="button" class="niro-new" data-action="niro-new">New chat</button></header>
       ${modes}
       <div class="niro-thread" role="log" aria-label="Conversation with Niro">
+        ${window.UTLTNiro.studyCard(state)}
         ${messageMarkup || '<div class="niro-welcome"><h2>What would you like to know?</h2><p>Ask about your water use or request a chart or table.</p></div>'}
       </div>
       <div class="niro-compose">
@@ -960,10 +972,64 @@
     ].join(" ");
   }
 
-  function surveyPage() {
-    const survey = state.survey || {};
-    const options = (values, selected) => values.map(([value, label]) => `<option value="${value}" ${String(selected) === String(value) ? "selected" : ""}>${label}</option>`).join("");
-    return `<section class="utlt-survey-page"><p class="utlt-eyebrow">HOUSEHOLD SURVEY</p><h1>Help UTLT learn your routine</h1><p>These answers guide activity suggestions. Your meter still measures only total flow.</p><form id="utlt-survey-form" class="utlt-survey-form"><label>People at home<input name="people" type="number" min="1" max="12" required value="${survey.people ?? 3}"></label><label>Bathrooms<input name="bathrooms" type="number" min="1" max="8" required value="${survey.bathrooms ?? 2}"></label><label>Water source<select name="waterSource">${options([["municipal", "Municipal supply"], ["tanker", "Tanker"], ["borewell", "Borewell"], ["mixed", "More than one"]], survey.waterSource || "municipal")}</select></label><label>Usual shower time<select name="usualShowerHour">${options(Array.from({ length: 24 }, (_, hour) => [hour, `${String(hour).padStart(2, "0")}:00`]), survey.usualShowerHour ?? 7)}</select></label><label>Bathing style<select name="showerStyle">${options([["bucket", "Bucket"], ["shower", "Shower"], ["mixed", "Both"]], survey.showerStyle || "mixed")}</select></label><label>Typical shower minutes<input name="typicalShowerMinutes" type="number" min="1" max="60" value="${survey.typicalShowerMinutes ?? 8}" required></label><label>Laundry days per week<input name="laundryDaysPerWeek" type="number" min="0" max="7" value="${survey.laundryDaysPerWeek ?? 2}" required></label><label>Meals cooked per day<input name="cookingMealsPerDay" type="number" min="0" max="3" value="${survey.cookingMealsPerDay ?? 2}" required></label><label>Usual bedtime<select name="usualBedtimeHour">${options(Array.from({ length: 24 }, (_, hour) => [hour, `${String(hour).padStart(2, "0")}:00`]), survey.usualBedtimeHour ?? 22)}</select></label><label class="utlt-check-row"><input name="dishwasher" type="checkbox" ${survey.dishwasher ? "checked" : ""}>We use a dishwasher</label><label class="utlt-check-row"><input name="washingMachine" type="checkbox" ${survey.washingMachine ? "checked" : ""}>We use a washing machine</label><label class="utlt-check-row"><input name="garden" type="checkbox" ${survey.garden ? "checked" : ""}>We water plants or a garden</label><button class="utlt-primary-button" type="submit">Save household routine</button></form><p class="utlt-device-help">Your survey stays on this phone. The first seven-day observation begins when you save it.</p></section>`;
+  function niroOnboardingPage() {
+    const draft = state.niroGoalDraft;
+    const routine = draft?.routine || state.survey || {};
+    const options = (choices, selected) => choices.map(([value, label]) =>
+      `<option value="${value}" ${String(selected) === String(value) ? "selected" : ""}>${label}</option>`).join("");
+    const field = (name, label, min, max, value, required = true) =>
+      `<label>${label}<input name="${name}" type="number" min="${min}" max="${max}" inputmode="numeric" value="${escapeHtml(value)}" ${required ? "required" : ""}></label>`;
+    if (draft?.goal && !draft.editing) {
+      return `<section class="utlt-survey-page niro-onboarding">
+        ${window.UTLTNiro.avatar("happy")}<h1>Your starting water goal</h1>
+        <p class="utlt-user-content">${escapeHtml(draft.reason)}</p>
+        <p>Use it as a starting point and revisit after a week of measured use.</p>
+        <form id="niro-goal-form" class="utlt-survey-form">
+          ${field("goal", "Daily household goal (litres)", 1, 100000, draft.goal)}
+          <p class="utlt-device-help utlt-user-content">${escapeHtml(draft.tip)}</p>
+          <button class="utlt-primary-button" type="submit">Use this goal</button>
+          <button class="utlt-secondary-button" type="button" data-action="niro-setup-edit">Edit answers</button>
+          <button class="utlt-secondary-button" type="button" data-action="niro-setup-skip">Keep my current goal</button>
+        </form>
+      </section>`;
+    }
+    return `<section class="utlt-survey-page niro-onboarding">
+      ${window.UTLTNiro.avatar()}<h1>Set a water goal with Niro</h1>
+      <p>Tell Niro about a typical day for the whole household. Your answers stay on this device. Gas and Electricity goals will be available when their meters are enabled.</p>
+      <form id="niro-onboarding-form" class="utlt-survey-form">
+        ${field("people", "How many people live at home?", 1, 30, routine.people ?? "")}
+        <label>How do people usually bathe?<select name="showerStyle">${options([["bucket", "Mostly bucket baths"], ["shower", "Mostly showers"], ["mixed", "A mix of both"]], routine.showerStyle ?? "mixed")}</select></label>
+        ${field("typicalShowerMinutes", "Typical minutes per shower (skip for bucket baths)", 1, 60, routine.typicalShowerMinutes ?? "", false)}
+        ${field("laundryDaysPerWeek", "How many days a week do you wash clothes?", 0, 7, routine.laundryDaysPerWeek ?? 2)}
+        <label class="utlt-check-row"><input name="washingMachine" type="checkbox" ${routine.washingMachine ? "checked" : ""}>We use a washing machine</label>
+        ${field("cookingMealsPerDay", "How many meals are cooked at home each day?", 0, 6, routine.cookingMealsPerDay ?? 2)}
+        ${field("outdoorDays", "Days per week you water plants or wash outside", 0, 7, routine.outdoorDays ?? 0)}
+        <label>How do you usually wash dishes?<select name="dishwashing">${options([["hand", "By hand"], ["machine", "Dishwasher"], ["mixed", "Both"]], routine.dishwashing ?? (routine.dishwasher ? "machine" : "hand"))}</select></label>
+        ${field("knownLitres", "Known daily household use in litres (optional)", 1, 100000, draft?.knownLitres ?? "", false)}
+        <label>Anything else about your routine? (optional)<textarea name="note" maxlength="240" rows="2" placeholder="We run several loads on weekends.">${escapeHtml(draft?.note || "")}</textarea></label>
+        <button class="utlt-primary-button" type="submit" ${state.niroSetupBusy ? "disabled" : ""}>Suggest a starting goal</button>
+        ${state.niroSetupBusy ? '<p role="status">Niro is reviewing your answers…</p>' : ""}
+        <button class="utlt-secondary-button" type="button" data-action="niro-setup-skip">Skip setup</button>
+      </form>
+    </section>`;
+  }
+
+  function finishNiroSetup(goal) {
+    if (goal !== undefined && !state.niroGoalDraft?.editing && state.niroGoalDraft?.routine) {
+      const { routine } = state.niroGoalDraft;
+      state.survey = { ...state.survey, ...routine,
+        startedAt: state.survey?.startedAt || window.UTLTAI.indiaDate(new Date()) };
+      state.goal = goal;
+      try { localStorage.setItem(surveyKey, JSON.stringify(state.survey)); } catch { }
+      persistProfile();
+    }
+    state.niroSetupDone = true;
+    state.niroStudyStart = window.UTLTAI.indiaDate(new Date());
+    captureNiroWeek();
+    state.niroGoalDraft = null;
+    state.niroSetupBusy = false;
+    try { localStorage.setItem(niroSetupKey, JSON.stringify({ done: true, goal: state.goal, startedAt: state.niroStudyStart })); } catch { }
+    render();
   }
 
   function reviewPage() {
@@ -1079,7 +1145,7 @@
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
       ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "";
-    return `<section class="utlt-device-settings"><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button><button class="utlt-secondary-button" data-action="survey">${state.survey ? "Edit household survey" : "Start household survey"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / state.pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p>${calibrationForm()}</section>`;
+    return `<section class="utlt-device-settings"><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / state.pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p>${calibrationForm()}</section>`;
   }
   function pairPage() {
     const ready = Boolean(state.pairedDeviceId);
@@ -1094,7 +1160,6 @@
       <div class="utlt-pair-notice ${state.device.connected ? "is-ready" : ready ? "is-scanned" : ""}" role="status"><strong>${noticeTitle}</strong><span>${noticeBody}</span></div>
       ${state.qrScanning ? '<video class="utlt-qr-preview" id="utlt-qr-preview" autoplay playsinline muted aria-label="Camera view for device QR code"></video>' : ''}
       ${ready && !state.device.connected ? '<button class="utlt-primary-button utlt-connect-button" type="button" data-action="connect-ble">Allow Bluetooth for UTLT-' + state.pairedDeviceId.slice(-4).toUpperCase() + '</button>' : ''}
-      ${state.device.connected && !state.survey ? '<button class="utlt-secondary-button" type="button" data-action="survey">Set up your household (optional)</button>' : ''}
       <button class="utlt-primary-button ${ready ? "utlt-scan-again" : ""}" type="button" data-action="${state.qrScanning ? "stop-qr" : "scan-qr"}">${state.qrScanning ? "Stop scanning" : ready ? "Scan another device QR" : "Scan device QR"}</button>
       ${!ready || state.qrScanning ? '<label class="utlt-qr-photo">Or use a camera photo<input type="file" id="utlt-qr-photo" accept="image/*" capture="environment" aria-label="Take a photo of the device QR code"></label>' : ''}
       <div class="utlt-meter-diagnostics"><strong>Water conversion</strong><span>${formatCalibration(state.pulsesPerLitre)} pulses ≈ 1 litre</span>${state.rawPulseCount !== null ? `<span>Total pulses: ${state.rawPulseCount.toLocaleString("en-IN")}</span><span>Pulse speed: ${state.pulseRateHz === null ? "waiting for next packet" : `${state.pulseRateHz.toFixed(1)} per second`}</span>` : ""}<small>Adjust the provisional 160 mL conversion in Device Settings.</small></div>
@@ -1367,20 +1432,18 @@
     const translationRenderId = ++renderToken;
     if (bluefyPhone && state.pairedDeviceId && state.device.connected && !firebaseStore && state.authProvider !== "local") { continueLocally(); return; }
     if (state.pairedDeviceId && !firebaseStore && state.authProvider !== "local" && !["pair", "demo"].includes(state.screen)) { renderAuthGate(); return; }
-    if (state.device.connected && state.pairedDeviceId && !state.survey && !["survey", "pair", "demo"].includes(state.screen)) state.screen = "survey";
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
     const motionView = `${state.screen}:${state.utility}:${state.breakdown}`;
     const enterMotion = motionView !== lastMotionView;
     lastMotionView = motionView;
     const compact = state.screen === "home" && state.utility !== "Water";
-    const chat = state.screen === "assistant" && state.utility === "Water" && state.assistantMode === "ask" && state.llmReady;
+    const chat = state.screen === "assistant" && state.utility === "Water" && state.assistantMode === "ask" && state.llmReady && state.niroSetupDone;
     const content = state.screen === "home"
       ? utilityTabs() + (state.utility === "Water" ? dashboard() : utilityPreview())
       : state.screen === "help" ? helpPage()
       : state.screen === "reports" ? reportsPage()
       : state.screen === "device" ? devicePage()
       : state.screen === "account" ? accountPage()
-      : state.screen === "survey" ? surveyPage()
       : state.screen === "review" ? reviewPage()
       : state.screen === "assistant" ? assistantPage()
       : state.screen === "demo" ? window.UTLTDemo.render()
@@ -1400,9 +1463,27 @@
     translateRenderedUi(translationRenderId);
   }
 
+  // Keep seven daily totals locally even after the meter's rolling history expires.
+  function captureNiroWeek() {
+    if (!state.niroStudyStart || state.demoEnabled || state.usingDemo) return;
+    let changed = false;
+    for (const day of window.UTLTData.summarize(state.readings).daily) {
+      const index = window.UTLTNiro.firstWeekDay(day.date, state.niroStudyStart);
+      if (!day.hasData || !(index >= 0 && index < 7) || state.niroStudy.daily[day.date] === day.litres) continue;
+      state.niroStudy.daily[day.date] = day.litres;
+      changed = true;
+    }
+    if (changed) saveNiroStudy();
+  }
+
+  function saveNiroStudy() {
+    try { localStorage.setItem(niroStudyKey, JSON.stringify(state.niroStudy)); } catch { }
+  }
+
   function renderMeterUpdate() {
+    captureNiroWeek();
     if (state.screen === "device" && (state.languageMenuOpen || root.querySelector("#utlt-calibration-form:focus-within"))) return;
-    if (["survey", "review", "account", "assistant", "demo"].includes(state.screen)) return;
+    if (["review", "account", "assistant", "demo"].includes(state.screen)) return;
     if (!root.querySelector(".utlt-auth-screen")) render(true);
   }
 
@@ -1731,11 +1812,8 @@
       if (bluefyPhone && state.pairedDeviceId && !firebaseStore && state.authProvider !== "local") {
         continueLocally();
       } else if (state.pairedDeviceId && !firebaseStore && state.authProvider !== "local") {
-        state.pendingAuthScreen = "survey";
+        state.pendingAuthScreen = "home";
         renderAuthGate();
-      } else if (!state.survey) {
-        state.screen = "survey";
-        render();
       }
     } catch (error) {
       if (device.gatt?.connected) device.gatt.disconnect();
@@ -1837,6 +1915,12 @@
       render(true);
       return;
     }
+    if (action === "niro-setup-skip") { finishNiroSetup(); return; }
+    if (action === "niro-setup-edit" && state.niroGoalDraft) {
+      state.niroGoalDraft.editing = true;
+      render();
+      return;
+    }
     if (action === "niro-new") {
       state.niroMessages = [];
       state.llmQuestion = "";
@@ -1932,7 +2016,7 @@
       state.familyBusy=true; firebaseStore.getFamilyInvite(state.pendingFamilyInvite).then(async inv=>{if(!inv)throw new Error("This invite expired. Ask for a new QR code.");if(inv.ownerUid===state.uid)throw new Error("You cannot join your own family.");await firebaseStore.requestFamilyJoin(state.pendingFamilyInvite,inv);state.pendingFamilyInvite="";history.replaceState({},"",location.pathname);state.familyMessage="Request sent. The owner must approve you.";}).catch(e=>{state.familyMessage=e.message||"Could not send request.";}).finally(()=>{state.familyBusy=false;render(true);}); return;
     } else if (action === "family-approve" || action === "family-decline") {
       const req=state.familyRequests.find(x=>x.id===button.dataset.requestId);if(!req)return;firebaseStore.decideFamilyRequest(req,action==="family-approve").then(async()=>{state.familyMessage=action==="family-approve"?"Member approved.":"Request declined.";await refreshFamilyData();}).catch(e=>{state.familyMessage=e.message||"Could not update request.";}).finally(()=>render(true));return;
-    } else if (["home", "pair", "account", "device", "family", "survey", "review", "assistant", "help", "reports"].includes(action)) {
+    } else if (["home", "pair", "account", "device", "family", "review", "assistant", "help", "reports"].includes(action)) {
       state.languageMenuOpen = false;
       if (action !== "pair" && state.qrScanning) stopQrScanner();
       if (action === "family" && !firebaseStore && !bluefyPhone) {
@@ -1950,6 +2034,7 @@
   });
 
   root.addEventListener("input", (event) => {
+    if (event.target.form?.id === "niro-study-form") event.target.setCustomValidity("");
     if (event.target.form?.id === "utlt-calibration-form") event.target.form.elements.pulseRate.setCustomValidity("");
   });
 
@@ -1977,7 +2062,7 @@
   });
   async function askNiro(message) {
     const question = message.trim().slice(0, 300);
-    if (!question || state.llmBusy || !state.llmReady || state.utility !== "Water") return;
+    if (!question || state.llmBusy || !state.llmReady || !state.niroSetupDone || state.utility !== "Water") return;
     state.llmQuestion = "";
     const thread = state.niroMessages = [...state.niroMessages.slice(-18), { role: "user", text: question }];
     // Use checked meter answers before asking the optional local model.
@@ -2051,27 +2136,69 @@
       askNiro(String(new FormData(event.target).get("question") || ""));
       return;
     }
-    if (event.target.id === "utlt-survey-form") {
+    if (event.target.id === "niro-study-form") {
       event.preventDefault();
+      const study = window.UTLTNiro.studyQuestion(state, new Date(), Number(event.target.dataset.hour));
+      if (!study || study.saved || study.day !== event.target.dataset.day ||
+          study.peak.hour !== Number(event.target.dataset.hour)) return;
+      const input = event.target.elements.activity;
+      const unknown = event.submitter?.value === "unknown";
+      const answer = input.value.trim();
+      if (!unknown && !answer) {
+        input.setCustomValidity("Enter a short answer or choose I don’t remember.");
+        input.reportValidity();
+        return;
+      }
+      const labels = unknown ? [] : window.UTLTNiro.activityLabels(answer);
+      state.niroStudy.answers[study.day] = { hour: study.peak.hour, litres: study.peak.value, labels };
+      saveNiroStudy();
+      // The existing activity classifier learns only examples with one confirmed category.
+      if (labels.length === 1 && labels[0] !== "Misc" && state.survey) {
+        const times = study.peak.readings.map(item => Date.parse(item.recordedAt));
+        const recordedAt = study.peak.readings.find(item => Date.parse(item.recordedAt) === Math.min(...times)).recordedAt;
+        const session = { recordedAt, litres: study.peak.value, durationMinutes: (Math.max(...times) - Math.min(...times)) / 60000 };
+        state.corrections = [...state.corrections, { features: window.UTLTAI.features(session, state.survey), category: labels[0] }].slice(-40);
+        try { localStorage.setItem(correctionsKey, JSON.stringify(state.corrections)); } catch { }
+      }
+      render(true);
+      return;
+    }
+    if (event.target.id === "niro-onboarding-form") {
+      event.preventDefault();
+      if (state.niroSetupBusy || state.niroSetupDone) return;
       const form = new FormData(event.target);
-      state.survey = {
-        startedAt: state.survey?.startedAt || window.UTLTAI.indiaDate(new Date()),
-        people: Math.max(1, Math.min(12, Number(form.get("people")) || 1)),
-        bathrooms: Math.max(1, Math.min(8, Number(form.get("bathrooms")) || 1)),
-        waterSource: ["municipal", "tanker", "borewell", "mixed"].includes(form.get("waterSource")) ? String(form.get("waterSource")) : "municipal",
+      const routine = {
+        people: Number(form.get("people")),
+        showerStyle: String(form.get("showerStyle")),
+        typicalShowerMinutes: Number(form.get("typicalShowerMinutes")) || 8,
+        laundryDaysPerWeek: Number(form.get("laundryDaysPerWeek")),
         washingMachine: form.has("washingMachine"),
-        garden: form.has("garden"),
-        usualShowerHour: Number(form.get("usualShowerHour")) || 0,
-        showerStyle: String(form.get("showerStyle") || "mixed"),
-        typicalShowerMinutes: Math.max(1, Math.min(60, Number(form.get("typicalShowerMinutes")) || 8)),
-        laundryDaysPerWeek: Math.max(0, Math.min(7, Number(form.get("laundryDaysPerWeek")) || 0)),
-        cookingMealsPerDay: Math.max(0, Math.min(3, Number(form.get("cookingMealsPerDay")) || 0)),
-        usualBedtimeHour: Number(form.get("usualBedtimeHour")) || 0,
-        dishwasher: form.has("dishwasher")
+        cookingMealsPerDay: Number(form.get("cookingMealsPerDay")),
+        outdoorDays: Number(form.get("outdoorDays")),
+        dishwashing: String(form.get("dishwashing")),
+        dishwasher: form.get("dishwashing") !== "hand",
+        garden: Number(form.get("outdoorDays")) > 0,
       };
-      try { localStorage.setItem(surveyKey, JSON.stringify(state.survey)); } catch (_error) {  }
-      state.screen = "home";
-      render();
+      const draft = { routine, knownLitres: Number(form.get("knownLitres")) || null,
+        note: String(form.get("note") || "").trim().slice(0, 240) };
+      state.niroGoalDraft = draft;
+      state.niroSetupBusy = true;
+      if (event.submitter) event.submitter.disabled = true;
+      let focus;
+      if (draft.note) {
+        render(true);
+        try { focus = (await window.UTLTLocalLLM.routineFocus(draft.note)).focus; } catch { }
+      }
+      if (state.niroGoalDraft !== draft) return;
+      Object.assign(draft, window.UTLTNiro.startingGoal(routine, draft.knownLitres, focus, draft.note));
+      state.niroSetupBusy = false;
+      if (state.screen === "assistant") render();
+      return;
+    }
+    if (event.target.id === "niro-goal-form") {
+      event.preventDefault();
+      const goal = Number(new FormData(event.target).get("goal"));
+      if (Number.isInteger(goal) && goal >= 1 && goal <= 100000) finishNiroSetup(goal);
       return;
     }
     if (event.target.id === "utlt-review-form") {
@@ -2255,14 +2382,14 @@
   document.addEventListener("visibilitychange", () => {
     if (document.visibilityState === "visible") {
       tryAutoConnectBluetooth();
-      if (state.screen === "assistant" && state.assistantMode === "today") render(true);
+      if (state.screen === "assistant" && state.assistantMode === "today" && !root.querySelector("#niro-study-form:focus-within")) render(true);
     }
   });
   setInterval(() => {
     if (document.visibilityState === "visible") tryAutoConnectBluetooth();
   }, 15000);
   setInterval(() => {
-    if (document.visibilityState === "visible" && state.screen === "assistant" && state.assistantMode === "today") render(true);
+    if (document.visibilityState === "visible" && state.screen === "assistant" && state.assistantMode === "today" && !root.querySelector("#niro-study-form:focus-within")) render(true);
   }, 60000);
   refreshWaterBridge();
   setInterval(refreshWaterBridge, 5000);

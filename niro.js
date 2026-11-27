@@ -115,6 +115,19 @@
   // Check specific intents before the generic chart or table request.
   function answer(question, state) {
     const text = question.toLowerCase();
+    if (/what.*(spike|peak)|activity.*(spike|peak)|what.*water.*used for/.test(text)) return learnedActivity(state);
+    if (/tomorrow|next week|typical day|first.week forecast/.test(text)) {
+      const outlook = studyForecast(state);
+      if (!Number.isFinite(outlook?.typical)) return { text: "The first-week forecast needs at least three recorded days and opens after your first week." };
+      const isWeek = /next week/.test(text);
+      return {
+        text: `Around ${number(outlook.typical * (isWeek ? 7 : 1))} L ${isWeek ? "over seven days" : "for a typical day"}, based on ${outlook.days.length} recorded days in your first week.`,
+        chart: { title: "First-week readings", key: "Day", rows: outlook.days.map(([day, value]) => ({
+          label: dayFormat.format(new Date(day)), value,
+        })) },
+        table: /\btable\b/.test(text),
+      };
+    }
     let kind;
     if (/leak|continuous|running water/.test(text)) kind = "leak";
     else if (/forecast|projection|predict|evening|end of (the )?day|8 ?p\.?m|goal/.test(text)) kind = "forecast";
@@ -138,5 +151,142 @@
       : kind === "trend" ? ". Days without a reading appear as gaps." : ". Here’s today’s split.";
     return { text: source + detail, chart, table: /\btable\b/.test(text) };
   }
-  window.UTLTNiro = Object.freeze({ outline, avatar, wave, summary, answer, figures });
+  // Routine allowances are rough planning inputs. A known total takes priority.
+  function startingGoal(routine, knownLitres, focus, note) {
+    const shower = routine.typicalShowerMinutes * 8;
+    const bath = { bucket: 20, shower, mixed: (20 + shower) / 2 }[routine.showerStyle];
+    const allowances = {
+      bathing: routine.people * bath,
+      laundry: routine.laundryDaysPerWeek * (routine.washingMachine ? 55 : 35) / 7,
+      kitchen: routine.cookingMealsPerDay * (routine.dishwasher ? 8 : 12),
+      outdoors: routine.outdoorDays * 30 / 7,
+    };
+    const estimated = routine.people * 35 + Object.values(allowances).reduce((sum, litres) => sum + litres, 0);
+    const tips = {
+      bathing: "Check how much a normal shower or bucket bath uses before adjusting your goal.",
+      laundry: "Compare laundry days with other days before adjusting your goal.",
+      kitchen: "Try tracking several cooking days before adjusting your goal.",
+      outdoors: "Compare watering days with other days before adjusting your goal.",
+    };
+    // A single explicit activity is stronger evidence than an ambiguous model label.
+    const keywords = { bathing: /\b(shower|bath|bathing)\b/i, laundry: /\b(laundry|washing machine)\b/i,
+      kitchen: /\b(cooking|dishes|dishwasher)\b/i, outdoors: /\b(garden|watering|hose)\b/i };
+    const explicit = Object.keys(keywords).filter(activity => keywords[activity].test(note));
+    const selected = explicit.length === 1 ? explicit[0] : focus;
+    const largest = Object.keys(allowances).reduce((a,b) => allowances[a] >= allowances[b] ? a : b);
+    return {
+      goal: knownLitres || Math.max(10, Math.ceil(estimated / 10) * 10),
+      reason: knownLitres
+        ? "I used the typical daily total you entered."
+        : `I estimated ${Math.round(estimated)} L/day from your household size, bathing, laundry, meals and outdoor use. Actual use varies.`,
+      tip: Object.hasOwn(tips, selected) ? tips[selected] : tips[largest],
+    };
+  }
+
+  const dayMs = 86400000;
+  const firstWeekDay = (date, start) => (Date.parse(date) - Date.parse(start)) / dayMs;
+  const activityPatterns = {
+    "Bath": /\b(shower\w*|bath\w*|bathe\w*)\b/i,
+    "Food/Drink": /\b([cv]ook\w*|kitchen|drink\w*|food|meals?)\b/i,
+    "Housework": /\b(laundry|dishes|dishwasher|wash\w* clothes|clean\w*|mop\w*|garden\w*|water\w* plants)\b/i,
+  };
+  function activityLabels(answer) {
+    if (/^(?:i )?(?:do not|don['’]?t|can['’]?t|cannot) (?:remember|recall|know)\b|^not sure\b/i.test(answer)) return [];
+    const labels = Object.keys(activityPatterns).filter(label => activityPatterns[label].test(answer));
+    return labels.length ? labels : ["Misc"];
+  }
+
+  // Use only finished hours. Gaps stay blank and each day asks about at most one peak.
+  function studyQuestion(state, now = new Date(), selectedHour) {
+    const day = window.UTLTAI.indiaDate(now);
+    const dayIndex = firstWeekDay(day, state.niroStudyStart);
+    if (!state.niroStudyStart || !(dayIndex >= 0 && dayIndex < 7)) return null;
+    return observedPeak(state, now, selectedHour);
+  }
+
+  function observedPeak(state, now, selectedHour) {
+    if (state.usingDemo || state.demoEnabled) return null;
+    const day = window.UTLTAI.indiaDate(now);
+    const start = Date.parse(day + "T00:00:00+05:30");
+    const hourMs = 3600000;
+    const hours = Array.from({length: 24}, (_, hour) => ({hour, value: null, readings: []}));
+    state.readings.forEach(reading => {
+      const hour = Math.floor((Date.parse(reading.recordedAt) - start) / hourMs);
+      if (!hours[hour] || start + (hour + 1) * hourMs > now.getTime() || !Number.isFinite(reading.litres) || reading.litres <= 0) return;
+      hours[hour].value = (hours[hour].value || 0) + reading.litres;
+      hours[hour].readings.push(reading);
+    });
+    const saved = state.niroStudy.answers[day];
+    const peak = hours[saved?.hour ?? selectedHour] || hours.reduce((highest, hour) => hour.value > highest.value ? hour : highest, hours[0]);
+    if (!peak?.value || (!saved && (peak.value < 3 || peak.readings.every(item => item.verifiedCategory)))) return null;
+    return {day, hours, peak, saved};
+  }
+
+  // Learn combinations without turning overlapping activities into invented litre splits.
+  function learnedActivity(state) {
+    const observed = observedPeak(state, new Date());
+    if (!observed) return { text: "There isn’t a finished water-use interval to compare yet." };
+    if (observed.saved?.labels.length) return { text: "You labeled this interval: " + observed.saved.labels.join(" + ") + "." };
+    const { hour, value } = observed.peak;
+    const matches = Object.entries(state.niroStudy.answers).filter(([day, sample]) =>
+      day !== observed.day && Math.abs(sample.hour - hour) <= 1 && sample.labels.length &&
+      !sample.labels.includes("Misc") && Math.abs(sample.litres - value) <= value * 0.5);
+    const counts = {};
+    matches.forEach(([, sample]) => {
+      const labels = sample.labels.join(" + ");
+      counts[labels] = (counts[labels] || 0) + 1;
+    });
+    const winner = Object.entries(counts).sort((a,b) => b[1] - a[1])[0];
+    return { text: winner && winner[1] >= 2 && winner[1] > matches.length / 2
+      ? `Similar intervals were labeled ${winner[0]}. That’s a possibility for this interval.`
+      : "I don’t have enough similar confirmed examples to suggest an activity for this interval." };
+  }
+
+  function studyForecast(state, now = new Date()) {
+    const today = window.UTLTAI.indiaDate(now);
+    const dayIndex = firstWeekDay(today, state.niroStudyStart);
+    if (!(dayIndex >= 7) || state.demoEnabled) return null;
+    const days = Object.entries(state.niroStudy.daily).sort(([a], [b]) => a.localeCompare(b));
+    if (days.length < 3) return {days};
+    const ordered = days.map(([, value]) => value).sort((a,b) => a-b);
+    const mid = Math.floor(ordered.length / 2);
+    const typical = ordered.length % 2 ? ordered[mid] : (ordered[mid - 1] + ordered[mid]) / 2;
+    const counts = {};
+    Object.values(state.niroStudy.answers).forEach(({ labels }) => {
+      labels.filter(label => label !== "Misc").forEach(label => { counts[label] = (counts[label] || 0) + 1; });
+    });
+    return { days, typical, low: ordered[0], high: ordered.at(-1),
+      recurring: Object.keys(counts).filter(label => counts[label] >= 2) };
+  }
+
+  function studyCard(state) {
+    const question = studyQuestion(state);
+    if (question) {
+      const {day, hours, peak, saved} = question;
+      const max = Math.max(...hours.map(hour => hour.value || 0));
+      const clock = hour => String(hour).padStart(2, "0") + ":00";
+      const interval = clock(peak.hour) + "–" + clock(peak.hour + 1);
+      const bars = hours.map(({hour, value}) => `<i class="${hour === peak.hour ? "is-highlighted" : ""}" style="--bar:${(value || 0) / max * 100}%"></i>`).join("");
+      const heading = `<h2>What was this water used for?</h2><p><strong>${interval} · ${number(peak.value)} L</strong> recorded today.</p>`;
+      return `<section class="niro-study"><p class="utlt-eyebrow">NIRO · FIRST WEEK</p>${heading}
+        <div class="niro-study-plot" role="img" aria-label="Hourly water use. Highlighted interval ${interval}, ${number(peak.value)} litres.">${bars}</div>
+        <div class="niro-study-axis" aria-hidden="true"><span>00:00</span><span>12:00</span><span>24:00</span></div>
+        ${saved ? `<p role="status">${saved.labels.length ? "Saved: " + esc(saved.labels.join(" + ")) : "Skipped. Niro won’t guess the activity."}</p>` :
+          `<form id="niro-study-form" data-day="${day}" data-hour="${peak.hour}">
+            <label>What were you doing around ${interval}?<input name="activity" type="text" maxlength="160" placeholder="Showering and cooking"></label>
+            <div><button type="submit" class="utlt-primary-button" value="answer">Save answer</button>
+            <button type="submit" class="utlt-secondary-button" value="unknown" formnovalidate>I don’t remember</button></div>
+          </form>`}
+      </section>`;
+    }
+    const forecast = studyForecast(state);
+    if (!forecast) return "";
+    if (!Number.isFinite(forecast.typical)) return `<section class="niro-study"><h2>First-week forecast</h2><p>I recorded ${forecast.days.length} days during your first week. I need at least three to show a forecast.</p></section>`;
+    return `<section class="niro-study"><h2>First-week forecast</h2>
+      <p>About <strong>${number(forecast.typical)} L</strong> on a typical day. The ${forecast.days.length} recorded days ranged from ${number(forecast.low)} to ${number(forecast.high)} L.</p>
+      ${forecast.recurring.length ? `<p>Activities you confirmed more than once: ${esc(forecast.recurring.join(", "))}.</p>` : ""}
+    </section>`;
+  }
+
+  window.UTLTNiro = Object.freeze({ outline, avatar, wave, summary, answer, figures, startingGoal, firstWeekDay, activityLabels, studyQuestion, studyCard });
 })();

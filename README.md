@@ -6,7 +6,7 @@ UTLT.ai is a HridhAI 2026 team project. The current build measures water in a re
 
 - [Live app](https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/) and [page map](https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/screens.html). The map lists all 23 screens and subviews and is also linked from **Account → Help & support**.
 - For live readings, pair the ESP32 in **Devices**. For a walkthrough without hardware, use **Explore with demo data**, or open **Help & support → Try the app demos** for Leak detection, Water trends and AI water coach.
-- Open **Niro** to ask for a forecast, water-use split, chart or table. Tap **Download to use** to open chat. The SmolLM2 model file is 137 MB and runs in your browser.
+- Open **Niro** to ask for a forecast, water-use split, chart or table. Tap **Download to use** to open chat. The SmolLM2 model file is 137 MB and runs in your browser. On first use, Niro asks about your routine and suggests an editable water goal. This is the only onboarding questionnaire.
 - Find language, appearance and help in **Account**. Meter calibration stays in **Devices**. The usage ring blends toward red near the goal and the water card fills with measured use. Gas and Electricity show empty rings and unavailable reporting until monitoring is enabled. Google Home and Apple Home remain future integrations.
 
 ## Team and credits
@@ -41,7 +41,7 @@ The GitHub Pages app is the phone interface. The ESP32 runs `esp32/main.py` and 
 4. On the first connection, tap **Allow Bluetooth** and choose the matching UTLT device in the chooser. The chooser is filtered to that device name. After permission is granted, the app remembers that browser device and tries to reconnect automatically when opened again.
 5. The dashboard reads the meter every two seconds. The provisional conversion is **3,000 pulses per litre**. The newer 10–14 pulses/s and earlier 38–41 s to fill 160 mL imply about 2,375–3,588 pulses/L; using their midpoints gives 2,963 pulses/L, rounded to 3,000. The outer combinations imply roughly **−20.8% to +19.6%** indicated-volume error at this slow demo flow. These are unpaired ranges, not a measured accuracy specification, and error may be larger at other flows. Stored device readings are rescaled when the browser updates from the older conversion. Pump off should show no increase; pump on should make the total rise. In a recirculating demo, each lap is counted as simulated usage.
 
-Chrome camera and Bluetooth permissions must be allowed. The scanned device ID is remembered on that phone. A new device requires one tap after scanning to open Chrome's Bluetooth chooser; scanning the QR alone cannot summon an Android OS pairing prompt from a website. Previously granted devices reconnect automatically when the app is visible and Chrome still has permission. Keep the page open for live readings. On iPhone Bluefy, pairing now opens the household survey directly, without Google sign-in. The profile and readings stay in Bluefy on that phone; there is no Firebase account or Family sharing. Android Chrome still uses Google sign-in after pairing. For a sample dashboard before pairing, use **Devices → Explore with demo data**; live data turns demo mode off automatically. The QR contains the ESP32's public ID, **not** a Wi-Fi password. It identifies the device in the browser but does not provide secure ownership authentication; that is future product work.
+Chrome camera and Bluetooth permissions must be allowed. The scanned device ID is remembered on that phone. A new device requires one tap after scanning to open Chrome's Bluetooth chooser; scanning the QR alone cannot summon an Android OS pairing prompt from a website. Previously granted devices reconnect automatically when the app is visible and Chrome still has permission. Keep the page open for live readings. On iPhone Bluefy, pairing opens Home without Google sign-in. The profile and readings stay in Bluefy on that phone; there is no Firebase account or Family sharing. Android Chrome still uses Google sign-in after pairing. For a sample dashboard before pairing, use **Devices → Explore with demo data**; live data turns demo mode off automatically. The QR contains the ESP32's public ID, **not** a Wi-Fi password. It identifies the device in the browser but does not provide secure ownership authentication; that is future product work.
 
 The mini flow sensor is specified for 0.5–5 L/min. The app ignores intervals above 6 L/min and shows a sensor warning instead of adding impossible litres. If readings rose falsely during a demo, use **Devices → Pair a device → Clear saved water readings**, then reconnect. If the warning appears only while the pump is on, test the pump on a separate charger or power bank while keeping the ESP32 on its own 5 V USB supply. Check the sensor red/black/yellow wiring, converter HV/LV rails, and common ground; an app filter does not repair a noisy electrical signal.
 
@@ -103,7 +103,7 @@ Readings and survey answers are local to the phone. A single flow sensor cannot 
 
 Water Intelligence compares today's use so far with the median at the same local time on at least three earlier measured days. It excludes days without readings rather than treating them as zero. Niro’s Today and Recent use cards, charts and common answers use app arithmetic. General explanations can use the optional downloadable model. During a live Bluetooth session, 16 minutes of continuously detected flow prompts a check of taps and the pump; it cannot diagnose a leak. Demo readings are labeled and do not include events later than the current time.
 
-The **Recent use** mode reports the average and goal count from completed measured days, with a trend after six days. Bluefy creates a phone-only profile automatically after pairing; Android uses Google sign-in. The household survey follows either route. Live meter updates no longer redraw its form while a person is typing.
+The **Recent use** mode reports the average and goal count from completed measured days, with a trend after six days. Bluefy creates a phone-only profile automatically after pairing; Android uses Google sign-in. Niro onboarding runs after the first model download and is independent of pairing. Live meter updates no longer redraw its form while a person is typing.
 
 The printable enclosure files and adjustable source are in [enclosure/](enclosure/README.md). The flow sensor mounts outside the dry ESP32 tray; verify physical dimensions before printing.
 
@@ -118,6 +118,12 @@ To unlock chat, tap **Download to use**. A browser worker runs the 8-bit SmolLM2
 The quick tour adapts Armaan’s standalone app. His original assistant sent chat through Render to an OpenAI-compatible Supabase function. This build uses the local model described above.
 
 For developers, [`niro.js`](niro.js) holds the avatar, summary selection and chart/table rendering. [`niro.css`](niro.css) controls the avatar motion and UI theme. [`llm-worker.js`](llm-worker.js) runs the optional model. [`screens.html`](screens.html) contains the page map.
+
+### First-week learning
+
+For seven calendar days after setup, Niro can highlight a high-use hour in water readings and ask what happened. The answer is converted to local activity labels. One confirmed category helps tune the existing classifier. Combined labels are learned from similar hours and volumes without splitting their litres. **I don’t remember** skips the example. Questions and answers are part of setup and review, while chat transcripts stay in memory.
+
+After the week ends, Niro shows a typical-day forecast from the median of at least three recorded days and shows the observed range. Gaps in meter coverage can affect the result.
 
 ## Other modes and cloud features
 
