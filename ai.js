@@ -129,30 +129,52 @@
     const tone = Math.abs(difference) < 5 || percent === null || percent < 15 ? "usual" : difference > 0 ? "higher" : "lower";
     return { ready: true, today: current.soFar, baseline, difference, percent, tone, measuredDays: previous.length, clock };
   }
-  function dailyForecast(readings, goal, now = new Date()) {
-    const day = indiaDate(now);
+  function median(values) {
+    const sorted = [...values].sort((a, b) => a - b);
+    const middle = Math.floor(sorted.length / 2);
+    return sorted.length % 2 ? sorted[middle] : (sorted[middle - 1] + sorted[middle]) / 2;
+  }
+
+  // Add the typical remaining use from the same window on earlier measured days.
+  function dailyForecast(readings, goal, now = new Date(), cutoffHour = 20) {
+    const dayMs = 86400000;
+    const hourMs = 3600000;
     const nowMs = now.getTime();
-    const eveningMs = Date.parse(`${day}T20:00:00+05:30`);
-    const today = readings.filter(item => item?.recordedAt?.startsWith(day) &&
-      Number.isFinite(item.litres) && item.litres > 0 &&
-      Number.isFinite(Date.parse(item.recordedAt)) && Date.parse(item.recordedAt) <= nowMs)
-      .sort((a, b) => Date.parse(a.recordedAt) - Date.parse(b.recordedAt));
-    if (!today.length) return { stage: "waiting" };
-    const firstMs = Date.parse(today[0].recordedAt);
-    const measured = today.reduce((sum, item) => sum + item.litres, 0);
-    const elapsedHours = Math.max(0, (nowMs - firstMs) / 3600000);
-    const feedbackAt = new Date(firstMs + 6 * 3600000);
-    const feedbackReady = elapsedHours >= 6;
+    const start = Date.parse(`${indiaDate(now)}T00:00:00+05:30`);
+    const cutoff = cutoffHour * hourMs;
+    const elapsed = nowMs - start;
+    const past = new Map();
+    let measured = 0, first = Infinity, byCutoff = 0;
+    for (const item of readings) {
+      if (!item?.recordedAt || !Number.isFinite(item.litres) || item.litres < 0) continue;
+      const timestamp = Date.parse(item.recordedAt);
+      if (!Number.isFinite(timestamp) || timestamp > nowMs || timestamp < start - 7 * dayMs) continue;
+      if (timestamp >= start) {
+        if (!item.litres) continue;
+        measured += item.litres;
+        first = Math.min(first, timestamp);
+        if (timestamp - start <= cutoff) byCutoff += item.litres;
+      } else {
+        const dayOffset = Math.floor((timestamp - start) / dayMs);
+        const time = timestamp - start - dayOffset * dayMs;
+        const usage = past.get(dayOffset) || { soFar: 0, remaining: 0 };
+        if (time <= elapsed) usage.soFar += item.litres;
+        else if (time <= cutoff) usage.remaining += item.litres;
+        past.set(dayOffset, usage);
+      }
+    }
+    if (!measured) return { stage: "waiting" };
+    const elapsedHours = (nowMs - first) / hourMs;
     const validGoal = Math.max(1, Number(goal) || 350);
-    if (nowMs >= eveningMs) return { stage: feedbackReady ? "feedback" : "tracking", measured,
-      feedbackAt, elapsedHours, goal: validGoal, eveningPassed: true,
-      byEvening: firstMs > eveningMs ? null : today.filter(item => Date.parse(item.recordedAt) <= eveningMs)
-        .reduce((sum, item) => sum + item.litres, 0) };
-    if (elapsedHours < 0.5) return { stage: "tracking", measured, feedbackAt, elapsedHours, goal: validGoal };
-    const projected = measured + measured / elapsedHours * ((eveningMs - nowMs) / 3600000);
-    return { stage: feedbackReady ? "feedback" : "tracking", measured, projected,
-      feedbackAt, elapsedHours, goal: validGoal, eveningPassed: false,
-      tone: projected > validGoal ? "over" : "within" };
+    const result = { stage: elapsedHours >= 6 ? "feedback" : "tracking", measured, elapsedHours,
+      feedbackAt: new Date(first + 6 * hourMs), goal: validGoal, historyDays: past.size };
+    if (elapsed >= cutoff) return { ...result, eveningPassed: true, byEvening: first > start + cutoff ? null : byCutoff };
+    if (past.size < 3) return result;
+    const profile = [...past.values()];
+    const typicalSoFar = median(profile.map(day => day.soFar));
+    const typicalRemaining = median(profile.map(day => day.remaining));
+    const projected = measured + typicalRemaining;
+    return { ...result, projected, typicalSoFar, typicalRemaining, tone: projected > validGoal ? "over" : "within" };
   }
 
   const ready = fetch("./model.json").then(response => {

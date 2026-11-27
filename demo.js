@@ -5,8 +5,10 @@
   const trendBreakdown = [174, 64, 87, 40];
   const categories = ["Bath", "Food/Drink", "Housework", "Misc"];
   const used = 240;
-  const hoursMeasured = 6;
-  const projected = Math.round(used / hoursMeasured * 10);
+  const coachHistory = [[190, 140, 20], [200, 160, 30], [210, 180, 40]];
+  const typicalSoFar = coachHistory[1][0];
+  const typicalRemaining = coachHistory[1][1];
+  const projected = used + typicalRemaining;
   const coachBreakdown = [120, 40, 54, 26];
   const mean = values => Math.round(values.reduce((sum, day) => sum + day, 0) / values.length);
   const uses = ["Bath", "Food and drink", "Housework", "Unknown"];
@@ -83,7 +85,12 @@
     const today = volumes.map((litres, i) => ({
       recordedAt: `${day}T${times[i]}:00+05:30`, litres, category: categories[i],
     }));
-    const previous = mode === "trends" ? week.slice(0, -1).map((litres, index) => {
+    const previous = mode === "coach" ? coachHistory.flatMap((volumes, index) => {
+      const date = new Date(Date.parse(day) - (coachHistory.length - index) * 86400000).toISOString().slice(0, 10);
+      return volumes.map((litres, part) => ({
+        recordedAt: `${date}T${["16:00", "19:30", "22:00"][part]}:00+05:30`, litres, category: "Misc",
+      }));
+    }) : mode === "trends" ? week.slice(0, -1).map((litres, index) => {
       const date = new Date(Date.parse(day) - (6 - index) * 86400000).toISOString().slice(0, 10);
       return { recordedAt: `${date}T16:00:00+05:30`, litres, category: "Misc" };
     }) : [];
@@ -106,8 +113,10 @@
       <div class="demo-layout${integrated ? " is-integrated" : ""}">
         <div class="demo-result">
           <div class="demo-metric">${d.metric}</div>
-          <h3>${d.title}</h3><p>${d.copy}</p>
-          ${integrated ? "" : d.graph || ""}${d.detail ? `<p class="demo-advice">${d.detail}</p>` : ""}
+          <h3>${d.title}</h3><p>${integrated && mode === "coach"
+            ? `At 4 pm the sample home has used ${used} L. Past days typically added ${typicalRemaining} L between 4 and 8 pm.`
+            : d.copy}</p>
+          ${integrated ? "" : d.graph || ""}${d.detail ? `<p class="demo-advice">${integrated && mode === "coach" ? "Try turning off the tap while soaping or scrubbing. The estimate uses previous days." : d.detail}</p>` : ""}
           <button type="button" class="demo-step" data-demo-step>${d.action}</button>
         </div>
         ${integrated ? "" : breakup(d.uses, d.chartTitle)}
@@ -141,6 +150,6 @@
     replacement.dispatchEvent(new CustomEvent("utlt-demo-change", { bubbles: true, detail: { selector } }));
   });
 
-  window.UTLTDemo = { render, dashboardData, coach: { goal, used, projected, hoursMeasured,
+  window.UTLTDemo = { render, dashboardData, coach: { goal, used, projected, typicalSoFar, typicalRemaining,
     breakdown: uses.map((label, index) => ({ label, value: coachBreakdown[index] })) } };
 })();

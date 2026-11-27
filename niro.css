@@ -217,3 +217,18 @@
 .niro-demo-chat form button {min-height:44px;padding:7px 12px}
 
 .utlt-dashboard .demo-layout.is-integrated {grid-template-columns:minmax(0,1fr)}
+
+/* Embedded demos follow the app theme. The presentation retains its own styles. */
+.utlt-dashboard > .utlt-demo-lab {
+  --demo-accent:var(--utility-button);
+  --demo-surface:var(--utlt-panel);
+  background:var(--utlt-card);color:var(--utlt-text);border-color:var(--utlt-border);
+}
+.utlt-dashboard > .utlt-demo-lab[data-tone="alert"] .demo-metric {color:var(--utlt-bad)}
+.utlt-dashboard .demo-kicker,.utlt-dashboard .demo-result p {color:var(--utlt-muted)}
+.utlt-dashboard .utlt-demo-lab button {min-height:44px;border-color:var(--utlt-border);color:var(--utlt-text)}
+.utlt-dashboard .utlt-demo-lab button[aria-pressed="true"],.utlt-dashboard .utlt-demo-lab .demo-step {
+  border-color:var(--demo-accent);color:var(--utility-ink);
+}
+.utlt-dashboard .utlt-demo-lab button:focus-visible {outline-color:var(--utlt-accent)}
+.utlt-dashboard .demo-metric {color:var(--utlt-accent)}

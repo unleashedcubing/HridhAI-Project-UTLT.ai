@@ -40,17 +40,10 @@
     waveTimers.set(button, window.setTimeout(() => button.classList.remove("is-waving"), 1000));
   }
 
-  // Niro extends the projection to midnight while Today keeps the shared forecast.
   function facts(state, targetHour = 24, summary = window.UTLTData.summarize(state.readings)) {
     const now = state.demoScenario?.now ?? new Date();
     const goal = state.demoScenario?.goal ?? Math.max(1, Number(state.goal) || 350);
-    const forecast = window.UTLTAI.dailyForecast(state.readings, goal, now);
-    if (targetHour === 24 && forecast.elapsedHours >= 0.5) {
-      const midnight = Date.parse(window.UTLTAI.indiaDate(now) + "T00:00:00+05:30") + 86400000;
-      forecast.projected = forecast.measured * (1 + Math.max(0, midnight - now.getTime()) / 3600000 / forecast.elapsedHours);
-      forecast.tone = forecast.projected > forecast.goal ? "over" : "within";
-      delete forecast.byEvening;
-    }
+    const forecast = window.UTLTAI.dailyForecast(state.readings, goal, now, targetHour);
     return { ...summary, today: Boolean(summary.daily.at(-1)?.hasData),
       forecast,
       cutoff: targetHour === 20 ? "8 pm" : "midnight",
@@ -76,9 +69,11 @@
       const estimated = Number.isFinite(projected);
       const value = estimated ? projected : byEvening;
       const rows = [{ label: "Measured today", value: data.used }];
+      if (estimated) rows.push({ label: "Typical use by this time", value: data.forecast.typicalSoFar },
+        { label: "Typical use from now to " + data.cutoff, value: data.forecast.typicalRemaining });
       if (Number.isFinite(value)) rows.push({ label: (estimated ? "Estimated by " : "Recorded by ") + data.cutoff, value });
       rows.push({ label: "Daily goal", value: data.goal });
-      return { title: "End-of-day outlook", key: "Reading", rows, note: "The projection assumes the pace continues. Gaps can affect it." };
+      return { title: "End-of-day outlook", key: "Reading", rows, note: "The estimate adds today’s use to the typical remaining use on previous days. Gaps can affect it." };
     }
     return null;
   }
@@ -104,7 +99,7 @@
       return { title:"Ready for your first reading", text:"Connect your monitor or try sample readings to see what Niro can explain." };
     }
     if (f.projected !== undefined && (f.tone === "over" || !data.pace.ready)) {
-      return { title:f.tone === "over" ? "You may go over your goal" : "End-of-day outlook", text:`At this pace, you could use about ${number(f.projected)} L by ${data.cutoff}.`, chart:"forecast", mood:f.tone === "over" ? "curious" : "happy" };
+      return { title:f.tone === "over" ? "You may go over your goal" : "End-of-day outlook", text:`You’ve used ${number(f.measured)} L. Past days typically added ${number(f.typicalRemaining)} L from this time to ${data.cutoff}, so the estimate is ${number(f.projected)} L by ${data.cutoff}.`, chart:"forecast", mood:f.tone === "over" ? "curious" : "happy" };
     }
     if (data.pace.ready && data.pace.tone !== "usual") return { title:"Today’s pace has changed", text:`You’ve used ${number(data.pace.today)} L by ${data.pace.clock}, compared with your usual ${number(data.pace.baseline)} L by then.`, chart:"trend", mood:"curious" };
     return { title:"When you used water today", text:"See which part of the day used the most water.", chart:"time", mood:"happy" };
@@ -168,11 +163,11 @@
     const explicitCutoff = /8\s*p\.?m|evening/i.test(text);
     const priorReadings = /\b(previous|past|historical|earlier)\b.*\b(readings|results|data|usage|days|totals)\b/.test(text);
     if (/\bfirst.week forecast\b/.test(text)) return historicalAnswer(text, state, true);
-    if (!explicitCutoff && (expectsUsage.test(text) || /\b(tomorrow|next week|typical day)\b/.test(text) ||
-        (priorReadings && (/\b(estimate\w*|forecast\w*|predict\w*|today)\b/.test(text) || /^(?:and )?(?:based on|from|using)\b/.test(text))))) return historicalAnswer(text, state);
+    if (!explicitCutoff && (/\b(tomorrow|next week|typical day)\b/.test(text) ||
+        (priorReadings && /^(?:and )?(?:based on|from|using)\b/.test(text) && !/\btoday\b/.test(text)))) return historicalAnswer(text, state);
     let kind;
     if (/leak|continuous|running water/.test(text)) kind = "leak";
-    else if (/forecast|projection|predict|estimate|evening|end of (the )?day|8 ?p\.?m|goal/.test(text)) kind = "forecast";
+    else if (expectsUsage.test(text) || /forecast|projection|predict|estimate|evening|end of (the )?day|8 ?p\.?m|goal/.test(text)) kind = "forecast";
     else if (/by (time|hour)|time of day|when.*(used|use)|morning|afternoon/.test(text)) kind = "time";
     else if (/split|breakdown|categor|activit|bathing|laundry/.test(text)) kind = "use";
     else if (/trend|week|day.by.day|history|daily totals|last (\d+|seven) days/.test(text)) kind = "trend";
@@ -183,13 +178,18 @@
       data.demo ? "Sample readings cannot tell you whether your home has a leak. Try Leak detection in the demos." :
         state.device.connected ? "There’s no sustained-flow alert right now. The meter cannot rule out a leak." :
           "Connect your meter to check for sustained flow." };
-    if (kind === "forecast" && !explicitCutoff && !Number.isFinite(data.forecast.projected)) return historicalAnswer(text, state);
+    if (kind === "forecast" && !Number.isFinite(data.forecast.projected)) {
+      if (!explicitCutoff && data.forecast.stage === "waiting") return historicalAnswer(text, state);
+      if (!data.forecast.eveningPassed) return { text: data.forecast.stage === "waiting"
+        ? "I need a reading from today to estimate use by 8 pm."
+        : `I need three previous days of readings to estimate the rest of today. I have ${data.forecast.historyDays} so far.` };
+    }
     const chart = visual(data,kind);
     if (!chart || !chart.rows.some(row => Number.isFinite(row.value))) return { text: "There aren’t readings for that view yet." };
     const source = data.demo ? "From the sample readings" : "From your meter readings";
     const f = data.forecast;
     const detail = kind === "forecast"
-      ? Number.isFinite(f.projected) ? `: about ${number(f.projected)} L by ${data.cutoff} if the pace continues.`
+      ? Number.isFinite(f.projected) ? `: about ${number(f.projected)} L by ${data.cutoff}. I added today’s ${number(f.measured)} L to the ${number(f.typicalRemaining)} L typically used after this time across ${f.historyDays} previous days.`
         : Number.isFinite(f.byEvening) ? `: ${number(f.byEvening)} L recorded by ${data.cutoff}.` : ": there’s no end-of-day estimate yet."
       : kind === "trend" ? ". Days without a reading appear as gaps." : ". Here’s today’s split.";
     return { text: source + detail, chart, table: /\btable\b/.test(text) };
@@ -337,7 +337,7 @@
 
   // The coach answers from its own 4 pm scenario, separate from the dashboard sample.
   function coachAnswer(question) {
-    const { goal, used, projected, hoursMeasured, breakdown } = window.UTLTDemo.coach;
+    const { goal, used, projected, breakdown, typicalSoFar, typicalRemaining } = window.UTLTDemo.coach;
     const text = question.toLowerCase();
     const meter = meterExplanation(text);
     if (meter) return meter;
@@ -348,9 +348,10 @@
       chart: { title: "Sample use at 4 pm", key: "Activity", rows: breakdown }, table: wantsTable,
     };
     if (expectsUsage.test(text) || /forecast|project|predict|estimate|end of|8\s*p|pace|per hour|rate|why.*400/.test(text) || visual) return {
-      text: `The sample home used ${used} L in ${hoursMeasured} hours. At ${used / hoursMeasured} L/hour, four more hours would bring it to ${projected} L by 8 pm, ${projected - goal} L over the goal.`,
+      text: `The sample home used ${used} L by 4 pm, versus a typical ${typicalSoFar} L by then. Past days typically added ${typicalRemaining} L between 4 and 8 pm. That gives an estimate of ${projected} L by 8 pm, ${projected - goal} L over the goal.`,
       chart: visual ? { title: "Sample outlook", key: "Reading", rows: [
-        { label: "Used at 4 pm", value: used }, { label: "Daily goal", value: goal }, { label: "Estimated by 8 pm", value: projected },
+        { label: "Used at 4 pm", value: used }, { label: "Typical use by 4 pm", value: typicalSoFar },
+        { label: "Typical use from 4 to 8 pm", value: typicalRemaining }, { label: "Daily goal", value: goal }, { label: "Estimated by 8 pm", value: projected },
       ] } : null, table: wantsTable,
     };
     if (/leak|running|continuous/.test(text)) return { text: "This coach scenario shows a high pace of use. Switch to Leak detection to see the continuous-flow alert." };

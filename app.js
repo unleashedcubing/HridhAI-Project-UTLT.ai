@@ -865,20 +865,22 @@
   }
 
   function dailyFeedbackCard() {
-    const forecast = window.UTLTAI.dailyForecast(state.readings, waterGoal(), waterClock());
+    const cutoffHour = state.demoEnabled && state.demoMode === "coach" ? 20 : 24;
+    const cutoff = cutoffHour === 20 ? "8 pm" : "midnight";
+    const forecast = window.UTLTAI.dailyForecast(state.readings, waterGoal(), waterClock(), cutoffHour);
     const source = state.demoEnabled ? "Sample data · not your household" : "Stored meter readings · disconnected hours may be missing";
     if (forecast.stage === "waiting") return `<div class="utlt-daily-feedback"><p class="utlt-eyebrow">TODAY'S OUTLOOK</p><h2>Waiting for the first use</h2><p>UTLT starts tracking when the meter records water flow. Your daily feedback appears six hours after that first reading.</p><small>${source}</small></div>`;
     const feedbackTime = forecast.feedbackAt.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" });
     const sixHours = forecast.stage === "feedback";
-    let outlook = "Give the meter at least 30 minutes of readings before showing an evening estimate.";
-    if (forecast.eveningPassed && forecast.byEvening === null) outlook = "The first water reading came after 8 pm, so there is no evening forecast for today.";
+    let outlook = `The estimate needs three previous days with readings. We have ${forecast.historyDays} so far.`;
+    if (forecast.eveningPassed && forecast.byEvening === null) outlook = "The first water reading came after the forecast cutoff, so there is no estimate for that window.";
     else if (forecast.eveningPassed) outlook = forecast.byEvening > forecast.goal
-      ? `By 8 pm, ${number(forecast.byEvening)} L was recorded, above your ${forecast.goal} L goal.`
-      : `By 8 pm, ${number(forecast.byEvening)} L was recorded against your ${forecast.goal} L goal.`;
-    else if (forecast.projected !== undefined) outlook = `At today's measured pace, about ${number(forecast.projected)} L could be used by 8 pm. That ${forecast.tone === "over" ? "could exceed" : "could stay within"} your ${forecast.goal} L goal.`;
+      ? `By ${cutoff}, ${number(forecast.byEvening)} L was recorded, above your ${forecast.goal} L goal.`
+      : `By ${cutoff}, ${number(forecast.byEvening)} L was recorded against your ${forecast.goal} L goal.`;
+    else if (forecast.projected !== undefined) outlook = `Past days typically reached ${number(forecast.typicalSoFar)} L by this time and added ${number(forecast.typicalRemaining)} L before ${cutoff}. Adding that remaining use to today's ${number(forecast.measured)} L gives about ${number(forecast.projected)} L by ${cutoff}.`;
     const heading = sixHours ? forecast.projected !== undefined && forecast.tone === "over" ? "Your pace may pass the goal" : "Your daily water check-in" : "Watching today's water pace";
     const lead = sixHours ? `Six hours have passed since the first flow. ${number(forecast.measured)} L is recorded so far.` : `${number(forecast.measured)} L recorded so far. Your full daily check-in starts at ${feedbackTime}.`;
-    return `<div class="utlt-daily-feedback"><p class="utlt-eyebrow">${sixHours ? "SIX-HOUR CHECK-IN" : "TODAY'S OUTLOOK"}</p><h2>${heading}</h2><p>${lead}</p><div class="utlt-daily-projection"><span>${forecast.eveningPassed ? "Recorded by 8 pm" : "Estimated by 8 pm"}</span><strong>${forecast.eveningPassed ? forecast.byEvening === null ? "No reading" : number(forecast.byEvening) + " L" : forecast.projected === undefined ? "Gathering data" : number(forecast.projected) + " L"}</strong></div><p>${outlook}</p><small>${source}. Forecasts are rough and never limit your supply.</small><button type="button" data-action="forecast-follow-up">Ask about this ${icon("chevron", 16)}</button></div>`;
+    return `<div class="utlt-daily-feedback"><p class="utlt-eyebrow">${sixHours ? "SIX-HOUR CHECK-IN" : "TODAY'S OUTLOOK"}</p><h2>${heading}</h2><p>${lead}</p><div class="utlt-daily-projection"><span>${(forecast.eveningPassed ? "Recorded by " : "Estimated by ") + cutoff}</span><strong>${forecast.eveningPassed ? forecast.byEvening === null ? "No reading" : number(forecast.byEvening) + " L" : forecast.projected === undefined ? "Gathering data" : number(forecast.projected) + " L"}</strong></div><p>${outlook}</p><small>${source}. Forecasts are rough and never limit your supply.</small><button type="button" data-action="forecast-follow-up">Ask about this ${icon("chevron", 16)}</button></div>`;
   }
 
   function assistantPage() {
@@ -945,8 +947,8 @@
       const forecast = window.UTLTAI.dailyForecast(state.readings, waterGoal(), waterClock());
       if (forecast.stage === "waiting") return "There is no positive water reading today yet. The evening estimate begins after the first use.";
       if (forecast.eveningPassed) return forecast.byEvening === null ? "The first water reading came after 8 pm, so there is no evening forecast for today." : `By 8 pm, ${number(forecast.byEvening)} L was recorded against your ${forecast.goal} L goal. Missing device readings could change that picture.`;
-      if (forecast.projected === undefined) return `Today's meter has recorded ${number(forecast.measured)} L. Wait for at least 30 minutes after first use before estimating 8 pm.`;
-      return `At the measured pace so far, about ${number(forecast.projected)} L could be used by 8 pm, ${forecast.tone === "over" ? "above" : "within"} your ${forecast.goal} L goal. ${forecast.stage === "feedback" ? "Your six-hour check-in is ready." : "The fuller check-in appears six hours after the first use."} This is a rough estimate; disconnected hours may be missing and UTLT never limits supply.`;
+      if (forecast.projected === undefined) return `Today's meter has recorded ${number(forecast.measured)} L. An 8 pm estimate needs at least three previous days with readings.`;
+      return `With ${number(forecast.measured)} L used today and ${number(forecast.typicalRemaining)} L typically used from this time to 8 pm, the estimate is ${number(forecast.projected)} L by 8 pm. ${forecast.stage === "feedback" ? "Your six-hour check-in is ready." : "The fuller check-in appears six hours after the first use."} This is a rough estimate; disconnected hours may be missing and UTLT never limits supply.`;
     }
     if (/compar|usual|normal|pace|pattern/.test(q)) {
       if (!pace.ready) return pace.reason === "today" ? "There is no water reading from today yet. A same-time comparison starts after the first reading." : `A same-time comparison needs three earlier measured days. This phone has ${pace.measuredDays} so far; missing days are not counted as zero water use.`;
@@ -1958,7 +1960,7 @@
     if (action === "connect-ble") { connectBluetooth(); return; }
     if (action === "download-history") { requestHistory(); return; }
     if (action === "assistant-mode") { state.assistantMode = ["today", "recent", "ask"].includes(button.dataset.mode) ? button.dataset.mode : "today"; render(true); return; }
-    if (action === "forecast-follow-up") { state.assistantMode = "ask"; state.llmQuestion = "Will I stay within my water goal by 8 pm?"; render(true); root.querySelector("#utlt-assistant-question")?.focus(); return; }
+    if (action === "forecast-follow-up") { state.assistantMode = "ask"; state.llmQuestion = state.demoEnabled && state.demoMode === "coach" ? "Will I stay within my water goal by 8 pm?" : "Will I stay within my water goal by midnight?"; render(true); root.querySelector("#utlt-assistant-question")?.focus(); return; }
     if (action === "assistant-prompt") { askNiro(button.dataset.question || ""); return; }
     if (action === "load-local-llm") { loadNiroModel(); return; }
     if (action === "toggle-demo") {
