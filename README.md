@@ -5,7 +5,7 @@ UTLT.ai is a HridhAI 2026 team project. The current build measures water in a re
 ## Open the demo
 
 - [Live app](https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/) and [page map](https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/screens.html). The map lists all 23 screens and subviews and is also linked from **Account → Help & support**.
-- For live readings, pair the ESP32 in **Devices**. For a walkthrough without hardware, turn on **Devices → Explore with demo data**, then switch between Leak detection, Water trends and AI water coach on **Home → Water**. Turning demo data off hides the scenarios and their switcher.
+- For live readings, pair the ESP32 in **Devices**. For a walkthrough without hardware, turn on **Devices → Explore with demo data**, then switch between Leak detection, Water trends and AI water coach on **Home → Water**. In AI water coach, ask Niro about the scenario’s readings without downloading the chat model. Turning demo data off hides the scenarios and their switcher.
 - Open **Niro** to ask for a forecast, water-use split, chart or table. Tap **Download to use** to open chat. The SmolLM2 model file is 137 MB and runs in your browser. On first use, Niro asks about your routine and suggests an editable water goal. This is the only onboarding questionnaire.
 - Find language, appearance and help in **Account**. Meter calibration stays in **Devices**. The usage ring blends toward red near the goal and the water card fills with measured use. Gas and Electricity show empty rings and unavailable reporting until monitoring is enabled. Google Home and Apple Home remain future integrations.
 

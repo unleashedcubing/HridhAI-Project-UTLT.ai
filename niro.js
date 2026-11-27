@@ -288,5 +288,44 @@
     </section>`;
   }
 
-  window.UTLTNiro = Object.freeze({ outline, avatar, wave, summary, answer, figures, startingGoal, firstWeekDay, activityLabels, studyQuestion, studyCard });
+  // The coach answers from its own 4 pm scenario, separate from the dashboard sample.
+  function coachAnswer(question) {
+    const { goal, used, projected, hoursMeasured, breakdown } = window.UTLTDemo.coach;
+    const text = question.toLowerCase();
+    const wantsTable = /\btable\b/.test(text);
+    const visual = /chart|table|graph/.test(text);
+    if (/split|breakdown|bath|food|housework|unknown/.test(text)) return {
+      text: breakdown.map(({ label, value }) => `${label}: ${value} L`).join(" · "),
+      chart: { title: "Sample use at 4 pm", key: "Activity", rows: breakdown }, table: wantsTable,
+    };
+    if (/forecast|project|predict|end of|8\s*p|pace|per hour|rate|why.*400/.test(text) || visual) return {
+      text: `The sample home used ${used} L in ${hoursMeasured} hours. At ${used / hoursMeasured} L/hour, four more hours would bring it to ${projected} L by 8 pm, ${projected - goal} L over the goal.`,
+      chart: visual ? { title: "Sample outlook", key: "Reading", rows: [
+        { label: "Used at 4 pm", value: used }, { label: "Daily goal", value: goal }, { label: "Estimated by 8 pm", value: projected },
+      ] } : null, table: wantsTable,
+    };
+    if (/leak|running|continuous/.test(text)) return { text: "This coach scenario shows a high pace of use. Switch to Leak detection to see the continuous-flow alert." };
+    if (/save|reduce|tip|help|what.*do|suggest|avoid|stay under/.test(text)) return { text: `At 4 pm the sample home has ${goal - used} L left before its goal. Try turning off the tap while soaping or scrubbing.` };
+    if (/goal|limit|left|remain|total|litre|liter|used|usage|how much/.test(text)) return { text: `The coach sample has used ${used} L at 4 pm against a ${goal} L goal. It has ${goal - used} L left before the goal.` };
+    if (/^(hey|hi|hello|thanks|thank you)\b/.test(text)) return { text: "I’m Niro. Ask me about the sample’s forecast, water-use split, or what you can do to save water." };
+    return null;
+  }
+
+  function coachChat(messages, visible) {
+    return `<section class="niro-demo-chat" ${visible ? "" : "hidden"} aria-label="AI Water Coach chat">
+      <div class="niro-chat-head">${avatar()}<h2>Chat with Niro</h2></div>
+      <div class="niro-demo-thread" role="log" aria-label="Coach conversation">
+        ${messages.length ? messages.map(({role, text, chart, table}) => `<div class="niro-message is-${role} utlt-user-content"><p>${esc(text)}</p>${figures(chart, table)}</div>`).join("") :
+          '<p>Ask about this sample, such as “Why does the forecast reach 400 litres?”</p>'}
+      </div>
+      <form id="niro-coach-form">
+        <label for="niro-coach-question">Message Niro about the demo</label>
+        <div><input id="niro-coach-question" name="question" type="text" maxlength="300" required placeholder="Show me the water-use split">
+        <button type="submit" class="utlt-primary-button">Send</button></div>
+      </form>
+      <p class="utlt-ai-note">Sample data · Chats aren’t saved</p>
+    </section>`;
+  }
+
+  window.UTLTNiro = Object.freeze({ outline, avatar, wave, summary, answer, figures, startingGoal, firstWeekDay, activityLabels, studyQuestion, studyCard, coachAnswer, coachChat });
 })();

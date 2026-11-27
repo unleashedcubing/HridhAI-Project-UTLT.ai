@@ -3,7 +3,9 @@
   const week = [248, 276, 263, 302, 319, 347, 365];
   const goal = 350;
   const used = 240;
-  const projected = Math.round(used / 6 * 10);
+  const hoursMeasured = 6;
+  const projected = Math.round(used / hoursMeasured * 10);
+  const coachBreakdown = [120, 40, 54, 26];
   const mean = values => Math.round(values.reduce((sum, day) => sum + day, 0) / values.length);
   const uses = ["Bath", "Food and drink", "Housework", "Unknown"];
   const colours = ["#7ce5c1", "#60bbf3", "#a8a5ff", "#627c7c"];
@@ -67,7 +69,7 @@
       copy: `At 4 pm, the sample home has used ${used} L over six hours. At that pace, it would finish ${projected - goal} L above its goal.`,
       detail: phase ? "Try turning off the tap while soaping or scrubbing. The forecast assumes the same pace continues." : "",
       action: phase ? "Hide suggestion" : "What can I do now?",
-      uses: [120, 40, 54, 26], chartTitle: "Today’s sample use at 4 pm", graph: runway()
+      uses: coachBreakdown, chartTitle: "Today’s sample use at 4 pm", graph: runway()
     };
   }
 
@@ -110,5 +112,6 @@
     replacement.dispatchEvent(new CustomEvent("utlt-demo-change", { bubbles: true }));
   });
 
-  window.UTLTDemo = { render };
+  window.UTLTDemo = { render, coach: { goal, used, projected, hoursMeasured,
+    breakdown: uses.map((label, index) => ({ label, value: coachBreakdown[index] })) } };
 })();

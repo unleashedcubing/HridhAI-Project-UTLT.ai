@@ -126,6 +126,7 @@
     demoEnabled,
     demoMode: "leak",
     demoPhase: 0,
+    demoMessages: [],
     survey: savedSurvey,
     reviewedDays,
     confirmedLabels,
@@ -1080,7 +1081,8 @@
       return `<div class="utlt-dashboard"><section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">HOME WATER</p><h2>See what flows<br>through your home.</h2><p>Connect your water monitor to see today’s usage and spot changes.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button></section>${window.UTLTNiro.summary(state)}</div>`;
     }
     const summary = window.UTLTData.summarize(state.readings);
-    const demos = state.demoEnabled ? window.UTLTDemo.render(state.demoMode, state.demoPhase) : "";
+    const demos = state.demoEnabled ? window.UTLTDemo.render(state.demoMode, state.demoPhase) +
+      window.UTLTNiro.coachChat(state.demoMessages, state.demoMode === "coach") : "";
     return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">SAMPLE READINGS</p>' : ""}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${usage(summary)}${window.UTLTNiro.summary(state, summary)}${demos}${status(summary)}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}</div>`;
   }
 
@@ -1852,6 +1854,7 @@
     if (state.screen !== "home" || state.utility !== "Water" || !state.demoEnabled) return;
     state.demoMode = event.target.dataset.demoLab;
     state.demoPhase = Number(event.target.dataset.demoPhase);
+    root.querySelector(".niro-demo-chat").hidden = state.demoMode !== "coach";
     translateRenderedUi(++renderToken);
   });
 
@@ -1945,6 +1948,7 @@
     if (action === "toggle-demo") {
       if (state.device.connected) return;
       state.demoEnabled = !state.demoEnabled;
+      state.demoMessages = [];
       if (state.demoEnabled) {
         state.readings = window.UTLTData.demoReadings;
         state.usingDemo = true;
@@ -2125,6 +2129,43 @@
         syncCompetitionStats();
       }
       render(true);
+      return;
+    }
+    if (event.target.id === "niro-coach-form") {
+      event.preventDefault();
+      if (!state.demoEnabled || state.demoMode !== "coach" || state.screen !== "home" || state.utility !== "Water") return;
+      const question = String(new FormData(event.target).get("question") || "").trim().slice(0, 300);
+      if (!question) return;
+      if (state.llmBusy) return;
+      const conversation = [...state.demoMessages.slice(-10), { role: "user", text: question }];
+      state.demoMessages = conversation;
+      let answer = window.UTLTNiro.coachAnswer(question);
+      if (!answer && state.llmReady) {
+        state.llmBusy = true;
+        const send = event.target.querySelector("button");
+        send.disabled = true;
+        send.textContent = "Thinking…";
+        const { used, goal, projected } = window.UTLTDemo.coach;
+        try {
+          const facts = `Simulated water scenario. The home used ${used} L by 4 pm, with a ${goal} L goal and an 8 pm forecast of ${projected} L. Allowed action: switch off the tap while scrubbing.`;
+          answer = { text: (await window.UTLTLocalLLM.ask(question, facts)).answer };
+        } catch { }
+        finally { state.llmBusy = false; }
+      }
+      if (state.demoMessages !== conversation) return;
+      conversation.push({ role: "bot", ...(answer ||
+        { text: "Try asking about this sample’s 8 pm forecast, daily goal, activity split, or ways to use less water." }) });
+      const panel = root.querySelector(".niro-demo-chat");
+      if (!panel) return;
+      const visible = state.demoMode === "coach";
+      panel.outerHTML = window.UTLTNiro.coachChat(conversation, visible);
+      if (visible) {
+        const updated = root.querySelector(".niro-demo-chat");
+        const thread = updated.querySelector(".niro-demo-thread");
+        thread.scrollTop = thread.scrollHeight;
+        updated.querySelector("input").focus({ preventScroll: true });
+      }
+      translateRenderedUi(++renderToken);
       return;
     }
     if (event.target.id === "utlt-assistant-form") {
