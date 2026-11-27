@@ -305,7 +305,7 @@
       ] } : null, table: wantsTable,
     };
     if (/leak|running|continuous/.test(text)) return { text: "This coach scenario shows a high pace of use. Switch to Leak detection to see the continuous-flow alert." };
-    if (/save|reduce|tip|help|what.*do|suggest|avoid|stay under/.test(text)) return { text: `At 4 pm the sample home has ${goal - used} L left before its goal. Try turning off the tap while soaping or scrubbing.` };
+    if (/save|reduce|tip|help|what.*\bdo\b|suggest|avoid|stay under/.test(text)) return { text: `At 4 pm the sample home has ${goal - used} L left before its goal. Try turning off the tap while soaping or scrubbing.` };
     if (/goal|limit|left|remain|total|litre|liter|used|usage|how much/.test(text)) return { text: `The coach sample has used ${used} L at 4 pm against a ${goal} L goal. It has ${goal - used} L left before the goal.` };
     if (/^(hey|hi|hello|thanks|thank you)\b/.test(text)) return { text: "I’m Niro. Ask me about the sample’s forecast, water-use split, or what you can do to save water." };
     return null;
