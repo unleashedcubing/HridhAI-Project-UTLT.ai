@@ -19,13 +19,13 @@ textarea{width:100%;min-height:14rem;font:inherit}#status{color:#3c617e;font-siz
 <article id="script"><h1>UTLT.ai | Eight-minute team speech</h1>
 <p>Read the paragraphs aloud. Brackets are silent cues for whoever is driving the slides. The times are rehearsal targets. Slide 27 has sources and AI credits for questions.</p>
 <h2>0:00–0:55 | Saketh · Slides 1–6</h2>
-<p class="cue">[Start on the cover. Move through the agenda and team. Pause on Research.]</p>
+<p class="cue">[Start on the cover. Move through the agenda and pause briefly on the team photos. Pause on Research.]</p>
 <p>Has anyone at home ever asked, “Did we leave a tap running?” A water bill comes too late to help you check.</p>
 <p>We chose water because of the water crisis. Reading Telangana’s groundwater assessment made the problem feel close to home. So we picked one thing we could build and test. Could we show a family how much water they were using while they still had time to do something about it?</p>
 <p>We’re Saketh, Armaan, Vibhav, Abhinav and Hrishi. Our project is UTLT.ai. We built a water monitor that sends readings to a phone. Abhinav will show what the family sees.</p>
 <h2>0:55–1:40 | Abhinav · Slides 7–8</h2>
 <p class="cue">[Point to the daily total and the goal. Then show the chart.]</p>
-<p>The app shows today’s litres and how close you are to your goal. The chart shows when you used the water, so you can spot an unusual jump.</p>
+<p>The app shows today’s litres and how close you are to your goal. Switch the chart to By time to see when water use jumped.</p>
 <p>Hrishi drew the light and dark screens in Figma. Armaan worked on navigation and accounts, and I worked on the charts and smaller screens. We also made guesses clearer. The meter measures water passing through it. If we can’t tell what you used it for, we leave the activity unconfirmed. Vibhav will show how we get the readings.</p>
 <h2>1:40–2:30 | Vibhav · Slides 9–10</h2>
 <p class="cue">[Trace the loop with your finger. Then point to the sensor and the ESP32 board.]</p>
@@ -37,14 +37,14 @@ textarea{width:100%;min-height:14rem;font:inherit}#status{color:#3c617e;font-siz
 <p>Niro is the assistant in the app. It runs on the phone after a model download. First, it asks about things like household size, showers and laundry. It suggests a daily goal you can change.</p>
 <p>During the first week, it might highlight an hour and ask, “What did you use this water for?” You can say “showering and cooking,” and Niro keeps both labels together. You can also say “I don’t remember.” After that first week, Niro can estimate a typical day once it has at least three recorded days.</p>
 <h2>3:42–5:07 | Abhinav · Slides 13–16</h2>
-<p class="cue">[Show the app overview. Say the demos use sample data.]</p>
+<p class="cue">[Show the app overview. On Leak Detection, click Advance one simulated minute. The next three demos use sample data.]</p>
 <p>Let’s try three situations. First, a possible leak. At fifteen minutes of continuous flow, the app is still watching. Advance one minute and it asks you to check. The total rises from 160 to 163 litres.</p>
 <p class="cue">[Click Simulate flow stopping.]</p>
 <p>The alert clears and the total stays. A running tap could be intentional, so we’d test how often normal use triggers this warning.</p>
 <p class="cue">[On Water trends, click Explain the trend.]</p>
 <p>Second, look at the week. The first three days averaged 262 litres. The last three averaged 344. That tells us the final day was part of a rise.</p>
 <p class="cue">[On AI water coach, click What can I do now?]</p>
-<p>Third, the coach. It’s four in the afternoon and the sample home has used 240 litres in six hours. At that pace, it could reach 400 litres by eight. That’s 50 above the goal. Niro can explain the forecast and suggest a simple action, like turning the tap off while scrubbing.</p>
+<p>Third, the coach. It’s four in the afternoon and the sample home has used 240 litres. On previous sample days, it typically used another 160 litres between four and eight. Add those together and we get an estimate of 400 litres by eight, about 50 over the goal. Niro explains the numbers and suggests turning off the tap while scrubbing.</p>
 <h2>5:07–5:47 | Vibhav · Slides 17–19</h2>
 <p class="cue">[Show the two boards and the case photos.]</p>
 <p>One board connected to the phone but showed zero flow. We swapped the boards between the breadboards. Both worked on one setup and neither worked on the other. That told us where to look for the wiring fault.</p>
@@ -67,7 +67,7 @@ Read the paragraphs aloud. Brackets are silent cues for whoever is driving the s
 
 0:00–0:55 | Saketh · Slides 1–6
 
-[Start on the cover. Move through the agenda and team. Pause on Research.]
+[Start on the cover. Move through the agenda and pause briefly on the team photos. Pause on Research.]
 
 Has anyone at home ever asked, “Did we leave a tap running?” A water bill comes too late to help you check.
 
@@ -79,7 +79,7 @@ We’re Saketh, Armaan, Vibhav, Abhinav and Hrishi. Our project is UTLT.ai. We b
 
 [Point to the daily total and the goal. Then show the chart.]
 
-The app shows today’s litres and how close you are to your goal. The chart shows when you used the water, so you can spot an unusual jump.
+The app shows today’s litres and how close you are to your goal. Switch the chart to By time to see when water use jumped.
 
 Hrishi drew the light and dark screens in Figma. Armaan worked on navigation and accounts, and I worked on the charts and smaller screens. We also made guesses clearer. The meter measures water passing through it. If we can’t tell what you used it for, we leave the activity unconfirmed. Vibhav will show how we get the readings.
 
@@ -103,7 +103,7 @@ During the first week, it might highlight an hour and ask, “What did you use t
 
 3:42–5:07 | Abhinav · Slides 13–16
 
-[Show the app overview. Say the demos use sample data.]
+[Show the app overview. On Leak Detection, click Advance one simulated minute. The next three demos use sample data.]
 
 Let’s try three situations. First, a possible leak. At fifteen minutes of continuous flow, the app is still watching. Advance one minute and it asks you to check. The total rises from 160 to 163 litres.
 
@@ -117,7 +117,7 @@ Second, look at the week. The first three days averaged 262 litres. The last thr
 
 [On AI water coach, click What can I do now?]
 
-Third, the coach. It’s four in the afternoon and the sample home has used 240 litres in six hours. At that pace, it could reach 400 litres by eight. That’s 50 above the goal. Niro can explain the forecast and suggest a simple action, like turning the tap off while scrubbing.
+Third, the coach. It’s four in the afternoon and the sample home has used 240 litres. On previous sample days, it typically used another 160 litres between four and eight. Add those together and we get an estimate of 400 litres by eight, about 50 over the goal. Niro explains the numbers and suggests turning off the tap while scrubbing.
 
 5:07–5:47 | Vibhav · Slides 17–19
 
