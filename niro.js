@@ -146,9 +146,19 @@
 
   const expectsUsage = /\b(expect\w*|anticipat\w*|likely to use|will (?:i|we) use|how much.*(?:will|[’']ll).*use|think.*use|supposed to use)\b/i;
 
+  function meterExplanation(text) {
+    if (/\bpressure\b/.test(text)) return { text: "UTLT’s water sensor measures flow and volume. It has no pressure reading." };
+    if (/\b(?:what|how) (?:does|can) (?:the |your |this )?(?:water |flow )?(?:sensor|meter) (?:measure|read)\b/.test(text)) {
+      return { text: "The flow sensor measures how much water passes through it. It cannot tell which tap or activity used that water." };
+    }
+    return null;
+  }
+
   // Check specific intents before the generic chart or table request.
   function answer(question, state) {
     const text = question.toLowerCase();
+    const meter = meterExplanation(text);
+    if (meter) return meter;
     if (/what.*(spike|peak)|activity.*(spike|peak)|what.*water.*used for/.test(text)) return learnedActivity(state);
     const explicitCutoff = /8\s*p\.?m|evening/i.test(text);
     const priorReadings = /\b(previous|past|historical|earlier)\b.*\b(readings|results|data|usage|days|totals)\b/.test(text);
@@ -324,6 +334,8 @@
   function coachAnswer(question) {
     const { goal, used, projected, hoursMeasured, breakdown } = window.UTLTDemo.coach;
     const text = question.toLowerCase();
+    const meter = meterExplanation(text);
+    if (meter) return meter;
     const wantsTable = /\btable\b/.test(text);
     const visual = /chart|table|graph/.test(text);
     if (/split|breakdown|bath|food|housework|unknown/.test(text)) return {

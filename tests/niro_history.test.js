@@ -29,4 +29,6 @@ assert.match(answer(question, {...sample, readings: []}).text, /at least one pre
 assert.match(answer("Based on previous results?", sample).text, /Around 280 L for a typical day/);
 assert.match(answer("Predict my usage tomorrow", sample).text, /Around 280 L tomorrow/);
 assert.equal(answer("How much water have I used today?", sample), null);
-console.log("Historical Niro forecasts passed");
+assert.match(answer("What does the flow sensor measure?", sample).text, /how much water passes through/);
+assert.match(answer("Does the meter measure pressure?", sample).text, /no pressure reading/);
+console.log("Historical Niro forecasts and sensor explanations passed");
