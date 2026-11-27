@@ -22,7 +22,8 @@
   const directReadingsKey = "waterMeterReadingsV1";
   const languageKey = "waterAppLanguageV1";
   const calibrationVolumeLitres = 0.160;
-  const defaultCalibration = { pulseRate: 12, seconds: 40 };
+  const calibrationDurationSeconds = 40;
+  const defaultPulseRate = 12;
   const grantedDeviceKey = "waterMeterGrantedBluetoothV1";
   const demoKey = "waterMeterDemoEnabledV1";
   const surveyKey = "waterSurveyV1";
@@ -35,20 +36,19 @@
   const localProfileKey = "waterLocalProfileV1";
   let savedPairing = "";
   try { savedPairing = localStorage.getItem(pairingKey) || ""; } catch (_error) {  }
-  function calibrationFactor({ pulseRate, seconds }) {
-    if (!(pulseRate >= 0.01 && pulseRate <= 5000 && seconds >= 0.01 && seconds <= 600)) return null;
-    const factor = pulseRate * seconds / calibrationVolumeLitres;
-    return factor >= 1 && factor <= 100000 ? factor : null;
+  function calibrationFactor(pulseRate) {
+    const factor = pulseRate * calibrationDurationSeconds / calibrationVolumeLitres;
+    return pulseRate >= 0.01 && factor <= 100000 ? factor : null;
   }
-  let calibration = defaultCalibration;
+  let calibrationPulseRate = defaultPulseRate;
   let hasCustomCalibration = false;
-  let legacyPulsesPerLitre = calibrationFactor(defaultCalibration);
+  let legacyPulsesPerLitre = calibrationFactor(defaultPulseRate);
   try {
     const stored = Number(localStorage.getItem(legacyCalibrationKey));
     if (stored > 0 && Number.isFinite(stored)) legacyPulsesPerLitre = stored;
-    const custom = JSON.parse(localStorage.getItem(calibrationKey) || "null");
-    if (custom && calibrationFactor(custom)) {
-      calibration = custom;
+    const pulseRate = Number(JSON.parse(localStorage.getItem(calibrationKey) || "null")?.pulseRate);
+    if (calibrationFactor(pulseRate)) {
+      calibrationPulseRate = pulseRate;
       hasCustomCalibration = true;
     }
   } catch (_error) { }
@@ -117,7 +117,7 @@
     flowRunningMinutes: 0,
     rawPulseCount: null,
     pulseRateHz: null,
-    pulsesPerLitre: calibrationFactor(calibration),
+    pulsesPerLitre: calibrationFactor(calibrationPulseRate),
     calibrationStatus: "",
     currentMeterSession: "",
     bridgeAvailable: false,
@@ -1117,13 +1117,13 @@
   function calibrationForm() {
     return `<form id="utlt-calibration-form" class="utlt-meter-diagnostics" aria-labelledby="utlt-calibration-title">
       <strong id="utlt-calibration-title">Water meter calibration</strong>
-      <small>Your 160 mL test took 39–41 seconds. Use the average pulse rate and elapsed time from the same run. This setting also updates saved meter totals.</small>
+      <small>The conversion uses 160 mL over ${calibrationDurationSeconds} seconds. Enter the average pulses per second from your test. Saving also updates saved meter totals.</small>
       <div class="utlt-calibration-fields">
         <label class="utlt-field" for="utlt-pulse-rate">Pulses per second
-          <input id="utlt-pulse-rate" name="pulseRate" type="number" step="any" min="0.01" max="5000" inputmode="decimal" value="${calibration.pulseRate}" required>
+          <input id="utlt-pulse-rate" name="pulseRate" type="number" step="any" min="0.01" max="400" inputmode="decimal" value="${calibrationPulseRate}" required>
         </label>
         <label class="utlt-field" for="utlt-fill-seconds">Seconds for 160 mL
-          <input id="utlt-fill-seconds" name="seconds" type="number" step="any" min="0.01" max="600" inputmode="decimal" value="${calibration.seconds}" required>
+          <input id="utlt-fill-seconds" type="number" value="${calibrationDurationSeconds}" readonly>
         </label>
       </div>
       <p>Current conversion: ${formatCalibration(state.pulsesPerLitre)} pulses per litre</p>
@@ -2098,23 +2098,23 @@
     if (event.target.id === "utlt-calibration-form") {
       event.preventDefault();
       const form = new FormData(event.target);
-      const next = { pulseRate: Number(form.get("pulseRate")), seconds: Number(form.get("seconds")) };
-      const factor = calibrationFactor(next);
+      const pulseRate = Number(form.get("pulseRate"));
+      const factor = calibrationFactor(pulseRate);
       if (!factor) {
         const field = event.target.elements.pulseRate;
-        field.setCustomValidity("Use a rate and time that produce 1 to 100,000 pulses per litre.");
+        field.setCustomValidity("Enter a pulse rate from 0.01 to 400 pulses per second.");
         field.reportValidity();
         return;
       }
       try {
-        localStorage.setItem(calibrationKey, JSON.stringify(next));
+        localStorage.setItem(calibrationKey, JSON.stringify({ pulseRate, seconds: calibrationDurationSeconds }));
       } catch (_error) {
         state.calibrationStatus = "Calibration could not be saved on this browser.";
         render(true);
         return;
       }
       const previousFactor = state.pulsesPerLitre;
-      calibration = next;
+      calibrationPulseRate = pulseRate;
       hasCustomCalibration = true;
       state.pulsesPerLitre = factor;
       state.calibrationStatus = "Calibration saved on this browser.";
