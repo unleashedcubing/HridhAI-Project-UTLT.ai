@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>UTLT.ai | Eight-minute team speech</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#f1f5fa;color:#173049;font:16px/1.58 system-ui,sans-serif}
+main{max-width:850px;margin:auto;padding:24px 18px 48px}article,section{background:white;border:1px solid #d3e1ef;border-radius:16px;padding:clamp(16px,5vw,34px);margin-block:16px}
+nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap}a{color:#104e85}button{font:inherit;font-weight:700;padding:9px 14px;border:0;border-radius:9px;background:#145487;color:white;cursor:pointer}
+h1,h2{line-height:1.15}h1{font-size:clamp(28px,5vw,42px);margin-top:0}h2{font-size:20px;margin-block:28px 12px}section h2{margin-top:0}
+table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:8px;text-align:left;vertical-align:top;border-bottom:1px solid #e7eef5}th:first-child{white-space:nowrap}.cue{color:#385c7b;font-style:italic}
+textarea{width:100%;min-height:14rem;font:inherit}#status{color:#3c617e;font-size:14px}
+</style>
+</head>
+<body><main>
+<nav><a href="./UTLT_HridhAI_Pitch_Viewer.html">Open the main HTML deck</a><a href="./UTLT_Presentation_Links.txt">Copyable project and source links</a><button id="copy" type="button">Copy script</button><span id="status" role="status"></span></nav>
+<section><h2>Presentation chapters</h2><table><thead><tr><th>Slides</th><th>Chapter</th><th>What to show</th></tr></thead><tbody><tr><th scope="row">1–6</th><td>Why we chose water</td><td>Cover, agenda, team, problem, Telangana research, mission</td></tr><tr><th scope="row">7–8</th><td>Interface and solution</td><td>Figma, measured usage, and the app</td></tr><tr><th scope="row">9–10</th><td>Hardware and Bluetooth</td><td>Parts, signal levels, ESP32 and pulse conversion</td></tr><tr><th scope="row">11–12</th><td>Models and Niro</td><td>Synthetic training, starting goal, seven-day activity learning and forecast</td></tr><tr><th scope="row">13–16</th><td>Three interactive demos</td><td>App overview, leak detection, water trends and AI water coach</td></tr><tr><th scope="row">17–19</th><td>Prototype and testing</td><td>Troubleshooting, the single-reservoir loop, what worked and what to check next</td></tr><tr><th scope="row">20–22</th><td>Gas, electricity and gateway</td><td>Proposed direct meter interfaces, each using an ESP32</td></tr><tr><th scope="row">23–26</th><td>Future AI and smart home</td><td>Evidence, Google Home and Apple Home, roadmap and closing</td></tr><tr><th scope="row">27</th><td>Sources and AI credits</td><td>Project links, research, hardware references, model documentation and credits</td></tr></tbody></table></section>
+<article id="script"><h1>UTLT.ai | Eight-minute team speech</h1>
+<p>Brackets are silent stage cues. Speak at roughly 120–125 words per minute. The timings include slide changes, four demo clicks and handoffs. Slide 27 is the sources appendix.</p>
+<h2>0:00–0:55 | Saketh · Slides 1–6</h2>
+<p class="cue">[Show the cover. Advance through the agenda and team. Pause on Research.]</p>
+<p>Think about the last time someone at home asked, “Did we leave a tap running?” By the time the bill comes, that moment is long gone.</p>
+<p>We chose this topic because of the water crisis. Reading the Telangana groundwater assessment made it feel close to home. It gave us the wider picture, but we still had a practical question. Could a family see what was happening at its tap while there was time to do something about it?</p>
+<p>We’re Saketh, Armaan, Vibhav, Abhinav and Hrishi. We started with water because we could build, measure and test it ourselves. That became UTLT.ai.</p>
+<h2>0:55–1:40 | Abhinav · Slides 7–8</h2>
+<p class="cue">[On the interface slide, point to the goal and chart.]</p>
+<p>Hrishi sketched light and dark layouts in Figma. Armaan worked on navigation and accounts, and I refined the charts, contrast and layouts for smaller phones. We wanted a family to open the app and see two things straight away. How much water have we used, and how close are we to our goal?</p>
+<p>One problem was that the activity chart looked as certain as the litre count. We separated usage by time from usage by activity. When we don’t know what the water was used for, it stays in Misc.</p>
+<h2>1:40–2:30 | Vibhav · Slides 9–10</h2>
+<p class="cue">[Point to the reservoir, flow meter and ESP32. The enclosure photos come later.]</p>
+<p>We used one reservoir because this is a loop. The pump pushes water through the inline meter, and the outlet brings that same water back. Every pass counts as water going through the meter.</p>
+<p>The sensor sends five-volt pulses. A level converter brings the signal down to the ESP32’s three-point-three-volt input. MicroPython counts the pulses, and Bluetooth sends the count to the phone. The phone turns the difference into estimated litres. We timed a 160-millilitre fill and used about three thousand pulses per litre. The rig ran slower than the sensor’s rated range, so we’ll repeat the calibration at several flows.</p>
+<h2>2:30–3:37 | Hrishi · Slides 11–12</h2>
+<p class="cue">[Show the model-training slide, then Niro’s first week.]</p>
+<p>The meter knows how much water moved. It doesn’t know what anyone was doing. To get started, we trained a random forest on simulated routines from eight hundred households and held two hundred simulated homes back for testing. Those results give us a baseline. We still need household data to find out how well it works in practice.</p>
+<p>Niro runs SmolLM2 on the device. After the download, it asks about your routine and suggests a daily goal you can change. During the first seven days, it can highlight an hour and ask what happened. You can say “showering and cooking,” or “I don’t remember.” Niro learns from confirmed labels and keeps the measured litres together. After the week, it can estimate a typical day from the readings it actually got.</p>
+<h2>3:37–5:02 | Abhinav · Slides 13–16</h2>
+<p class="cue">[Say that the next three slides use sample data. Click the controls on each slide.]</p>
+<p>Here are three ways the app can help. First, leak detection. We start at fifteen minutes of continuous flow. Advance one minute and it asks us to check for a possible leak. The ring goes from 160 to 163 litres. Those three litres stay in the total when we simulate stopping the flow. A tap could have been running on purpose, so the app asks you to check.</p>
+<p class="cue">[On Water trends, click Explain the trend.]</p>
+<p>Next, water trends. Six sample days met the 350-litre goal. Day seven reached 365. Look at the comparison. The first three days averaged 262 litres, and the last three averaged 344. That gives us more to go on than the last day alone.</p>
+<p class="cue">[On AI water coach, click What can I do now?]</p>
+<p>Finally, the coach. At four in the afternoon, this sample home has used 240 litres in six hours. If that pace holds, it reaches 400 litres by eight, 50 over the goal. The app shows the calculation and suggests turning off the tap while scrubbing.</p>
+<h2>5:02–5:42 | Vibhav · Slides 17–19</h2>
+<p class="cue">[Show the breadboard and enclosure photos. Trace the path back to the reservoir.]</p>
+<p>One ESP32 connected over Bluetooth but still showed zero flow. We swapped boards between the breadboards. Both counted on one setup and neither counted on the other. That narrowed it down to the circuit.</p>
+<p>The case was a separate job. Saketh and Hrishi moved the design from SketchUp to Shapr3D and revised it after the first print failed. We can show the full loop and the phone readout today. The next test is repeatability with known volumes.</p>
+<h2>5:42–6:45 | Armaan · Slides 20–22</h2>
+<p class="cue">[Point to each proposed meter and then the gateway.]</p>
+<p>For piped gas, an approved inline meter would measure cubic metres through the pipe. A dedicated ESP32 would read the meter’s approved output. We’d compare the app’s total with the register. A qualified installer handles the pipework, and a certified alarm handles gas leak detection.</p>
+<p>For electricity, an electrician would install a certified circuit meter. Another ESP32 would read watts and kilowatt-hours from its isolated interface. At one hundred watts for ten hours, that’s one kilowatt-hour. We’d check that number against the meter and test a restart halfway through the day.</p>
+<p>A local gateway would keep each reading’s source, time and unit. If a board goes offline, the app would show the gap. Gas and electricity are plans at this stage.</p>
+<h2>6:45–8:00 | Saketh · Slides 23–26</h2>
+<p class="cue">[Show the AI and smart-home plans. Close on Thank you. Keep Sources ready for questions.]</p>
+<p>The next AI step is to show the evidence behind an answer. If use jumps overnight, show the hour, the amount and the usual range. Before a household pilot, we’d compare forecast errors and false alerts against a simple baseline.</p>
+<p>For Google Home and Apple Home, we’d start with one Matter-over-Wi-Fi test device and a real enclosure switch. We’d pair it in Google Home, then add the same device in Apple Home. We’d open the case, restart the device and remove one connection to see if the other still updates. The detailed utility charts would stay in UTLT.ai. The pilot would be read-only, so the household decides what action to take.</p>
+<p>What we want is simple. You open the app, see what changed, and know what to check.</p>
+<p>UTLT.ai. The smarter way to save resources. Thank you.</p></article>
+<textarea id="manual-copy" aria-label="Copyable script" hidden readonly>UTLT.ai | Eight-minute team speech
+
+Brackets are silent stage cues. Speak at roughly 120–125 words per minute. The timings include slide changes, four demo clicks and handoffs. Slide 27 is the sources appendix.
+
+0:00–0:55 | Saketh · Slides 1–6
+
+[Show the cover. Advance through the agenda and team. Pause on Research.]
+
+Think about the last time someone at home asked, “Did we leave a tap running?” By the time the bill comes, that moment is long gone.
+
+We chose this topic because of the water crisis. Reading the Telangana groundwater assessment made it feel close to home. It gave us the wider picture, but we still had a practical question. Could a family see what was happening at its tap while there was time to do something about it?
+
+We’re Saketh, Armaan, Vibhav, Abhinav and Hrishi. We started with water because we could build, measure and test it ourselves. That became UTLT.ai.
+
+0:55–1:40 | Abhinav · Slides 7–8
+
+[On the interface slide, point to the goal and chart.]
+
+Hrishi sketched light and dark layouts in Figma. Armaan worked on navigation and accounts, and I refined the charts, contrast and layouts for smaller phones. We wanted a family to open the app and see two things straight away. How much water have we used, and how close are we to our goal?
+
+One problem was that the activity chart looked as certain as the litre count. We separated usage by time from usage by activity. When we don’t know what the water was used for, it stays in Misc.
+
+1:40–2:30 | Vibhav · Slides 9–10
+
+[Point to the reservoir, flow meter and ESP32. The enclosure photos come later.]
+
+We used one reservoir because this is a loop. The pump pushes water through the inline meter, and the outlet brings that same water back. Every pass counts as water going through the meter.
+
+The sensor sends five-volt pulses. A level converter brings the signal down to the ESP32’s three-point-three-volt input. MicroPython counts the pulses, and Bluetooth sends the count to the phone. The phone turns the difference into estimated litres. We timed a 160-millilitre fill and used about three thousand pulses per litre. The rig ran slower than the sensor’s rated range, so we’ll repeat the calibration at several flows.
+
+2:30–3:37 | Hrishi · Slides 11–12
+
+[Show the model-training slide, then Niro’s first week.]
+
+The meter knows how much water moved. It doesn’t know what anyone was doing. To get started, we trained a random forest on simulated routines from eight hundred households and held two hundred simulated homes back for testing. Those results give us a baseline. We still need household data to find out how well it works in practice.
+
+Niro runs SmolLM2 on the device. After the download, it asks about your routine and suggests a daily goal you can change. During the first seven days, it can highlight an hour and ask what happened. You can say “showering and cooking,” or “I don’t remember.” Niro learns from confirmed labels and keeps the measured litres together. After the week, it can estimate a typical day from the readings it actually got.
+
+3:37–5:02 | Abhinav · Slides 13–16
+
+[Say that the next three slides use sample data. Click the controls on each slide.]
+
+Here are three ways the app can help. First, leak detection. We start at fifteen minutes of continuous flow. Advance one minute and it asks us to check for a possible leak. The ring goes from 160 to 163 litres. Those three litres stay in the total when we simulate stopping the flow. A tap could have been running on purpose, so the app asks you to check.
+
+[On Water trends, click Explain the trend.]
+
+Next, water trends. Six sample days met the 350-litre goal. Day seven reached 365. Look at the comparison. The first three days averaged 262 litres, and the last three averaged 344. That gives us more to go on than the last day alone.
+
+[On AI water coach, click What can I do now?]
+
+Finally, the coach. At four in the afternoon, this sample home has used 240 litres in six hours. If that pace holds, it reaches 400 litres by eight, 50 over the goal. The app shows the calculation and suggests turning off the tap while scrubbing.
+
+5:02–5:42 | Vibhav · Slides 17–19
+
+[Show the breadboard and enclosure photos. Trace the path back to the reservoir.]
+
+One ESP32 connected over Bluetooth but still showed zero flow. We swapped boards between the breadboards. Both counted on one setup and neither counted on the other. That narrowed it down to the circuit.
+
+The case was a separate job. Saketh and Hrishi moved the design from SketchUp to Shapr3D and revised it after the first print failed. We can show the full loop and the phone readout today. The next test is repeatability with known volumes.
+
+5:42–6:45 | Armaan · Slides 20–22
+
+[Point to each proposed meter and then the gateway.]
+
+For piped gas, an approved inline meter would measure cubic metres through the pipe. A dedicated ESP32 would read the meter’s approved output. We’d compare the app’s total with the register. A qualified installer handles the pipework, and a certified alarm handles gas leak detection.
+
+For electricity, an electrician would install a certified circuit meter. Another ESP32 would read watts and kilowatt-hours from its isolated interface. At one hundred watts for ten hours, that’s one kilowatt-hour. We’d check that number against the meter and test a restart halfway through the day.
+
+A local gateway would keep each reading’s source, time and unit. If a board goes offline, the app would show the gap. Gas and electricity are plans at this stage.
+
+6:45–8:00 | Saketh · Slides 23–26
+
+[Show the AI and smart-home plans. Close on Thank you. Keep Sources ready for questions.]
+
+The next AI step is to show the evidence behind an answer. If use jumps overnight, show the hour, the amount and the usual range. Before a household pilot, we’d compare forecast errors and false alerts against a simple baseline.
+
+For Google Home and Apple Home, we’d start with one Matter-over-Wi-Fi test device and a real enclosure switch. We’d pair it in Google Home, then add the same device in Apple Home. We’d open the case, restart the device and remove one connection to see if the other still updates. The detailed utility charts would stay in UTLT.ai. The pilot would be read-only, so the household decides what action to take.
+
+What we want is simple. You open the app, see what changed, and know what to check.
+
+UTLT.ai. The smarter way to save resources. Thank you.
+</textarea>
+<script>
+const copy = document.getElementById("copy");
+const script = document.getElementById("manual-copy");
+const status = document.getElementById("status");
+copy.addEventListener("click", async () => {
+  try {
+    await navigator.clipboard.writeText(script.value);
+    status.textContent = "Script copied.";
+  } catch {
+    script.hidden = false;
+    script.focus();
+    script.select();
+    status.textContent = "Select and copy the script below.";
+  }
+});
+</script>
+</main></body></html>

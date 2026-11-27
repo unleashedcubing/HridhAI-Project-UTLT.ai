@@ -1,0 +1,56 @@
+Updated HTML presentation
+https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/pitch/UTLT_HridhAI_Pitch_Viewer.html
+
+New eight-minute script
+https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/pitch/UTLT_Judges_8min.html
+
+Existing pitch site
+https://utlt-ai-hridhai-2026-pitch.unleashedcubing.chatgpt.site
+
+Live UTLT.ai app
+https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/
+
+App page map
+https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/screens.html
+
+Project source and README
+https://github.com/unleashedcubing/HridhAI-Project-UTLT.ai/blob/ble-enabled/README.md
+
+Team project report (PDF)
+https://unleashedcubing.github.io/HridhAI-Project-UTLT.ai/reports/UTLT_Project_Report_16_Nov_2026.pdf
+
+Script library and older drafts
+https://utlt-script-library.unleashedcubing.chatgpt.site
+
+Editable slide workspace
+https://utlt-script-library.unleashedcubing.chatgpt.site/slides.html
+
+CGWB · Telangana groundwater assessment
+https://www.cgwb.gov.in/cgwbpnm/public/uploads/documents/1743586655783642514file.pdf
+
+Honeywell · Gas meter pulse output
+https://process.honeywell.com/us/en/site/elster-instromet-de/produkte/gasmessung/balgengaszahler/in-z61
+
+Schneider Electric · Panel meter manual
+https://www.se.com/hk/en/download/document/DOCA0005EN/
+
+Texas Instruments · INA219 bench reference
+https://www.ti.com/product/INA219
+
+Google Home · Matter device support
+https://developers.home.google.com/matter/supported-devices
+
+Apple · Home hub and Matter
+https://support.apple.com/en-us/102557
+
+Hugging Face · SmolLM2 135M Instruct
+https://huggingface.co/HuggingFaceTB/SmolLM2-135M-Instruct
+
+Synthetic activity-model validation
+https://github.com/unleashedcubing/HridhAI-Project-UTLT.ai/blob/ble-enabled/training/validation.json
+
+Earlier Qwen experiment and model card
+https://github.com/unleashedcubing/HridhAI-Project-UTLT.ai/blob/ble-enabled/training/llm/MODEL_CARD.md
+
+Transformers.js browser runtime
+https://huggingface.co/docs/transformers.js
