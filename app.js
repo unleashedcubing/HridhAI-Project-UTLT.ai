@@ -124,6 +124,8 @@
     readings: demoEnabled ? window.UTLTData.demoReadings : [],
     usingDemo: true,
     demoEnabled,
+    demoMode: "leak",
+    demoPhase: 0,
     survey: savedSurvey,
     reviewedDays,
     confirmedLabels,
@@ -671,13 +673,13 @@
   }
 
   function header() {
-    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "review" ? "Review Water Use" : state.screen === "assistant" ? "Niro" : state.screen === "help" ? "Help" : state.screen === "reports" ? state.utility + " reports" : state.screen === "demo" ? "Explore UTLT.ai" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
+    const title = state.screen === "account" ? "Account" : state.screen === "family" ? "Family" : state.screen === "pair" ? "Pair Your Device" : state.screen === "device" ? "Device Settings" : state.screen === "review" ? "Review Water Use" : state.screen === "assistant" ? "Niro" : state.screen === "help" ? "Help" : state.screen === "reports" ? state.utility + " reports" : state.name.trim() ? `${state.name.trim().split(" ")[0]}’s UTLT` : "UTLT.ai";
     const connection = state.screen === "home" ? `<span class="utlt-connection-icon ${state.device.connected ? "is-connected" : "is-disconnected"}" role="img" aria-label="Device ${state.device.connected ? "connected" : "disconnected"}">${icon(state.device.connected ? "bluetooth" : "bluetoothOff", 16)}</span>` : "";
     const last = state.screen === "home" && !state.device.connected && state.device.lastConnectedAt ? `<span class="utlt-header-last">Last connected ${escapeHtml(new Intl.DateTimeFormat("en-IN", { day: "numeric", month: "short", hour: "numeric", minute: "2-digit", timeZone: "Asia/Kolkata" }).format(new Date(state.device.lastConnectedAt)))}</span>` : "";
     let actions = "";
     if (state.screen === "home") actions = `<div class="utlt-header-actions"><button class="utlt-icon-button" data-action="device" aria-label="Device settings">${icon("settings")}</button></div>`;
     if (state.screen === "friends") actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
-    if (["account", "device", "review", "assistant", "demo", "help", "reports"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
+    if (["account", "device", "review", "assistant", "help", "reports"].includes(state.screen)) actions = `<button class="utlt-icon-button" data-action="home" aria-label="Back to home">${icon("home")}</button>`;
     return `<header class="utlt-header"><div class="utlt-header-top"><div class="utlt-title"><span>${escapeHtml(title)}</span>${connection}</div>${last}${actions}</div></header>`;
   }
 
@@ -1075,10 +1077,11 @@
   }
   function dashboard() {
     if (!state.device.connected && !state.demoEnabled && state.readings.length === 0) {
-      return `<div class="utlt-dashboard"><section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">HOME WATER</p><h2>See what flows<br>through your home.</h2><p>Connect your water monitor to see today’s usage and spot changes.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button><button type="button" class="utlt-secondary-button" data-action="open-demo">Try the app demos</button></section>${window.UTLTNiro.summary(state)}</div>`;
+      return `<div class="utlt-dashboard"><section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">HOME WATER</p><h2>See what flows<br>through your home.</h2><p>Connect your water monitor to see today’s usage and spot changes.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button></section>${window.UTLTNiro.summary(state)}</div>`;
     }
     const summary = window.UTLTData.summarize(state.readings);
-    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">SAMPLE READINGS</p>' : ""}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${usage(summary)}${window.UTLTNiro.summary(state, summary)}${status(summary)}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}</div>`;
+    const demos = state.demoEnabled ? window.UTLTDemo.render(state.demoMode, state.demoPhase) : "";
+    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">SAMPLE READINGS</p>' : ""}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${usage(summary)}${window.UTLTNiro.summary(state, summary)}${demos}${status(summary)}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}</div>`;
   }
 
   const helpTour = [
@@ -1098,7 +1101,7 @@
     return `<section class="utlt-assistant-page"><h1>Help &amp; support</h1>
       ${step ? `<section class="niro-summary"><p>Quick tour · ${state.tourStep} of ${helpTour.length}</p><h2>${step[0]}</h2><p>${step[1]}</p><button class="utlt-primary-button" data-action="tour">${state.tourStep === helpTour.length ? "Done" : "Next"}</button></section>` : `<button class="utlt-secondary-button" data-action="tour">Take the quick tour</button>`}
       ${items.map(([q,a]) => `<details class="utlt-help-row"><summary>${q}</summary><p>${a}</p></details>`).join("")}
-      <button type="button" class="utlt-secondary-button" data-action="open-demo">Try the app demos</button> <a class="utlt-page-link" href="./screens.html">App page map</a>
+      <a class="utlt-page-link" href="./screens.html">App page map</a>
     </section>`;
   }
 
@@ -1135,7 +1138,7 @@
     const connected = state.device.connected;
     const last = state.device.lastConnectedAt && !Number.isNaN(Date.parse(state.device.lastConnectedAt))
       ? new Intl.DateTimeFormat("en-IN", { hour: "numeric", minute: "2-digit" }).format(new Date(state.device.lastConnectedAt)) : "";
-    return `<section class="utlt-device-settings"><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / state.pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Sample water readings are visible on Home." : "Home stays blank until a device connects."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p>${calibrationForm()}</section>`;
+    return `<section class="utlt-device-settings"><p class="utlt-eyebrow">YOUR WATER MONITOR</p><div class="utlt-device-card"><span class="utlt-device-icon ${connected ? "" : "is-off"}">${icon(connected ? "bluetooth" : "bluetoothOff", 27)}</span><div><strong>${connected ? "Device connected" : state.pairedDeviceId ? "Device disconnected" : "No device connected"}</strong>${last ? `<span class="utlt-last-connected">Last connected at ${escapeHtml(last)}</span>` : ""}<p>${connected ? "Live water readings are updating your dashboard." : state.pairedDeviceId ? "Your device is remembered. Reconnect it to receive live readings." : "Scan the QR on your device to connect over Bluetooth."}</p></div></div><button class="utlt-primary-button" data-action="pair">${connected ? "View connection" : state.pairedDeviceId ? "Reconnect device" : "Pair a device"}</button>${connected && controlCharacteristic ? `<button class="utlt-secondary-button" data-action="download-history" ${historyLoading ? "disabled" : ""}>${historyLoading ? "Downloading history…" : "Download seven-day history"}</button>` : ""}${state.historyStatus ? `<p class="utlt-device-help" role="status">${escapeHtml(state.historyStatus)}</p>` : ""}${state.unknownPulses ? `<p class="utlt-device-help">${number(state.unknownPulses / state.pulsesPerLitre)} L was recorded without a known time after a power reset, so it cannot be placed on a day chart.</p>` : ""}${!connected ? `<div class="utlt-demo-setting"><div><strong>Explore with demo data</strong><p>${state.demoEnabled ? "Home shows sample readings and all three interactive demos." : "Turn on sample readings and interactive demos on Home."}</p></div><button type="button" data-action="toggle-demo" role="switch" aria-checked="${state.demoEnabled}" aria-label="${state.demoEnabled ? "Disable" : "Enable"} demo data" class="utlt-demo-switch ${state.demoEnabled ? "is-on" : ""}"><span></span></button></div>` : ""}<p class="utlt-device-help">Live readings come from your ESP32 flow sensor. Sample readings stay separate from device data.</p>${calibrationForm()}</section>`;
   }
   function pairPage() {
     const ready = Boolean(state.pairedDeviceId);
@@ -1421,7 +1424,7 @@
   async function render(preserveScroll = false) {
     const translationRenderId = ++renderToken;
     if (bluefyPhone && state.pairedDeviceId && state.device.connected && !firebaseStore && state.authProvider !== "local") { continueLocally(); return; }
-    if (state.pairedDeviceId && !firebaseStore && state.authProvider !== "local" && !["pair", "demo"].includes(state.screen)) { renderAuthGate(); return; }
+    if (state.pairedDeviceId && !firebaseStore && state.authProvider !== "local" && state.screen !== "pair") { renderAuthGate(); return; }
     const previousScroll = preserveScroll ? root.querySelector(".utlt-content")?.scrollTop || 0 : 0;
     const motionView = `${state.screen}:${state.utility}:${state.breakdown}`;
     const enterMotion = motionView !== lastMotionView;
@@ -1436,7 +1439,6 @@
       : state.screen === "account" ? accountPage()
       : state.screen === "review" ? reviewPage()
       : state.screen === "assistant" ? assistantPage()
-      : state.screen === "demo" ? window.UTLTDemo.render()
       : state.screen === "family" ? await familyPage()
       : pairPage();
     if (translationRenderId !== renderToken) return;
@@ -1473,7 +1475,7 @@
   function renderMeterUpdate() {
     captureNiroWeek();
     if (state.screen === "device" && (state.languageMenuOpen || root.querySelector("#utlt-calibration-form:focus-within"))) return;
-    if (["review", "account", "assistant", "demo"].includes(state.screen)) return;
+    if (["review", "account", "assistant"].includes(state.screen)) return;
     if (!root.querySelector(".utlt-auth-screen")) render(true);
   }
 
@@ -1846,8 +1848,11 @@
       });
   }
 
-  root.addEventListener("utlt-demo-change", () => {
-    if (state.screen === "demo") translateRenderedUi(++renderToken);
+  root.addEventListener("utlt-demo-change", event => {
+    if (state.screen !== "home" || state.utility !== "Water" || !state.demoEnabled) return;
+    state.demoMode = event.target.dataset.demoLab;
+    state.demoPhase = Number(event.target.dataset.demoPhase);
+    translateRenderedUi(++renderToken);
   });
 
   // The model can be cached across visits. Chat messages stay in memory.
@@ -1929,7 +1934,6 @@
       if (state.utility === "Water" && previouslyDownloadedNiro()) loadNiroModel();
       return;
     }
-    if (action === "open-demo") { state.screen = "demo"; render(); return; }
     if (action === "scan-qr") { startQrScanner(); return; }
     if (action === "stop-qr") { stopQrScanner(); state.pairStatus = "Scan stopped."; render(true); return; }
     if (action === "connect-ble") { connectBluetooth(); return; }
@@ -1944,6 +1948,8 @@
       if (state.demoEnabled) {
         state.readings = window.UTLTData.demoReadings;
         state.usingDemo = true;
+        state.demoMode = "leak";
+        state.demoPhase = 0;
       } else {
         state.readings = savedMeterReadings().readings;
         state.usingDemo = state.readings.length === 0;

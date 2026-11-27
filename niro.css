@@ -205,3 +205,5 @@
 .niro-study input {width:100%;min-height:44px;padding:8px;border:1px solid var(--utlt-border);border-radius:10px;background:var(--utlt-panel);color:var(--utlt-text);font:inherit;font-size:16px}
 .niro-study form>div {display:flex;flex-wrap:wrap;gap:6px}
 .niro-study form button {flex:1 0 max-content;min-height:44px;padding:7px 10px}
+
+.utlt-dashboard > .utlt-demo-lab {margin-block:16px}
