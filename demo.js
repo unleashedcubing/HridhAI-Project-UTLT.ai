@@ -2,6 +2,8 @@
   const modes = { leak: "Leak detection", trends: "Water trends", coach: "AI water coach" };
   const week = [248, 276, 263, 302, 319, 347, 365];
   const goal = 350;
+  const trendBreakdown = [174, 64, 87, 40];
+  const categories = ["Bath", "Food/Drink", "Housework", "Misc"];
   const used = 240;
   const hoursMeasured = 6;
   const projected = Math.round(used / hoursMeasured * 10);
@@ -58,7 +60,7 @@
         metric: `${mean(week)} L/day`, title: "Seven-day average",
         copy: phase ? `The last three days averaged ${mean(week.slice(-3))} L, versus ${mean(week.slice(0, 3))} L for the first three. The last day was 15 L over goal.` : `Six of seven days stayed within the ${goal} L goal.`,
         action: phase ? "Hide comparison" : "Explain the trend",
-        uses: [174, 64, 87, 40], chartTitle: "Day 7 sample water use",
+        uses: trendBreakdown, chartTitle: "Day 7 sample water use",
         graph: `<div class="demo-bars" role="img" aria-label="Day one through seven: ${week.join(", ")} litres">
           ${week.map((litres, i) => `<div><span>${litres}</span><i data-over="${litres > goal}" style="--height:${litres / 4}%"></i><small>D${i + 1}</small></div>`).join("")}
         </div>`
@@ -73,26 +75,53 @@
     };
   }
 
-  function render(mode = "leak", phase = 0) {
+  // Build the same readings the regular dashboard takes from the meter.
+  function dashboardData(mode, phase, day) {
+    const volumes = mode === "coach" ? coachBreakdown : mode === "trends" ? trendBreakdown : leakStages[phase][4];
+    const times = mode === "coach" ? ["10:00", "12:00", "14:00", "16:00"]
+      : mode === "trends" ? ["08:00", "13:00", "18:00", "21:00"] : ["08:00", "12:00", "14:00", phase ? "16:01" : "16:00"];
+    const today = volumes.map((litres, i) => ({
+      recordedAt: `${day}T${times[i]}:00+05:30`, litres, category: categories[i],
+    }));
+    const previous = mode === "trends" ? week.slice(0, -1).map((litres, index) => {
+      const date = new Date(Date.parse(day) - (6 - index) * 86400000).toISOString().slice(0, 10);
+      return { recordedAt: `${date}T16:00:00+05:30`, litres, category: "Misc" };
+    }) : [];
+    return { readings: [...previous, ...today], goal, now: new Date(`${day}T${times.at(-1)}:00+05:30`),
+      leak: mode === "leak" && phase === 1 };
+  }
+
+  function render(mode = "leak", phase = 0, integrated = false) {
+    if (integrated && mode === "sample") {
+      return `<section class="utlt-demo-lab" data-demo-lab="sample" data-demo-phase="0" data-demo-integrated>
+        ${demoChoices(mode, integrated)}<p>Showing the regular sample dashboard. Pick a scenario to apply it to the app.</p>
+      </section>`;
+    }
     if (!Object.hasOwn(modes, mode)) mode = "leak";
     const steps = mode === "leak" ? leakStages.length : 2;
     if (!Number.isInteger(phase) || phase < 0 || phase >= steps) phase = 0;
     const d = scenario(mode, phase);
-    return `<section class="utlt-demo-lab" data-demo-lab="${mode}" data-demo-phase="${phase}" data-tone="${d.tone || "normal"}">
-      <div class="demo-kicker">Interactive demo · simulated data</div>
-      <div class="demo-choices" role="group" aria-label="Demo mode">
-        ${Object.entries(modes).map(([id, label]) => `<button type="button" data-demo-mode="${id}" aria-pressed="${id === mode}">${label}</button>`).join("")}
-      </div>
-      <div class="demo-layout">
+    return `<section class="utlt-demo-lab" data-demo-lab="${mode}" data-demo-phase="${phase}" data-tone="${d.tone || "normal"}" ${integrated ? "data-demo-integrated" : ""}>
+      ${demoChoices(mode, integrated)}
+      <div class="demo-layout${integrated ? " is-integrated" : ""}">
         <div class="demo-result">
           <div class="demo-metric">${d.metric}</div>
           <h3>${d.title}</h3><p>${d.copy}</p>
-          ${d.graph || ""}${d.detail ? `<p class="demo-advice">${d.detail}</p>` : ""}
+          ${integrated ? "" : d.graph || ""}${d.detail ? `<p class="demo-advice">${d.detail}</p>` : ""}
           <button type="button" class="demo-step" data-demo-step>${d.action}</button>
         </div>
-        ${breakup(d.uses, d.chartTitle)}
+        ${integrated ? "" : breakup(d.uses, d.chartTitle)}
       </div>
     </section>`;
+  }
+
+  function demoChoices(mode, integrated) {
+    const choices = integrated ? { sample: "Sample data", ...modes } : modes;
+    return `<div class="demo-kicker">Interactive demo · simulated data</div>
+      <div class="demo-choices" role="group" aria-label="Demo mode">
+        ${Object.entries(choices).map(([id, label]) =>
+          `<button type="button" data-demo-mode="${id}" aria-pressed="${id === mode}">${label}</button>`).join("")}
+      </div>`;
   }
 
   document.addEventListener("click", event => {
@@ -104,14 +133,14 @@
     const steps = mode === "leak" ? leakStages.length : 2;
     const phase = advance ? (Number(lab.dataset.demoPhase) + 1) % steps : 0;
     const wrapper = document.createElement("template");
-    wrapper.innerHTML = render(mode, phase);
+    wrapper.innerHTML = render(mode, phase, lab.hasAttribute("data-demo-integrated"));
     const replacement = wrapper.content.firstElementChild;
     lab.replaceWith(replacement);
     const selector = advance ? "[data-demo-step]" : `[data-demo-mode="${mode}"]`;
     replacement.querySelector(selector)?.focus({ preventScroll: true });
-    replacement.dispatchEvent(new CustomEvent("utlt-demo-change", { bubbles: true }));
+    replacement.dispatchEvent(new CustomEvent("utlt-demo-change", { bubbles: true, detail: { selector } }));
   });
 
-  window.UTLTDemo = { render, coach: { goal, used, projected, hoursMeasured,
+  window.UTLTDemo = { render, dashboardData, coach: { goal, used, projected, hoursMeasured,
     breakdown: uses.map((label, index) => ({ label, value: coachBreakdown[index] })) } };
 })();

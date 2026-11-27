@@ -124,7 +124,8 @@
     readings: demoEnabled ? window.UTLTData.demoReadings : [],
     usingDemo: true,
     demoEnabled,
-    demoMode: "leak",
+    demoMode: "sample",
+    demoScenario: null,
     demoPhase: 0,
     demoMessages: [],
     survey: savedSurvey,
@@ -718,8 +719,16 @@
     </div>`;
   }
 
+  function waterGoal() {
+    return state.demoScenario?.goal ?? Math.max(1, Number(state.goal) || 350);
+  }
+
+  function waterClock() {
+    return state.demoScenario?.now ?? new Date();
+  }
+
   function usage(summary) {
-    const goal = Math.max(1, Number(state.goal) || 350);
+    const goal = waterGoal();
     const hasToday = summary.daily.at(-1)?.hasData;
     const ratio = hasToday ? summary.used / goal : null;
     const level = Math.min(1, Math.max(0, ratio ?? 0));
@@ -731,7 +740,7 @@
 
   function status(summary) {
     if (!summary.daily.at(-1)?.hasData) return `<section class="utlt-status-card" aria-live="polite"><span class="utlt-status-check">${icon("droplet", 22)}</span><div><strong>Waiting for today’s first reading</strong><p>Your water goal is ready. UTLT will show today’s use when the meter detects flow.</p></div></section>`;
-    const goal = Math.max(1, Number(state.goal) || 350);
+    const goal = waterGoal();
     const used = summary.used;
     const left = Math.max(0, goal - used);
     let tone = "on-track", iconName = "check", title = "You’re on track for today!";
@@ -756,9 +765,9 @@
   }
 
   function quickStats(summary) {
-    const goal = Math.max(1, Number(state.goal) || 350);
+    const goal = waterGoal();
     const left = Math.max(0, goal - summary.used);
-    const pace = window.UTLTAI.paceInsight(state.readings);
+    const pace = window.UTLTAI.paceInsight(state.readings, waterClock());
     const comparison = pace.ready ? `<strong>${pace.tone === "usual" ? "≈" : pace.tone === "higher" ? "+" : "−"}${pace.tone === "usual" ? "usual" : number(Math.abs(pace.difference)) + " L"}</strong>` : "<strong>—</strong>";
     const trackedDays = summary.daily.slice(0, -1).filter(day => day.hasData);
     const within = trackedDays.filter(day => day.litres <= goal).length;
@@ -803,7 +812,7 @@
   }
 
   function weekly(summary) {
-    const goal = Math.max(1, Number(state.goal) || 350);
+    const goal = waterGoal();
     const scale = Math.max(goal, ...summary.daily.map((day) => day.litres), 1) * 1.08;
     const baseline = 144;
     const goalY = baseline - goal / scale * 112;
@@ -837,6 +846,9 @@
   }
 
   function runningWaterCard() {
+    if (state.demoEnabled) {
+      return state.demoScenario?.leak ? '<section class="utlt-running-card" role="status"><div><h2>Possible leak · demo</h2><p>The sample flow has continued for 16 minutes. Check taps and the pump in a real home.</p></div></section>' : "";
+    }
     if (!state.device.connected || state.flowRunningMinutes < 16) return "";
     return `<section class="utlt-running-card" role="status"><span class="utlt-running-mark">${icon("droplet", 22)}</span><div><p class="utlt-eyebrow">CHECK YOUR WATER</p><h2>Water is still flowing</h2><p>The meter has seen continuous flow for about ${Math.floor(state.flowRunningMinutes)} minutes. Check taps and the pump. This could be normal use; the sensor cannot identify a leak.</p></div></section>`;
   }
@@ -845,7 +857,7 @@
     const days = window.UTLTData.summarize(state.readings).daily.slice(0, -1).filter(day => day.hasData);
     if (days.length < 3) return `<div class="utlt-recent-card"><p class="utlt-eyebrow">YOUR RECENT WATER</p><h2>Learning from your measured days</h2><p>There are ${days.length} of 3 completed days with readings. Keep the monitor powered and reconnect to download its history.</p><small>Days without readings are not assumed to use zero water.</small></div>`;
     const average = days.reduce((sum, day) => sum + day.litres, 0) / days.length;
-    const within = days.filter(day => day.litres <= state.goal).length;
+    const within = days.filter(day => day.litres <= waterGoal()).length;
     const first = days.slice(0, 3).reduce((sum, day) => sum + day.litres, 0) / 3;
     const last = days.slice(-3).reduce((sum, day) => sum + day.litres, 0) / 3;
     const trend = days.length >= 6 ? `The latest three measured days averaged ${number(last)} L, ${number(Math.abs(last - first))} L ${last >= first ? "above" : "below"} the first three.` : "A six-day trend will appear after more measured days.";
@@ -853,7 +865,7 @@
   }
 
   function dailyFeedbackCard() {
-    const forecast = window.UTLTAI.dailyForecast(state.readings, state.goal);
+    const forecast = window.UTLTAI.dailyForecast(state.readings, waterGoal(), waterClock());
     const source = state.demoEnabled ? "Sample data · not your household" : "Stored meter readings · disconnected hours may be missing";
     if (forecast.stage === "waiting") return `<div class="utlt-daily-feedback"><p class="utlt-eyebrow">TODAY'S OUTLOOK</p><h2>Waiting for the first use</h2><p>UTLT starts tracking when the meter records water flow. Your daily feedback appears six hours after that first reading.</p><small>${source}</small></div>`;
     const feedbackTime = forecast.feedbackAt.toLocaleTimeString("en-IN", { timeZone: "Asia/Kolkata", hour: "numeric", minute: "2-digit" });
@@ -876,7 +888,7 @@
       if (!state.llmReady) return niroDownloadPage();
       if (!state.niroSetupDone) return niroOnboardingPage();
     }
-    const insight = window.UTLTAI.paceInsight(state.readings);
+    const insight = window.UTLTAI.paceInsight(state.readings, waterClock());
     const evidence = insight.ready ? `Today is ${insight.tone === "usual" ? "near" : insight.tone} your usual pace by ${insight.clock}.` : insight.reason === "today" ? "Waiting for today's first water reading." : `${insight.measuredDays} of 3 earlier measured days available for a same-time comparison.`;
     const modes = `<div class="utlt-assistant-modes" role="tablist" aria-label="AI view"><button role="tab" aria-selected="${state.assistantMode === "today"}" class="${state.assistantMode === "today" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="today">Today</button><button role="tab" aria-selected="${state.assistantMode === "recent"}" class="${state.assistantMode === "recent" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="recent">Recent use</button><button role="tab" aria-selected="${state.assistantMode === "ask"}" class="${state.assistantMode === "ask" ? "is-selected" : ""}" data-action="assistant-mode" data-mode="ask">Ask</button></div>`;
     if (state.assistantMode === "today") return `<section class="utlt-assistant-page"><h1>Today's water</h1><p>A live outlook from the first recorded flow, with a fuller check-in after six hours.</p>${modes}${window.UTLTNiro.studyCard(state)}${dailyFeedbackCard()}<p class="utlt-ai-note">UTLT is AI. It can make mistakes.</p></section>`;
@@ -928,9 +940,9 @@
     const q = question.toLowerCase();
     const source = state.demoEnabled ? "The sample readings show" : "Your meter shows";
     const summary = window.UTLTData.summarize(state.readings);
-    const pace = window.UTLTAI.paceInsight(state.readings);
+    const pace = window.UTLTAI.paceInsight(state.readings, waterClock());
     if (/forecast|predict|projection|by evening|8 ?pm|goal|target/.test(q)) {
-      const forecast = window.UTLTAI.dailyForecast(state.readings, state.goal);
+      const forecast = window.UTLTAI.dailyForecast(state.readings, waterGoal(), waterClock());
       if (forecast.stage === "waiting") return "There is no positive water reading today yet. The evening estimate begins after the first use.";
       if (forecast.eveningPassed) return forecast.byEvening === null ? "The first water reading came after 8 pm, so there is no evening forecast for today." : `By 8 pm, ${number(forecast.byEvening)} L was recorded against your ${forecast.goal} L goal. Missing device readings could change that picture.`;
       if (forecast.projected === undefined) return `Today's meter has recorded ${number(forecast.measured)} L. Wait for at least 30 minutes after first use before estimating 8 pm.`;
@@ -951,7 +963,7 @@
       return days.length ? `${source} ${number(days.reduce((sum, day) => sum + day.litres, 0) / days.length)} L per measured day across ${days.length} day${days.length === 1 ? "" : "s"}. Days with no reading are excluded.` : "No measured-day average is available yet.";
     }
     if (/save|one action|what should i do/.test(q)) return "Turn off running water while soaping or scrubbing. Your flow meter cannot tell which activity used the water, so check what is happening at home first.";
-    if (/(how much|total|used|usage).*(today)|(today).*(how much|total|used|usage)|how much water have i used/.test(q)) return summary.daily.at(-1)?.hasData ? `${source} ${number(summary.used)} L used today against your ${state.goal} L goal.` : "There is no water reading from today yet.";
+    if (/(how much|total|used|usage).*(today)|(today).*(how much|total|used|usage)|how much water have i used/.test(q)) return summary.daily.at(-1)?.hasData ? `${source} ${number(summary.used)} L used today against your ${waterGoal()} L goal.` : "There is no water reading from today yet.";
     return null;
   }
 
@@ -1081,9 +1093,9 @@
       return `<div class="utlt-dashboard"><section class="utlt-empty-dashboard"><span class="utlt-empty-mark">${icon("droplet", 32)}</span><p class="utlt-eyebrow">HOME WATER</p><h2>See what flows<br>through your home.</h2><p>Connect your water monitor to see today’s usage and spot changes.</p><button type="button" class="utlt-primary-button" data-action="pair">Connect device</button></section>${window.UTLTNiro.summary(state)}</div>`;
     }
     const summary = window.UTLTData.summarize(state.readings);
-    const demos = state.demoEnabled ? window.UTLTDemo.render(state.demoMode, state.demoPhase) +
-      window.UTLTNiro.coachChat(state.demoMessages, state.demoMode === "coach") : "";
-    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">SAMPLE READINGS</p>' : ""}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${runningWaterCard()}${usage(summary)}${window.UTLTNiro.summary(state, summary)}${demos}${status(summary)}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}</div>`;
+    const demos = state.demoEnabled ? window.UTLTDemo.render(state.demoMode, state.demoPhase, true) : "";
+    const coach = state.demoEnabled && state.demoMode === "coach" ? window.UTLTNiro.coachChat(state.demoMessages) : "";
+    return `<div class="utlt-dashboard">${greetingMarkup()}${state.demoEnabled ? '<p class="utlt-demo-banner">SAMPLE READINGS</p>' : ""}${state.flowWarning ? `<p class="utlt-flow-warning" role="alert">${escapeHtml(state.flowWarning)}</p>` : ""}${demos}${runningWaterCard()}${usage(summary)}${window.UTLTNiro.summary(state, summary)}${coach}${status(summary)}${quickStats(summary)}${learningCards()}${tipCard(summary)}${breakdown(summary)}${weekly(summary)}</div>`;
   }
 
   const helpTour = [
@@ -1673,6 +1685,7 @@
     state.readings = readings;
     state.usingDemo = false;
     state.demoEnabled = false;
+    state.demoScenario = null;
     try { localStorage.setItem(demoKey, "false"); } catch (_error) {  }
     state.historyStatus = `Recovered ${historyRows.size} five-minute water period${historyRows.size === 1 ? "" : "s"} from the ESP32.`;
     rememberConnected();
@@ -1850,12 +1863,15 @@
       });
   }
 
-  root.addEventListener("utlt-demo-change", event => {
+  root.addEventListener("utlt-demo-change", async event => {
     if (state.screen !== "home" || state.utility !== "Water" || !state.demoEnabled) return;
     state.demoMode = event.target.dataset.demoLab;
     state.demoPhase = Number(event.target.dataset.demoPhase);
-    root.querySelector(".niro-demo-chat").hidden = state.demoMode !== "coach";
-    translateRenderedUi(++renderToken);
+    state.demoScenario = state.demoMode === "sample" ? null :
+      window.UTLTDemo.dashboardData(state.demoMode, state.demoPhase, window.UTLTAI.indiaDate(new Date()));
+    state.readings = state.demoScenario?.readings ?? window.UTLTData.demoReadings;
+    await render(true);
+    root.querySelector(event.detail.selector)?.focus({ preventScroll: true });
   });
 
   // The model can be cached across visits. Chat messages stay in memory.
@@ -1949,10 +1965,11 @@
       if (state.device.connected) return;
       state.demoEnabled = !state.demoEnabled;
       state.demoMessages = [];
+      state.demoScenario = null;
       if (state.demoEnabled) {
         state.readings = window.UTLTData.demoReadings;
         state.usingDemo = true;
-        state.demoMode = "leak";
+        state.demoMode = "sample";
         state.demoPhase = 0;
       } else {
         state.readings = savedMeterReadings().readings;
@@ -2156,14 +2173,11 @@
         { text: "Try asking about this sample’s 8 pm forecast, daily goal, activity split, or ways to use less water." }) });
       const panel = root.querySelector(".niro-demo-chat");
       if (!panel) return;
-      const visible = state.demoMode === "coach";
-      panel.outerHTML = window.UTLTNiro.coachChat(conversation, visible);
-      if (visible) {
-        const updated = root.querySelector(".niro-demo-chat");
-        const thread = updated.querySelector(".niro-demo-thread");
-        thread.scrollTop = thread.scrollHeight;
-        updated.querySelector("input").focus({ preventScroll: true });
-      }
+      panel.outerHTML = window.UTLTNiro.coachChat(conversation);
+      const updated = root.querySelector(".niro-demo-chat");
+      const thread = updated.querySelector(".niro-demo-thread");
+      thread.scrollTop = thread.scrollHeight;
+      updated.querySelector("input").focus({ preventScroll: true });
       translateRenderedUi(++renderToken);
       return;
     }
@@ -2359,6 +2373,7 @@
     state.usingDemo = false;
     if (state.demoEnabled) {
       state.demoEnabled = false;
+      state.demoScenario = null;
       try { localStorage.setItem(demoKey, "false"); } catch (_error) {  }
     }
     state.bridgeAvailable = true;
@@ -2390,6 +2405,7 @@
         state.usingDemo = false;
         if (state.demoEnabled) {
           state.demoEnabled = false;
+          state.demoScenario = null;
           try { localStorage.setItem(demoKey, "false"); } catch (_error) {  }
         }
         if (readingsSignature !== bridgeReadingsSignature) {

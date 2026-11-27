@@ -215,3 +215,5 @@
 .niro-demo-chat form>div {display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px}
 .niro-demo-chat input {width:100%;min-height:44px;padding:8px 10px;border:1px solid var(--utlt-border);border-radius:10px;background:var(--utlt-panel);color:var(--utlt-text);font:inherit;font-size:16px}
 .niro-demo-chat form button {min-height:44px;padding:7px 12px}
+
+.utlt-dashboard .demo-layout.is-integrated {grid-template-columns:minmax(0,1fr)}

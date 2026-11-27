@@ -42,8 +42,9 @@
 
   // Niro extends the projection to midnight while Today keeps the shared forecast.
   function facts(state, targetHour = 24, summary = window.UTLTData.summarize(state.readings)) {
-    const now = new Date();
-    const forecast = window.UTLTAI.dailyForecast(state.readings, state.goal, now);
+    const now = state.demoScenario?.now ?? new Date();
+    const goal = state.demoScenario?.goal ?? Math.max(1, Number(state.goal) || 350);
+    const forecast = window.UTLTAI.dailyForecast(state.readings, goal, now);
     if (targetHour === 24 && forecast.elapsedHours >= 0.5) {
       const midnight = Date.parse(window.UTLTAI.indiaDate(now) + "T00:00:00+05:30") + 86400000;
       forecast.projected = forecast.measured * (1 + Math.max(0, midnight - now.getTime()) / 3600000 / forecast.elapsedHours);
@@ -53,9 +54,9 @@
     return { ...summary, today: Boolean(summary.daily.at(-1)?.hasData),
       forecast,
       cutoff: targetHour === 20 ? "8 pm" : "midnight",
-      goal: Math.max(1, Number(state.goal) || 350),
-      pace: window.UTLTAI.paceInsight(state.readings),
-      leak: !state.demoEnabled && state.device.connected && state.flowRunningMinutes >= 16,
+      goal,
+      pace: window.UTLTAI.paceInsight(state.readings, now),
+      leak: state.demoEnabled ? Boolean(state.demoScenario?.leak) : state.device.connected && state.flowRunningMinutes >= 16,
       demo: state.demoEnabled };
   }
   function visual(data, kind) {
@@ -97,19 +98,19 @@
   }
   function priority(data) {
     const f = data.forecast;
-    if (data.leak) return { title:"Possible leak", text:"Flow has continued for at least 16 minutes. Check taps and the pump. The meter can detect flow but cannot locate a leak.", mood:"concerned" };
+    if (data.leak) return { title:"Possible leak", text:data.demo ? "The demo shows 16 minutes of continuous flow. In a real home, check taps and the pump." : "Flow has continued for at least 16 minutes. Check taps and the pump. The meter can detect flow but cannot locate a leak.", mood:"concerned" };
     if (!data.today) {
       if (data.daily.some(day => day.hasData)) return { title:"Recent water use", text:"Today’s first reading is still missing. Here’s what your meter recorded on previous days.", chart:"trend" };
       return { title:"Ready for your first reading", text:"Connect your monitor or try sample readings to see what Niro can explain." };
     }
     if (f.projected !== undefined && (f.tone === "over" || !data.pace.ready)) {
-      return { title:f.tone === "over" ? "You may go over your goal" : "End-of-day outlook", text:`At this pace, you could use about ${number(f.projected)} L by midnight.`, chart:"forecast", mood:f.tone === "over" ? "curious" : "happy" };
+      return { title:f.tone === "over" ? "You may go over your goal" : "End-of-day outlook", text:`At this pace, you could use about ${number(f.projected)} L by ${data.cutoff}.`, chart:"forecast", mood:f.tone === "over" ? "curious" : "happy" };
     }
     if (data.pace.ready && data.pace.tone !== "usual") return { title:"Today’s pace has changed", text:`You’ve used ${number(data.pace.today)} L by ${data.pace.clock}, compared with your usual ${number(data.pace.baseline)} L by then.`, chart:"trend", mood:"curious" };
     return { title:"When you used water today", text:"See which part of the day used the most water.", chart:"time", mood:"happy" };
   }
   function summary(state, usage) {
-    const data = facts(state, 24, usage), pick = priority(data);
+    const data = facts(state, state.demoEnabled && state.demoMode === "coach" ? 20 : 24, usage), pick = priority(data);
     return `<section class="niro-summary" aria-label="Niro Summary"><div class="niro-summary-head">${avatar(pick.mood)}<div><p>Niro Summary${data.demo ? " · Sample data" : ""}</p><h2>${pick.title}</h2></div></div><p>${pick.text}</p>${figures(visual(data,pick.chart))}<button type="button" class="utlt-primary-button" data-action="niro">Chat with Niro</button></section>`;
   }
   // Use completed calendar days with readings. A missing day is not zero use.
@@ -157,6 +158,10 @@
   // Check specific intents before the generic chart or table request.
   function answer(question, state) {
     const text = question.toLowerCase();
+    if (state.demoEnabled && state.demoMode === "coach") {
+      const coach = coachAnswer(question);
+      if (coach) return coach;
+    }
     const meter = meterExplanation(text);
     if (meter) return meter;
     if (/what.*(spike|peak)|activity.*(spike|peak)|what.*water.*used for/.test(text)) return learnedActivity(state);
@@ -355,8 +360,8 @@
     return null;
   }
 
-  function coachChat(messages, visible) {
-    return `<section class="niro-demo-chat" ${visible ? "" : "hidden"} aria-label="AI Water Coach chat">
+  function coachChat(messages) {
+    return `<section class="niro-demo-chat" aria-label="AI Water Coach chat">
       <div class="niro-chat-head">${avatar()}<h2>Chat with Niro</h2></div>
       <div class="niro-demo-thread" role="log" aria-label="Coach conversation">
         ${messages.length ? messages.map(({role, text, chart, table}) => `<div class="niro-message is-${role} utlt-user-content"><p>${esc(text)}</p>${figures(chart, table)}</div>`).join("") :
