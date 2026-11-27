@@ -2145,9 +2145,8 @@
         const send = event.target.querySelector("button");
         send.disabled = true;
         send.textContent = "Thinking…";
-        const { used, goal, projected } = window.UTLTDemo.coach;
         try {
-          const facts = `Simulated water scenario. The home used ${used} L by 4 pm, with a ${goal} L goal and an 8 pm forecast of ${projected} L. Allowed action: switch off the tap while scrubbing.`;
+          const facts = "Source: sample data. The meter measures flow and cannot identify activities. Allowed action: switch off the tap while scrubbing.";
           answer = { text: (await window.UTLTLocalLLM.ask(question, facts)).answer };
         } catch { }
         finally { state.llmBusy = false; }
